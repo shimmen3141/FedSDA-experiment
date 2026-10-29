@@ -74,6 +74,16 @@ def derive_reinitialized_learner_initialization_seed(
     return int.from_bytes(sha256(text.encode("utf-8")).digest()[:8], "big")
 
 
+def derive_reinitialized_learner_single_pass_initialization_seed(
+    *, client_id: int, alarm_sample_index: int
+) -> int:
+    """1本の流れ用のseed: `client_id:alarm_sample_index`のUTF-8のSHA-256の先頭8 byteをbig endianで読む。"""
+    _validate_nonnegative_int(value=client_id, value_name="client_id")
+    _validate_nonnegative_int(value=alarm_sample_index, value_name="alarm_sample_index")
+    text = f"{client_id}:{alarm_sample_index}"
+    return int.from_bytes(sha256(text.encode("utf-8")).digest()[:8], "big")
+
+
 def select_alarm_interval_assignment(
     *,
     client_id: int,
@@ -204,4 +214,5 @@ def select_alarm_interval_assignment(
             destination_count=len(destination_model_ids) + 1,
         ),
         change_interval_grid_sample_count=change_interval_grid_sample_count,
+        change_interval_step_sample_count=change_interval_grid_sample_count,
     )

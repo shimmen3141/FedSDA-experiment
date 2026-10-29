@@ -449,6 +449,7 @@ def test_selection_combines_the_model_losses_and_prequential_code_lengths(sequen
             switching_probability=1 / 120, destination_count=2
         ),
         change_interval_grid_sample_count=5,
+        change_interval_step_sample_count=5,
     )
     assert selection == expected
     assert recorded_seeds == [
@@ -576,5 +577,6 @@ def test_selection_uses_the_shorter_learner_with_the_learner_selection_code_leng
             switching_probability=1 / 120, destination_count=2
         ),
         change_interval_grid_sample_count=5,
+        change_interval_step_sample_count=5,
     )
     assert selection == expected

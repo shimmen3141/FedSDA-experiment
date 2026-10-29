@@ -102,6 +102,7 @@ def test_analysis_paired_inputs_and_mdl_roundtrip():
         },
         switching_code_length=0.1,
         change_interval_grid_sample_count=1,
+        change_interval_step_sample_count=1,
     )
     record = json.loads(
         json.dumps(

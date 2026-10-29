@@ -84,6 +84,7 @@ def _select(current, held, new, switching=4.0, grid=5, learner_names=None):
         ),
         switching_code_length=switching,
         change_interval_grid_sample_count=grid,
+        change_interval_step_sample_count=grid,
     )
 
 
@@ -302,6 +303,7 @@ def test_selection_rejects_learner_names_that_do_not_match_the_code_lengths():
             ),
             switching_code_length=1.0,
             change_interval_grid_sample_count=5,
+            change_interval_step_sample_count=5,
         )
 
 

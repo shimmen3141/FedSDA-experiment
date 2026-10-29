@@ -10,7 +10,7 @@
   符号長（学びながら予測する学習者の対数損失の和）で符号化し、切り替わりの符号長を足す。学習者が複数あれば、
   最短の学習者の予測的符号長に、どの学習者かを表す符号長ln(学習者の数)を足す（`select_new_model_learner`）。
 
-kは、刻み（最小の変化区間の件数）の倍数で、列の長さn以下。新しいモデルの学び始めの誤りの分が、新しいモデルを
+kは、最小の変化区間の件数から指定された刻みで、列の長さn以下。新しいモデルの学び始めの誤りの分が、新しいモデルを
 作ることの罰として働くので、固定の閾値を使わない。
 """
 
@@ -155,13 +155,15 @@ def select_assignment_by_minimum_description_length(
     new_model_learner_names_by_change_interval_sample_count: dict[int, str],
     switching_code_length: float,
     change_interval_grid_sample_count: int,
+    change_interval_step_sample_count: int,
 ) -> MinimumDescriptionLengthAssignmentSelection:
     """符号長が最短の仮説を選ぶ。
 
     `current_model_log_losses`は、列（古い順）の各標本の、現在のモデルの対数損失。
     `held_model_log_losses_by_model_id`は、行き先の保有モデル（現在のモデル以外。この順に調べる）ごとの、列の
-    対数損失。`new_model_code_lengths_by_change_interval_sample_count`は、刻みの倍数の変化区間の長さkごとの、
-    列の末尾k件での新しいモデルの予測的符号長（刻みの倍数でn以下の全部のkを持つ）。
+    対数損失。`new_model_code_lengths_by_change_interval_sample_count`は、変化区間の長さkごとの、
+    列の末尾k件での新しいモデルの予測的符号長。kは`change_interval_grid_sample_count`から
+    `change_interval_step_sample_count`刻みでn以下の全部（どちらも正のbuiltin int）。
     `new_model_learner_names_by_change_interval_sample_count`は、同じkごとの、その符号長の学習者の名前で、
     「新しいモデル」を選んだときに結果へ入れる（選択の規則には使わない）。
 
@@ -206,11 +208,16 @@ def select_assignment_by_minimum_description_length(
         raise TypeError(
             "new_model_code_lengths_by_change_interval_sample_count must be builtin dict"
         )
+    _validate_count(
+        count=change_interval_step_sample_count,
+        count_name="change_interval_step_sample_count",
+        minimum_count=1,
+    )
     change_interval_sample_counts = tuple(
         range(
             change_interval_grid_sample_count,
             sequence_length + 1,
-            change_interval_grid_sample_count,
+            change_interval_step_sample_count,
         )
     )
     if set(new_model_code_lengths_by_change_interval_sample_count) != set(

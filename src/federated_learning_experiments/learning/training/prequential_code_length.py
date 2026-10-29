@@ -43,9 +43,11 @@ def _accumulate_prequential_code_length(
     input_features: Tensor,
     observed_class_labels: Tensor,
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
+    prefixes: list[float] | None = None,
 ) -> float:
     """標本を順に、対数損失を足してから、共有部を勾配なしで計算し、候補の学習と同じ損失（2クラスはBCE、
-    ほかはcross entropy）とoptimizerの設定で、共有部以外を1回更新する。`learner`を更新する。"""
+    ほかはcross entropy）とoptimizerの設定で、共有部以外を1回更新する。`learner`を更新する。
+    `prefixes`があれば、各標本を足した直後の和も残す。"""
     parameters = tuple(
         parameter
         for name, parameter in learner.named_parameters()
@@ -65,6 +67,8 @@ def _accumulate_prequential_code_length(
                 observed_class_labels=sample_labels,
             ).sum()
         )
+        if prefixes is not None:
+            prefixes.append(code_length)
         with no_grad():
             shared_features = learner.extract_shared_features(sample_features)
         optimizer.zero_grad()
@@ -78,13 +82,14 @@ def _accumulate_prequential_code_length(
     return code_length
 
 
-def compute_reinitialized_learner_prequential_code_length(
+def _compute_reinitialized_learner_prequential_code_length(
     *,
     template_classifier: ModelArchitectureClassifier,
     input_features: Tensor,
     observed_class_labels: Tensor,
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
     initialization_seed: int,
+    prefixes: list[float] | None = None,
 ) -> float:
     """初期化し直した学習者の予測的符号長（nats）。
 
@@ -120,15 +125,17 @@ def compute_reinitialized_learner_prequential_code_length(
         input_features=input_features,
         observed_class_labels=observed_class_labels,
         parameter_optimizer_settings=parameter_optimizer_settings,
+        prefixes=prefixes,
     )
 
 
-def compute_warm_started_learner_prequential_code_length(
+def _compute_warm_started_learner_prequential_code_length(
     *,
     template_classifier: ModelArchitectureClassifier,
     input_features: Tensor,
     observed_class_labels: Tensor,
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
+    prefixes: list[float] | None = None,
 ) -> float:
     """warm startの学習者の予測的符号長（nats）。
 
@@ -145,4 +152,79 @@ def compute_warm_started_learner_prequential_code_length(
         input_features=input_features,
         observed_class_labels=observed_class_labels,
         parameter_optimizer_settings=parameter_optimizer_settings,
+        prefixes=prefixes,
     )
+
+
+def compute_reinitialized_learner_prequential_code_length(
+    *,
+    template_classifier: ModelArchitectureClassifier,
+    input_features: Tensor,
+    observed_class_labels: Tensor,
+    parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
+    initialization_seed: int,
+) -> float:
+    """初期化し直した学習者の予測的符号長の総和（nats）。検査・初期化・学習は共通の内部関数で行う。"""
+    return _compute_reinitialized_learner_prequential_code_length(
+        template_classifier=template_classifier,
+        input_features=input_features,
+        observed_class_labels=observed_class_labels,
+        parameter_optimizer_settings=parameter_optimizer_settings,
+        initialization_seed=initialization_seed,
+    )
+
+
+def compute_warm_started_learner_prequential_code_length(
+    *,
+    template_classifier: ModelArchitectureClassifier,
+    input_features: Tensor,
+    observed_class_labels: Tensor,
+    parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
+) -> float:
+    """warm startの学習者の予測的符号長の総和（nats）。検査・初期化・学習は共通の内部関数で行う。"""
+    return _compute_warm_started_learner_prequential_code_length(
+        template_classifier=template_classifier,
+        input_features=input_features,
+        observed_class_labels=observed_class_labels,
+        parameter_optimizer_settings=parameter_optimizer_settings,
+    )
+
+
+def compute_reinitialized_learner_prequential_code_length_prefixes(
+    *,
+    template_classifier: ModelArchitectureClassifier,
+    input_features: Tensor,
+    observed_class_labels: Tensor,
+    parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
+    initialization_seed: int,
+) -> tuple[float, ...]:
+    """初期化し直した学習者の、渡された順の各標本までの符号長（nats）。検査・初期化・学習は総和と同じ。"""
+    prefixes: list[float] = []
+    _compute_reinitialized_learner_prequential_code_length(
+        template_classifier=template_classifier,
+        input_features=input_features,
+        observed_class_labels=observed_class_labels,
+        parameter_optimizer_settings=parameter_optimizer_settings,
+        initialization_seed=initialization_seed,
+        prefixes=prefixes,
+    )
+    return tuple(prefixes)
+
+
+def compute_warm_started_learner_prequential_code_length_prefixes(
+    *,
+    template_classifier: ModelArchitectureClassifier,
+    input_features: Tensor,
+    observed_class_labels: Tensor,
+    parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
+) -> tuple[float, ...]:
+    """warm startの学習者の、渡された順の各標本までの符号長（nats）。検査・初期化・学習は総和と同じ。"""
+    prefixes: list[float] = []
+    _compute_warm_started_learner_prequential_code_length(
+        template_classifier=template_classifier,
+        input_features=input_features,
+        observed_class_labels=observed_class_labels,
+        parameter_optimizer_settings=parameter_optimizer_settings,
+        prefixes=prefixes,
+    )
+    return tuple(prefixes)

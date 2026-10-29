@@ -1,12 +1,12 @@
 # Implementation Plan
 
-- [ ] 1. 逆向きの1本の流れの計算を足す（接続はまだしない）
-- [ ] 1.1 予測的符号長の途中までの和とseed
+- [x] 1. 逆向きの1本の流れの計算を足す（接続はまだしない）
+- [x] 1.1 予測的符号長の途中までの和とseed
   - 途中までの和（最後の要素が今の関数の値と完全に同じ、各途中までの和が同じ順序の先頭i+1件を今の関数で測った値と完全に同じ——初期化し直した学習者は同じseedで——、runの乱数と`template_classifier`を変えない、入力の検査）と、`derive_reinitialized_learner_single_pass_initialization_seed`（`client_id:alarm_sample_index`の文字列のSHA-256の先頭8 byteから直接計算した値と同じ、検査）のtestを先に書き、REDを確かめる。`_accumulate_prequential_code_length`を、今の2つの関数の値と足す順を変えずに直す。
   - 完了条件: 新しいtestと、予測的符号長・最小記述長の選択の既存のtestが通る。依存境界の許可を登録する。
   - _Requirements: 2.2, 2.4_
   - _Boundary:_ `learning/training/prequential_code_length.py`、`runtime/alarm_interval_minimum_description_length_selection.py`（seedの関数だけ）
-- [ ] 1.2 純粋な計算のkの刻み
+- [x] 1.2 純粋な計算のkの刻み
   - `select_assignment_by_minimum_description_length`の必須の引数`change_interval_step_sample_count`（刻み1で候補が最小変化区間〜nの全部、刻み5で今と同じ候補、辞書の鍵が候補と違えば拒否、正の整数でなければ拒否、今の扱いの値が変わらない、同じ長さのときの優先順が刻み1でも同じ）のtestを先に書き、REDを確かめる。呼出し側（`select_alarm_interval_assignment`、今の扱い）は刻み＝`change_interval_grid_sample_count`を渡す。
   - 完了条件: 新しいtestと、最小記述長の選択の既存のtestが通る。
   - _Requirements: 2.1, 2.5, 1.3_
@@ -52,3 +52,4 @@
 - 仕様レビュー1回目（GPT-6 Luna、effort medium、対象`4acdbc31`）: FAIL。Major 3件（研究ツールとの数値の一致の比べ方、本規模の実験のtaskが無い、版15のgoldenとrunの識別子の扱いが具体的でない）、Minor 3件（純粋な計算の刻みの引数の契約、短い列の扱いと設定のtestの具体化、命名の「reverse」の意味）。全部反映: 製品と研究ツールの足す順が同じ（標本1件ずつの評価の値をfloatで足す）ことをコードで確かめ、完全一致（許容誤差なし）を要求した（要求5.1、設計）。要求7とTask 6（本規模の実験と集計）を足した。`_CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION`への追加と識別子のtestの扱いを設計とTask 2に書いた。刻みの引数の契約、Task 2のtest項目、命名の説明を足した。
 - 仕様レビュー2回目（GPT-6 Luna、effort medium、対象`78069465`）: FAIL。1回目の指摘は全部反映済みと確認（足す順が同じことも両方のコードで確認）。Major 1件（6データの比較の相手が版13の結果で、版15と同じ根拠がspecに無い）、Minor 1件（`--purpose`が仮の文字）。反映: 6データは同じsweepで版15の`fedsda`も流して比べる相手にし（240 run増えて計640 run）、版13の結果との一致は整合の確認として記録する。コマンドの`--purpose`を具体的にした。
 - 仕様レビュー3回目（GPT-6 Luna、effort medium、対象`32d7fa4b`）: PASS。Minor 1件（実行前の計画の確認で見る点を明記する）。文面の補足だけなので反映し、再レビューは省いた（2026-10-09のユーザー決定）。
+- Task 1（実装: GPT-6.1-sol）: REDは、1.1が新しい関数が無いことによる42件の失敗、1.2が刻みの引数が無いことによる19件の失敗。`_accumulate_prequential_code_length`に、各標本を足した直後の和を残す内部の引数を足し（今の2つの関数の値と足す順は同じ）、2つの学習者の内部の関数を共通にして、総和の関数（今の公開名のまま）と途中までの和の関数（`compute_*_prequential_code_length_prefixes`）を足した。`derive_reinitialized_learner_single_pass_initialization_seed`を足した。純粋な計算に必須の`change_interval_step_sample_count`を足し、`select_alarm_interval_assignment`は刻み＝`change_interval_grid_sample_count`を渡す（今の扱い）。既存のtestの呼出し3ファイル（`test_alarm_interval_minimum_description_length_selection.py`、`test_minimum_description_length_assignment_selection.py`、`test_research_s3_contribution.py`）に刻みの引数を足した。新しいtest 67件（`tests/refactoring/test_fedsda_reverse_prequential_change_interval_search.py`）。Solの実行で、新しいtest・関係するtest・依存境界の2,398 passed、版15のgolden`fedsda-mnist4-warm-started-learner`の照合が一致。主担当の再実行で、新しいtest・最小記述長の関係のtestと版15のgolden（MNIST4・SINE2のケース）225 passed。Ruff成功、Pyright（設定の範囲）0 errors。変更した既存のtest 3ファイルを個別にPyrightにかけると46件の指摘が出るが、どれも今回足した行ではない既存の行で、設定の範囲外（testは対象外）。依存境界の許可は、新しいmodule間のimportが無いので変えていない。
