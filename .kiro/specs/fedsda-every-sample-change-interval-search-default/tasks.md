@@ -6,7 +6,7 @@
   - このspecの基点のcommitで、要求4の5条件の構成`fedsda-every-sample-change-interval-search`の全体runのrawと、要求6.4の研究ツールの小さい条件の結果（研究用CLIの`default`、組Cの3変種、`product-default`、`product-default-loss-monitor-decrease-rebaseline`、`every-sample-change-interval-search-configuration`、研究用の入口の組み合わせた変種）を、Git管理外（`../../venv/refactoring-tests/every-sample-default-before/`）へ保存する。保存のscriptもGit管理外に置く。
   - 研究ツールの全変種（研究用CLIと研究用の入口の両方の`_VARIANTS`の全部）の設定と差し替えを、設計の取り出し方（実際の実行の経路を通し、製品のrunの直前で止める）で取り出して保存する（要求6.3）。task 2で同じscript・同じ変種の集合で取り出して比べる。要求6.4の、組Eの代表と研究用の入口の`product-default`に新しい扱いだけを当てた結果も保存する。
   - 版15の18ケースのうちFedSDAのケースを、`change_interval_search`だけ新しい扱いにして実行し、最小変化区間の倍数でないkの選択の回数をケースごとに記録して、版16の必須の経路の2ケースを決める（要求5.3）。
-  - 完了条件: 保存した場所・条件・commitと、ケースごとの回数・決めた2ケースをImplementation Notesに書く。研究ツールの小さい条件で警報が1回以上起きることを確かめる。
+  - 完了条件: 保存した場所・条件・commitと、ケースごとの回数・決めた2ケースをImplementation Notesに書く。取り出した設定と差し替えに、2つの入口の`_VARIANTS`の各名前がちょうど1回ずつ現れること（名前と件数の照合）を確かめる。研究ツールの小さい条件で警報が1回以上起きることを確かめる。
   - _Requirements: 4.1, 5.3, 6.3, 6.4_
 - [ ] 2. 既定を替え、構成と設定の組と研究ツールを合わせる
   - 既定・構成（要求1）と最小記述長でない選び方の組（要求2.1）のtestを、新しいtestのファイル`tests/refactoring/test_fedsda_every_sample_change_interval_search_default.py`に先に書き、REDを確かめてから、既定を替え、新しい構成を足し、`CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN`へ足す。

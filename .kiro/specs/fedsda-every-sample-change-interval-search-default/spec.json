@@ -3,29 +3,73 @@
   "created_at": "2026-10-29T00:00:00Z",
   "updated_at": "2026-10-29",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "implementation",
   "approvals": {
     "requirements": {
       "generated": true,
-      "approved": false
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー5回目PASS（GPT-6 Luna medium）"
     },
     "design": {
       "generated": true,
-      "approved": false
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー5回目PASS（GPT-6 Luna medium）"
     },
     "tasks": {
       "generated": true,
-      "approved": false
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー5回目PASS（GPT-6 Luna medium）"
     },
     "naming": {
       "generated": true,
-      "approved": false,
+      "approved": true,
       "revision": null,
       "approved_revision": null,
-      "approved_sha256_lf": null
+      "approved_sha256_lf": null,
+      "approved_by": "ユーザー委任、独立レビュー5回目PASS（GPT-6 Luna medium）"
     }
   },
-  "ready_for_implementation": false,
+  "ready_for_implementation": true,
   "base_revision": "9489969f",
-  "implementation_assignment": "実装はGPT-6.1-sol（codex exec）、taskごとに渡し、主担当（Claude）が各taskを確かめてから次へ進む。主担当は仕様書群・確認・全pytest・golden（版16の生成・設置・版の定数の切替）・レビューの起動"
+  "implementation_assignment": "実装はGPT-6.1-sol（codex exec）、taskごとに渡し、主担当（Claude）が各taskを確かめてから次へ進む。主担当は仕様書群・確認・全pytest・golden（版16の生成・設置・版の定数の切替）・レビューの起動",
+  "specification_review": {
+    "status": "passed",
+    "rounds": [
+      {
+        "round": 1,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（指定値）",
+        "target": "b3b0070d",
+        "result": "FAIL（Major 3、Minor 2）。全部反映: 研究ツールの変種を組A〜Eに分け値を決めた、IMPROVE-032の変種の戻し方と測定の差し込みの条件、前後比較にproduct-defaultとevery-sample-change-interval-search-configuration、必須の経路のケースをtask 1で決める、構成を既定をそのまま返す形にし識別子を確かめる"
+      },
+      {
+        "round": 2,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（指定値）",
+        "target": "aaf8fd2f",
+        "result": "FAIL（Major 3、Minor 2）。全部反映: 要求4の実行環境と比べる記録の定義、研究ツールの全変種の設定と差し替えを前後で取り出して比べる、必須の経路のケースの選定規則、重複の確認の扱い"
+      },
+      {
+        "round": 3,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（指定値）",
+        "target": "830fb31e",
+        "result": "FAIL（Major 2）。全部反映: 研究用の入口の全変種を比較へ、比較が保証する範囲と、change_interval_searchを読む箇所の検索、代表の変種のrunの比較を2条件と組Eへ"
+      },
+      {
+        "round": 4,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（指定値）",
+        "target": "60a71281",
+        "result": "FAIL（Major 2、Minor 1）。全部反映: 2つの入口で製品のrunの直前で設定を捕まえる手順、経路の記録の新しい回数の判定式、task 1・2の変種の集合"
+      },
+      {
+        "round": 5,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（指定値）",
+        "target": "0f0cf504",
+        "result": "PASS（Minor 1、文面のみ反映: 取り出しで各変種の名前が1回ずつ現れることの照合）"
+      }
+    ]
+  }
 }
