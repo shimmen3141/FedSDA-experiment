@@ -20,7 +20,7 @@
 ### Requirement 2: 構成を守るtest
 #### Acceptance Criteria
 1. The validation shall 新しい構成の設定が既定と`new_model_hypothesis_learners`の1か所だけ違うこと、構成の一覧に含まれ組立てが例外を出さないこと、goldenの事例にしない構成の一覧（`CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN`）に専用のtestと一緒に登録されていることを確かめる。
-2. The validation shall 新しい構成の小さい全体run（条件は固定する: 基準版16のgoldenのケース`fedsda-sine2-adoption-without-validation`と同じデータ・seed・client数・標本数・間隔で、構成だけを新しい構成にする）で、新しいモデルが1回以上選ばれ、選択の記録の`new_model_learner_name`に`warm_started_learner`が現れないことを確かめる。学習者が1つのときにln 2を足さないことは、純粋な計算（`select_new_model_learner`）の部品のtestで確かめる（記録の表には前半の損失と切替の符号長の列が無く、全体runの記録から符号長を再計算できないため）。
+2. The validation shall 新しい構成の小さい全体run（条件は固定する: 基準版16のgoldenのケース`fedsda-sine2-adoption-without-validation`と同じデータ・seed・client数・標本数・間隔で、構成だけを新しい構成にする）で、新しいモデルが1回以上選ばれ、選択の記録の`new_model_learner_name`に`warm_started_learner`が現れないことを確かめる（このケースで新しいモデルが選ばれないときの代わりの条件と扱いは、設計に定める）。学習者が1つのときにln 2を足さないことは、純粋な計算（`select_new_model_learner`）の部品のtestで確かめる（記録の表には前半の損失と切替の符号長の列が無く、全体runの記録から符号長を再計算できないため）。
 3. The validation shall 基準版1〜16のgoldenの照合、既存の構成・掃引・識別子のtestが値を変えずに通ることを確かめる。
 
 ### Requirement 3: 文書と追加の実行
