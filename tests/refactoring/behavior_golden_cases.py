@@ -94,7 +94,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 #      ADWINの2構成は、警報を即時に明示）。版4との差は、版4の扱いで、警報を待つ場面が起きるケースに限る。
 # 版6: 予測を同期時点・局所更新の混合へ、Fixed-Shareの時間尺度を120へ替える（容量は30）。
 SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
-BASELINE_VERSION = 15
+BASELINE_VERSION = 16
 SCHEMA_VERSION = 1
 # 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
 # （保存の形）。保存してある設定と比べるときは、組み立てた設定の値がこの値であることを確かめてから除く（その版の

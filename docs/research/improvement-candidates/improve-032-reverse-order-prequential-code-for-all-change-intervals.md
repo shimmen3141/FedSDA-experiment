@@ -1,9 +1,9 @@
 # IMPROVE-032: 新しいモデルの仮説の予測的符号長を、新しい方から1本の流れで測り、変化区間を1件刻みにする
 
-- 日付: 2026-10-29（ユーザーの指摘から）。状態: 製品の設定の選択肢と構成として実装（既定にはしない。[spec `fedsda-reverse-prequential-change-interval-search`](../../../.kiro/specs/fedsda-reverse-prequential-change-interval-search/tasks.md)）。本規模の実験は実施済み（[結果](#製品構成の本規模の結果2026-10-29uraniumspecのtask-6)、精度差は平均+0.01〜+0.02pp）、採否は未判断。
+- 日付: 2026-10-29（ユーザーの指摘から）。状態: 基準版16で既定（[spec `fedsda-every-sample-change-interval-search-default`](../../../.kiro/specs/fedsda-every-sample-change-interval-search-default/tasks.md)、2026-10-29のユーザー判断）。本規模の実験は実施済み（[結果](#製品構成の本規模の結果2026-10-29uraniumspecのtask-6)、基準版15の既定との精度差は平均+0.01〜+0.02pp）。
 - 対象: 警報の後の最小記述長（MDL）による変化点と帰属先の選択（`runtime/alarm_interval_minimum_description_length_selection.py`の`select_alarm_interval_assignment`、`methods/fedsda/training_data_assignment/minimum_description_length_assignment_selection.py`、`learning/training/prequential_code_length.py`）。[モデル再利用の文書](../../components/model-reuse.md#最小記述長の原理による選択既定)。
 
-製品では`training_data_assignment_settings.change_interval_search=every_sample_with_reverse_prequential_code`、構成`fedsda-every-sample-change-interval-search`で選ぶ。既定の`minimum_interval_multiples_with_forward_prequential_code`と構成`fedsda`は従来どおり。以下の研究ツールの128 runは予備比較で、製品構成の本規模の実験（specのTask 6）は末尾に記録した。
+製品では基準版16から`training_data_assignment_settings.change_interval_search=every_sample_with_reverse_prequential_code`が既定で、構成`fedsda`と`fedsda-every-sample-change-interval-search`は同じ設定。基準版15までの既定`minimum_interval_multiples_with_forward_prequential_code`は、構成`fedsda-minimum-interval-multiples-change-interval-search`で選べる。以下の研究ツールの128 runは予備比較で、製品構成の本規模の実験（前のspecのTask 6）は末尾に記録した。以下の計画と結果の「既定」は、実験時点の基準版15を指す。
 
 ## 今の扱い（基準版15）
 - 変化区間の長さkは、最小変化区間（既定5件）の倍数で、Wの長さ（最大31件）以下の全部を試す。
@@ -21,6 +21,7 @@
 - 1件刻みにすると変化点の候補が約5倍に増える。今の切替の符号長（−ln(1/T)＋ln(行き先の数＋1)）には変化点の位置を表す項がなく、候補が多いほど偶然に短い仮説が選ばれやすくなる。位置の項（例: ln(kの候補の数)）を足すかを比べる。
 - 符号長の値が変わるので、選ばれる変化点・帰属先が変わり、既定にするなら基準版が上がる。最小変化区間（5件）は、件数不足で警報を保留する判定にも使うので、刻みとは別に残す。
 - 締め切り（PAKDD 2027、2026-11-20）の前には既定を変えない（2026-10-29の判断）。
+- 同じ2026-10-29の後のユーザー判断で、この判断を置き換え、逆向きの1本の流れで1件刻みに測る扱いを基準版16の既定にした。説明のしやすさ、ロジックの自然さ、測定用の学習者の計算量を理由とする（[spec](../../../.kiro/specs/fedsda-every-sample-change-interval-search-default/tasks.md)）。
 
 ## 検証の計画（手元、研究ツール）
 - 変種（製品の既定＝基準版15の上）:

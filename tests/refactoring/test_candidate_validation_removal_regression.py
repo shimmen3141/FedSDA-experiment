@@ -21,7 +21,7 @@ from federated_learning_experiments.runtime.fedsda_run_client_settings import (
 def test_baseline_15_keeps_exactly_the_non_validation_cases_of_baseline_14():
     from federated_learning_experiments.core.run_provenance import BEHAVIOR_BASELINE_VERSION
 
-    assert BEHAVIOR_BASELINE_VERSION == golden.BASELINE_VERSION == 15
+    assert BEHAVIOR_BASELINE_VERSION == golden.BASELINE_VERSION >= 15
     expected = tuple(
         name
         for name in golden.CASE_NAMES_BY_BASELINE_VERSION[14]

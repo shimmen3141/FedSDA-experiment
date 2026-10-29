@@ -19,10 +19,17 @@ ADWINの2構成は`keep_baseline_until_alarm`を明示する。
 これらは基準版13として既定にした（goldenは生成元`539363a7`、WindowsとWSL）。
 [対象spec](../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)に検証と未完了範囲を記録する。
 
-現在の基準版は15。2026-10-28に、警報後の候補検証の処理・状態・設定・記録・指標と、その構成を削除した。
+基準版15では、2026-10-28に、警報後の候補検証の処理・状態・設定・記録・指標と、その構成を削除した。
 候補をその場で採用する計算は維持し、論文では候補検証を説明の対象に含めない。
 版15のgoldenは生成元`c13149ea`（WindowsとWSL）。検証の状態は[削除specの記録](../../.kiro/specs/remove-post-alarm-candidate-validation/tasks.md)、
 版の扱いは[回帰基準](../experiments/refactoring-baseline.md)を参照する。
+
+2026-10-29のユーザー判断により、逆向きの1本の流れで変化区間を1件刻みに測る扱い
+（`change_interval_search=every_sample_with_reverse_prequential_code`）を既定にした（基準版16）。
+説明のしやすさ（最小変化区間の倍数という刻みが要らない）、ロジックの自然さ（全部のkを1本の流れの途中までの和で測る）、
+計算量（測定用の学習者の更新が警報あたり列の長さ以下）を理由とする。
+本規模の結果は、基準版15の既定との精度差が平均+0.01〜+0.02ppで、[IMPROVE-032](../research/improvement-candidates/improve-032-reverse-order-prequential-code-for-all-change-intervals.md)に記録した。
+実装・検証の状態は[対象spec](../../.kiro/specs/fedsda-every-sample-change-interval-search-default/tasks.md)を参照する。
 
 ## 1. 解決する問題と各要素の役割
 
@@ -71,7 +78,7 @@ mode名の`RestartingSoftRouting`だけでは予測方式を一意に定めら�
 | FIFO長 | N_FIFO=30 |
 | 予測に使うパラメータ（新実装） | `mixture_of_synchronized_and_local_parameters` |
 | Fixed-Shareの時間尺度（新実装） | T=120。モデル別重みと同期・局所間の混合の分け合いに共通して1/Tを用いる |
-| 警報の後の変化点と帰属先（新実装） | `minimum_description_length`。切り替わりの確率は予測のFixed-Shareと同じ1/T、変化点τの刻みは最小変化区間の5標本。新しい数値の設定は無い |
+| 警報の後の変化点と帰属先（新実装） | `minimum_description_length`。切り替わりの確率は予測のFixed-Shareと同じ1/T。基準版16から`change_interval_search=every_sample_with_reverse_prequential_code`を既定とし、逆向きの1本の流れの途中までの和で、最小変化区間（既定5標本）以上の全部のkを1件刻みで測る。新しい数値の設定は無い |
 | 「新しいモデル」の仮説の学習者（新実装） | `reinitialized_and_warm_started_learners`（初期化し直した学習者とwarm startの学習者の短い方＋ln 2） |
 | 初期モデルの損失の統計（新実装） | `five_fold_cross_validation`（事前学習の標本の5分割交差検証。初期モデルそのものは全部の標本で学習する） |
 | 適合・統合判定の設定値 | γ=0.1（既定では、警報の後の再利用の判定には使わない。サーバのクラスタリングの閾値と、固定の許容量を選ぶ場合の適合判定に残る） |

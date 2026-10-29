@@ -242,13 +242,38 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 | `environment` | OS・機種・Python/NumPy/torch・CPU/dtype/thread | 同じ動作基準を別環境で検証するとき |
 | `source_commit` | 生成した生産コードの来歴 | 新しい基準や環境別goldenを生成するとき |
 
-現在の基準版は15（`BASELINE_VERSION`・`BEHAVIOR_BASELINE_VERSION`）。版15のgoldenは生成元`c13149ea`（WindowsとWSL）。
+現在の基準版は16（`BASELINE_VERSION`・`BEHAVIOR_BASELINE_VERSION`）。版16のgoldenは生成元`810e56f9`（WindowsとWSL）。版15のgoldenは生成元`c13149ea`（WindowsとWSL）。
 版1〜14の保存済みJSONは変更しない。候補検証ありのcaseは版ごとの明示した一覧で外し、
 残すcaseは削除した項目だけを完全な鍵の道の一覧で除いて照合する。版15の18 caseも、同じ除外後の値を版14と照合する。
 乱数は、消す前のコード（`6adb3ee7`）で採ったFedSDAの14 caseのfixtureと完全一致で比べる。fixtureは環境ごと（Windowsはtask 1、Linuxはtask 6で採取）で、数値の環境が一致するものを使う。
 進捗・未検証は[taskの記録](../../.kiro/specs/remove-post-alarm-candidate-validation/tasks.md)を参照する。
 
 基準版は次のとおり（過去の版の行は当時の記録として残す）。
+
+### 基準版16: 逆向きの1本の流れで変化区間を1件刻みに測る
+
+2026-10-29のユーザー判断により、最終構成の`change_interval_search`を
+`every_sample_with_reverse_prequential_code`へ替える（[対象spec](../../.kiro/specs/fedsda-every-sample-change-interval-search-default/tasks.md)）。
+ケースは版15と同じ18。版1〜15は`minimum_interval_multiples_with_forward_prequential_code`を明示し、
+保存済みgoldenの値を変えずに照合する。
+
+版16から、FedSDAの経路の記録（`coverage`）に`non_minimum_interval_multiple_change_interval_selection_count`を足す。
+選択の記録の同じ行で、`selected_hypothesis`が`held_model`か`new_model`であり、
+`change_interval_sample_count % minimum_change_interval_sample_count != 0`である行の数とする。
+現在のモデルのまま（`current_model`）の行は数えない。版15までの扱いでは常に0で、版16では1以上になりうる。
+版15までの必須の経路も引き続き求める。ただし`fedsda-mnist4-warm-started-learner`の「warm startの学習者が1回以上短い」（版11から）は、版16では求めない（新しい扱いでは、WSLの全FedSDAケースで0回、Windowsはこのケースだけ2回。回数は経路の記録に残り、goldenで値を固定する。2026-10-29のユーザー判断）。初期化し直した学習者の必須は残す。次の2ケースで新しい回数が1以上であることを必須とする。
+
+| ケース | Task 1で確認した回数（Windows、版15の設定の探し方だけを変更） | 版16のgoldenの環境ごとの値 |
+|---|---:|---|
+| `fedsda-sine2-adoption-without-validation` | 7 | Windows 7、WSL 9 |
+| `fedsda-mnist4-warm-started-learner` | 8 | Windows 8、WSL 6 |
+
+版16のgoldenの生成元commitは`810e56f9`。Windows（Python 3.13.15）とWSL（Python 3.14.4）で、各2回の独立したprocessの一致と必須の経路を確かめて生成し、`v16/`へ置いた。
+版15→16の差のtestはgoldenを使わず、両版の18ケースをその場で実行する。
+FedDrift・FedAvgは、版16で足す経路の項目を除き、指標・最終のパラメータ・記録の表・経路の記録の一致を確かめる。
+FedSDAは、設定の差が`change_interval_search`の1か所だけであることを確かめる。
+
+### これまでの基準版
 
 版13のコードは、損失の低下で監視の基準を下げる扱いと評価clientの上限をclient数にする扱いを足した。
 ケースは版12と同じ22。版1〜12はkeepと上限3を明示し、新しい設定項目は値を確かめてから除くが、

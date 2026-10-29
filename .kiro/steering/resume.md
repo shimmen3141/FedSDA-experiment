@@ -4,9 +4,9 @@
 
 ## 現在地
 
-- 2026-10-29: [fedsda-reverse-prequential-change-interval-search](../specs/fedsda-reverse-prequential-change-interval-search/tasks.md)はTask 1〜6を完了。既定は変えず、基準版15を維持する。本規模の640 runで既定との精度差は平均+0.01〜+0.02pp（[IMPROVE-032](../../docs/research/improvement-candidates/improve-032-reverse-order-prequential-code-for-all-change-intervals.md)）。採否は未判断（ユーザーが判断する）。
+- 2026-10-29: [fedsda-every-sample-change-interval-search-default](../specs/fedsda-every-sample-change-interval-search-default/tasks.md)はTask 1〜3のコードまでcommit済み。Task 4の文書を更新し、版16のgoldenの生成・設置と版の定数の切替（主担当）、Task 5の独立CLI実装レビューと最終検証が残る。同日のユーザー判断で、逆向きの1本の流れで1件刻みに測る扱いを基準版16の既定にする。本規模の640 runで基準版15の既定との精度差は平均+0.01〜+0.02pp（[IMPROVE-032](../../docs/research/improvement-candidates/improve-032-reverse-order-prequential-code-for-all-change-intervals.md)）。
 - **最新の総括・再開順は[研究の引継ぎ（2026-10-26）](../../docs/research/research-handoff-20261026.md)**。Claude交代後の一連の研究、結果の所在、訂正、未着手事項をまとめている。
-- **候補検証の削除は完了、現在の基準版は15**（[対象spec](../specs/remove-post-alarm-candidate-validation/tasks.md)、2026-10-28）。版15のgoldenは生成元`c13149ea`（WindowsとWSL）。版1〜14の保存済みgoldenと乱数のfixtureは維持する。版14で始めた掃引は、版15のコードでは再開できない（始めたときのコードで再開する）。
+- **現在の基準版は16**（版16のgoldenは生成元`810e56f9`、WindowsとWSL）。**候補検証の削除は完了（基準版15）**（[対象spec](../specs/remove-post-alarm-candidate-validation/tasks.md)、2026-10-28）。版15のgoldenは生成元`c13149ea`（WindowsとWSL）。版1〜14の保存済みgoldenと乱数のfixtureは維持する。版14で始めた掃引は、版15のコードでは再開できない（始めたときのコードで再開する）。
 - 実装レビュー・全pytest・WSLの結果の正本は対象specのImplementation Notes。E1a/E2/S1/S3/B・E3とmain統合は未採用／未決定のまま。v13のablation（共有部の固定を外す枝を含む）と、評価の設計（研究バックログの9）は未着手。
 
 - 2026-10-27: [IMPROVE-031](../../docs/research/improvement-candidates/improve-031-loss-monitor-rebaseline-on-loss-decrease.md)は上限撤廃とともに既定へ実装済み。基準版13として既定にした（上記spec）。

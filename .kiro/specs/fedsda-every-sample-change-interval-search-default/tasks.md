@@ -18,12 +18,12 @@
   - 完了条件: 新しいtestと研究ツールの検査が通り、基準版1〜15と実旧との照合が値を変えずに通り、要求4.1と6.4の比較が期待どおり（同じであるべきものは同じ、替わるべきものは替わる）。
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 3.1, 3.2, 4.1, 6.1, 6.2, 6.3, 6.4_
   - _Depends:_ 1
-- [ ] 3. 基準版16を足す
+- [x] 3. 基準版16を足す
   - 版16の登録、経路の記録の新しい項目（版16から）と必須の経路、goldenを使わない版15→16の差のtestを足す（実装担当）。commitの後、主担当が、必須の経路の2ケースの値を確かめ、Windowsの基準環境とWSLでgoldenを生成して`v16/`へ置き、`BASELINE_VERSION`と`BEHAVIOR_BASELINE_VERSION`を16へ上げる。
   - 完了条件: 版1〜16の照合と、版15→16の差のtestが、WindowsとWSLで通る。
   - _Requirements: 5.1, 5.2, 5.3_
   - _Depends:_ 2
-- [ ] 4. 文書を合わせる
+- [x] 4. 文書を合わせる
   - 提案手法の概要、モデル再利用の文書、基準の文書（版16）、実験の入口、IMPROVE-032と一覧、再開案内。
   - 完了条件: 文書が新しい既定を説明し、過去の日付の記録を書き換えていない。
   - _Requirements: 7.1_
@@ -45,3 +45,6 @@
   - 主担当の確認: 関係するtest 9ファイルの3,815件のうち2件が失敗（`test_feddrift_experiment_sweep.py`と`test_fedavg_experiment_sweep.py`の、FedSDAの識別子の直書き`sine2_interval3_seed0_8f83dd4d55c0`）。既定の値が変わったための想定どおりの変化なので、新しい値`82d64db8888d`に直し、2ファイル50 passed。研究ツールの検査103 passed。Ruff check・format成功。全pytestとgoldenの全版の照合はTask 5で行う。
 - Task 3（コード: GPT-6.1-sol、`8835cad4`）: 版16の登録（版15と同じ18ケース）、経路の記録`non_minimum_interval_multiple_change_interval_selection_count`（版16から、FedSDAだけ）と手で作った表での定義のtest、必須の経路（2ケースで1以上）、goldenを使わない版15→16の差のtest（18件）。Solの実行で新しい23件成功。版16のgoldenが無い間は、構造の検査1件が失敗し数値の照合18件がskip（版13・15と同じ扱い）。
 - 版16のgoldenの生成（主担当）: Windowsは`8835cad4`で生成に成功（149秒、必須の経路の新しい回数はSINE2のケース7・MNIST4のケース8）。WSLは、版11からの必須の経路「`fedsda-mnist4-warm-started-learner`でwarm startの学習者が1回以上短い」が0回で失敗した。WSLの版16では、FedSDAの14ケースすべてでwarm startの学習者の回数が0（Windowsの版16はMNIST4のケースだけ2）。WSLの版15のこのケースは1回、版16の新しい回数は6回。ユーザーの判断（2026-10-29「版16は必須から外す」）で、版16ではwarm startの学習者の必須を外し、初期化し直した学習者の必須は残した（`behavior_golden_cases.py`の`assert_required_paths`。要求5.3に追記）。warm startの学習者の計算は、前のspecの部品のtest（途中までの和）で守る。
+- 版16のgoldenの設置（主担当）: 必須の経路を直した`810e56f9`で、WindowsとWSLで生成し直した（各2回の独立したprocessの一致と必須の経路。Windows 157秒、WSL 194秒）。新しい回数は`fedsda-sine2-adoption-without-validation`がWindows 7・WSL 9、`fedsda-mnist4-warm-started-learner`がWindows 8・WSL 6。warm startの学習者の回数はWindows 2・WSL 0。`tests/refactoring/behavior_regression_goldens/v16/`へ環境ごとの名前（版15と同じ形）で置き、`BASELINE_VERSION`（`behavior_golden_cases.py`）と`BEHAVIOR_BASELINE_VERSION`（`core/run_provenance.py`）を16にした。版15のspecのtest（`test_candidate_validation_removal_regression.py`）の「現在の版が15」の直書きを、版の定数どうしの一致と15以上の確認に直した（版15の中身の確認はそのまま）。
+- 照合: Windows（12並列）でgoldenの照合のtestと上の版15のtestが451 passed（455秒、JUnit `../../venv/refactoring-tests/every-sample-default-goldens-windows.xml`）。WSL（Ubuntu、Python 3.14.4）で、goldenの照合・版15のtest・このspecのtestが472 passed / 1 skipped（812秒、JUnit `../../venv/refactoring-tests/every-sample-default-wsl.xml`）。
+- Task 4（文書: GPT-6.1-sol、主担当が確認し、基準の文書の生成元・環境ごとの値・warm startの必須を外したこと、実験の入口と再開案内の現在の基準版を記入）: `docs/overview/proposed-method.md`、`docs/components/model-reuse.md`、`docs/experiments/refactoring-baseline.md`、`docs/experiments/experiment-sweep.md`、IMPROVE-032と一覧、`.kiro/steering/resume.md`。日付つきの記録は書き換えていない。
