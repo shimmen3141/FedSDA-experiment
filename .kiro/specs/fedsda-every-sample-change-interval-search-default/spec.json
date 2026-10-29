@@ -3,7 +3,7 @@
   "created_at": "2026-10-29T00:00:00Z",
   "updated_at": "2026-10-29",
   "language": "ja",
-  "phase": "implementation",
+  "phase": "implementation-complete",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -71,5 +71,22 @@
         "result": "PASS（Minor 1、文面のみ反映: 取り出しで各変種の名前が1回ずつ現れることの照合）"
       }
     ]
-  }
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium（指定値）",
+    "target": "a4efa6e3..1d92eb2b",
+    "rounds": [
+      {
+        "round": 1,
+        "result": "FAIL（Major 1、Minor 1）。どちらも採らない（Majorは要求6.1の読み違い、Minorは設計どおり）"
+      },
+      {
+        "round": 2,
+        "result": "PASS、指摘なし（前回の指摘が当たらないことを確認）"
+      }
+    ]
+  },
+  "remaining": "なし。主表・構成要素の比較を基準版16で流し直すかはユーザーの判断"
 }

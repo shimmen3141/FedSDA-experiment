@@ -28,7 +28,7 @@
   - 完了条件: 文書が新しい既定を説明し、過去の日付の記録を書き換えていない。
   - _Requirements: 7.1_
   - _Depends:_ 3
-- [ ] 5. 実装レビューと最終検証
+- [x] 5. 実装レビューと最終検証
   - 独立CLIの実装レビュー、指摘の反映、全pytest・Ruff・Pyright・WSL・fresh smoke。
   - 完了条件: 実装レビューの判定と指摘の採否、全pytest（件数・exit・JUnit）、Ruff・Pyright、WSLの照合、fresh smokeの結果を「Implementation Notes」とspec.jsonへ記録し、レビューがPASSで、全pytestが失敗0。
   - _Requirements: 全部_
@@ -48,3 +48,5 @@
 - 版16のgoldenの設置（主担当）: 必須の経路を直した`810e56f9`で、WindowsとWSLで生成し直した（各2回の独立したprocessの一致と必須の経路。Windows 157秒、WSL 194秒）。新しい回数は`fedsda-sine2-adoption-without-validation`がWindows 7・WSL 9、`fedsda-mnist4-warm-started-learner`がWindows 8・WSL 6。warm startの学習者の回数はWindows 2・WSL 0。`tests/refactoring/behavior_regression_goldens/v16/`へ環境ごとの名前（版15と同じ形）で置き、`BASELINE_VERSION`（`behavior_golden_cases.py`）と`BEHAVIOR_BASELINE_VERSION`（`core/run_provenance.py`）を16にした。版15のspecのtest（`test_candidate_validation_removal_regression.py`）の「現在の版が15」の直書きを、版の定数どうしの一致と15以上の確認に直した（版15の中身の確認はそのまま）。
 - 照合: Windows（12並列）でgoldenの照合のtestと上の版15のtestが451 passed（455秒、JUnit `../../venv/refactoring-tests/every-sample-default-goldens-windows.xml`）。WSL（Ubuntu、Python 3.14.4）で、goldenの照合・版15のtest・このspecのtestが472 passed / 1 skipped（812秒、JUnit `../../venv/refactoring-tests/every-sample-default-wsl.xml`）。
 - Task 4（文書: GPT-6.1-sol、主担当が確認し、基準の文書の生成元・環境ごとの値・warm startの必須を外したこと、実験の入口と再開案内の現在の基準版を記入）: `docs/overview/proposed-method.md`、`docs/components/model-reuse.md`、`docs/experiments/refactoring-baseline.md`、`docs/experiments/experiment-sweep.md`、IMPROVE-032と一覧、`.kiro/steering/resume.md`。日付つきの記録は書き換えていない。
+- Task 5: 実装レビュー（GPT-6 Luna、effort medium、対象`a4efa6e3..1d92eb2b`）1回目はFAIL（Major 1: 組Cの研究用の変種を今の扱いへ戻しているのは誤りで新しい扱いにすべき。Minor 1: 研究ツールの検査が全変種を個別に確かめていない）。主担当の判断: どちらも採らない。Majorは要求6.1（組Cは今の扱いへ戻す。基準版15の既定の上で評価してきた意味を保つため）の読み違い、Minorは設計（検査は代表、全変種は要求6.3の前後の取り出しで確かめる）のとおり。根拠を添えた2回目（同じ対象）はPASS、指摘なし（Majorは仕様の読み違い、Minorは指摘に当たらないと確認）。レビュー担当はtestを実行していない。
+- 主担当の最終検証（HEAD `1d92eb2b`）: 全pytest（Windows、12並列）13,239 passed / 8 skipped / 失敗0（1,272秒、JUnit `../../venv/refactoring-tests/every-sample-default-full.xml`。基準版1〜16のgolden、実旧との照合、`tests/test_regression.py`、`tests/test_proposed_regression.py`を含む）。ほかに、`results/implementation-audits/fedavg-20261021/test-results.txt`をpytestが収集して文字コードで失敗したエラー12件（testではない成果物のファイル。前のspecと同じ）。fresh smoke（Windows）全フローPASS（42秒、`../../venv/refactoring-tests/every-sample-default-fresh.log`）。Pyright（設定の範囲）0 errors。Ruff check・format成功（commitのhook）。WSLの照合は上の版16の設置の項（472 passed / 1 skipped）。
