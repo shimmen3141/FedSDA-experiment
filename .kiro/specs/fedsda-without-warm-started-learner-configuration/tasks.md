@@ -1,10 +1,10 @@
 # Implementation Plan
 
-- [ ] 1. 構成とtestを足す
+- [x] 1. 構成とtestを足す
   - 要求2.1・2.2のtestを先に書き、REDを確かめてから、構成を足し、`CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN`と依存境界へ登録する。
   - 完了条件: 新しいtest、構成・掃引・識別子・依存境界のtest、基準版1〜16のgoldenの照合（Windows）が通る。Ruff・Pyright。
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3_
-- [ ] 2. 文書と検証の記録
+- [x] 2. 文書と検証の記録
   - 要求3.1の文書。実装レビュー（独立CLI）と、関係するtestの結果をImplementation Notesに記録する。
   - _Requirements: 3.1_
   - _Depends:_ 1
@@ -16,3 +16,4 @@
 ## Implementation Notes
 - Task 1・2（実装: GPT-6.1-sol）: 構成`fedsda-without-warm-started-learner`（`experiment_configurations.py`）、新しいtest`test_fedsda_without_warm_started_learner_configuration.py`（設定の差と登録、固定条件の全体run、学習者1つでln 2を足さない部品のtest。実装前2 failed・1 passed、実装後3 passed）、`CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN`と依存境界への登録、既存のtest 2ファイルの構成の一覧の追従、文書（`experiment-sweep.md`、`model-reuse.md`、NEW-006）。固定条件（`fedsda-sine2-adoption-without-validation`のケースの条件）で、新しいモデルが17回選ばれ、`warm_started_learner`は無い（代わりの条件は使っていない）。既存の19構成の完全な設定と識別子は変更前と同じ（Solの確認）。
 - 主担当の確認: 新しいtest、構成・掃引・識別子・依存境界・設定の検査のtest、基準版1〜16のgoldenの照合（9ファイル、Windows、12並列）が4,091 passed / 8 skipped / 失敗0（815秒、JUnit `../../venv/refactoring-tests/without-warm-targeted.xml`）。Ruff成功。Pyright（設定の範囲）はSolの実行で0 errors。全pytestは設計どおり行わない（変更は構成の追加だけ）。
+- 実装レビュー（GPT-6 Luna、effort medium、対象`2708b3bb`）: FAIL（Major 1、Minor 1）。Major（学習者1つでln 2を足さないことを、実際に学習者を評価する経路では確かめていない）は採らない: 要求2.2と設計で、この点は純粋な計算`select_new_model_learner`の部品のtestで確かめると決めており（全体runの記録から符号長を再計算できないため）、実験の結果にも影響しないのでMajorに当たらない（2026-10-27のユーザー決定の基準）。全体runでは`warm_started_learner`が使われないことを確かめている。Minor（tasks.mdのcheckboxが未完了のまま）は反映した。
