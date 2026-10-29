@@ -74,10 +74,13 @@
    - 組A〜C: 設定の全項目と差し替えの有無が、前と後で同じ。
    - 組D・E: 設定の差が`change_interval_search`の1か所だけ（前は今の扱い、後は新しい扱い。`every-sample-change-interval-search-configuration`は前後とも新しい扱いで差なし）で、差し替えの有無の差は`reverse_prequential_policy`だけ（後は入れない）。
    - どの組にも入らない変種、2つ以上の組に入る変種が無い（組は`run.py`の一覧から機械的に決める）。
-   前の取り出しはtask 1で保存し（Git管理外）、後の取り出しと比べる一時scriptの結果を記録する。研究ツールの検査には、組の決め方と代表の変種の値のtestを足す。
-4. The validation shall 既定を変える前と後の、研究ツールの小さい条件（SINE2・seed 0・10 client・600標本・間隔100）の結果を比べる（秒数・時刻・コードの来歴を除く全部の出力）:
+   - 研究用の入口`tools/research_loss_monitor_rebaseline.py`の全部の変種（その`_VARIANTS`。`product-default`は組D、IMPROVE-031の変種は組B）も、同じ方法で取り出して同じ規則で比べる。
+   前の取り出しはtask 1で保存し（Git管理外）、後の取り出しと比べる一時scriptの結果を記録する。
+   この比較が保証するのは、runへ渡す設定と、差し込む研究用の差し替えが変わらないこと（組D・Eは決めた差だけ）までである。差し込んだ後の研究用の差し替えのうち、`change_interval_search`を読むのは`reverse_prequential_policy`（短い列で製品の選択へ渡す引数）だけで、ほかは読まない（研究ツールのsourceで`change_interval_search`を読む箇所が、検査のtestを除いてこの1か所だけであることを、task 2の後に検索で確かめて記録する）。製品の全体runは設定と乱数のseedだけで決まるので、設定と差し替えが同じなら結果も同じになる。runの結果まで同じことは、下の4で代表の変種について確かめる。研究ツールの検査には、組の決め方と代表の変種の値のtestを足す。
+4. The validation shall 既定を変える前と後の、研究ツールの小さい条件（SINE2・seed 0・10 client・600標本・間隔100と、MNIST4・seed 0・10 client・600標本・間隔100の2条件）の結果を比べる（秒数・時刻・コードの来歴を除く全部の出力）:
    上の3で設定と差し替えが全部の変種で守られることを確かめ、ここでは代表の変種で、runの結果まで同じことを確かめる。
    - 同じであること: 研究用CLIの`default`、組Cの3変種、`product-default-loss-monitor-decrease-rebaseline`、`every-sample-change-interval-search-configuration`、研究用の入口（`tools/research_loss_monitor_rebaseline.py`）の`product-default-all-evaluating-clients-loss-monitor-decrease-rebaseline`。
+   - 決めた差だけ替わること: 組Eの代表`product-default-class-conditioned-prediction`と、研究用の入口の`product-default`は、後の結果が、前に同じ変種へ`change_interval_search`＝新しい扱いだけを当てた結果（task 1で、一時scriptで設定のその1か所だけを替えて実行して保存する）と同じ。
    - 製品の既定が替わったこと: 後の`product-default`が、前の`every-sample-change-interval-search-configuration`と同じ（測定の`prequential_measurement`はどちらも空）で、前の`product-default`と違う（変化区間の長さが最小変化区間の倍数でない選択が1回以上ある）。
 
 ### Requirement 7: 文書を合わせる
