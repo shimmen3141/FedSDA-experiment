@@ -1,0 +1,16 @@
+{
+  "feature_name": "fedsda-without-warm-started-learner-configuration",
+  "created_at": "2026-10-30T00:00:00Z",
+  "updated_at": "2026-10-30",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {"generated": true, "approved": false},
+    "design": {"generated": true, "approved": false},
+    "tasks": {"generated": true, "approved": false},
+    "naming": {"generated": true, "approved": false, "revision": null, "approved_revision": null, "approved_sha256_lf": null}
+  },
+  "ready_for_implementation": false,
+  "base_revision": "de65e59c",
+  "implementation_assignment": "実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・testの実行・レビューの起動・本規模のコマンドと集計"
+}
