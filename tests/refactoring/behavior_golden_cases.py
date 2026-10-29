@@ -1252,10 +1252,12 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
                     assert coverage[key] > 0, f"{case_name}: required {key}"
         if case_name == WARM_STARTED_LEARNER_PATH_CASE_NAME:
             # 「新しいモデル」の選択で、初期化し直した学習者とwarm startの学習者が、それぞれ1回以上短い。
-            for key in (
-                "selected_reinitialized_learner_count",
-                "selected_warm_started_learner_count",
-            ):
+            # 版16の新しい扱いでは、WSLの全FedSDAケースでwarm startの学習者が短くならないので、
+            # warm startは必須にしない（回数は経路の記録に残り、goldenで値を固定する。2026-10-29のユーザー判断）。
+            required_learner_keys = ("selected_reinitialized_learner_count",)
+            if baseline_version < 16:
+                required_learner_keys += ("selected_warm_started_learner_count",)
+            for key in required_learner_keys:
                 assert coverage[key] > 0, f"{case_name}: required {key}"
     if case_name == "feddrift-drift-tail":
         assert coverage["detection_count"] > 0 and coverage["registered_model_count"] > 1, coverage

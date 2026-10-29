@@ -59,7 +59,7 @@
 #### Acceptance Criteria
 1. The validation shall 新しい既定での値を、基準版16のgoldenとして、Windowsの基準環境とWSLの両方で足す（ケースは版15と同じ18ケース）。各環境で2回の独立したprocessの一致と必須の経路を確かめて生成する。
 2. The validation shall 版15と16の差を、goldenを使わず両方の版をその場で実行して確かめる: FedDrift・FedAvgのケースは、指標・最終のパラメータ・記録の表・経路の記録（版16で足す項目を取り除いたもの）が版15と同じ。FedSDAのケースは、設定が`change_interval_search`だけ違う。
-3. The validation shall 経路の記録に、最小変化区間の倍数でないkの選択の回数を足し（版16から。FedSDAのケースだけ）、新しい既定を引き継ぐFedSDAのケースのうち2つで1以上であることを、必須の経路として確かめる。2つのケースの名前は、実装の前（task 1）に、版15の18ケースのうちFedSDAのケースの設定の`change_interval_search`だけを新しい扱いに替えてWindowsの基準環境で実行し、次の規則で決めて記録する: 第一候補の`fedsda-sine2-adoption-without-validation`と`fedsda-mnist4-warm-started-learner`のうち回数が1以上のものを採り、足りない分は、版15のケースの並び（`behavior_golden_cases.py`の版15の一覧の順）で、回数が1以上の最初のケースから補う。2つに満たなければ、ケースの条件を変えずに、ユーザーへ報告して扱いを決める。WSLでの生成の前にも、同じ2ケースの回数が1以上であることを確かめる。版15までの必須の経路は、版16でも求める。
+3. The validation shall 経路の記録に、最小変化区間の倍数でないkの選択の回数を足し（版16から。FedSDAのケースだけ）、新しい既定を引き継ぐFedSDAのケースのうち2つで1以上であることを、必須の経路として確かめる。2つのケースの名前は、実装の前（task 1）に、版15の18ケースのうちFedSDAのケースの設定の`change_interval_search`だけを新しい扱いに替えてWindowsの基準環境で実行し、次の規則で決めて記録する: 第一候補の`fedsda-sine2-adoption-without-validation`と`fedsda-mnist4-warm-started-learner`のうち回数が1以上のものを採り、足りない分は、版15のケースの並び（`behavior_golden_cases.py`の版15の一覧の順）で、回数が1以上の最初のケースから補う。2つに満たなければ、ケースの条件を変えずに、ユーザーへ報告して扱いを決める。WSLでの生成の前にも、同じ2ケースの回数が1以上であることを確かめる。版15までの必須の経路は、版16でも求める。ただし、`fedsda-mnist4-warm-started-learner`の「warm startの学習者が1回以上短い」（版11から）は、版16では求めない（新しい扱いでは、WSLの全FedSDAケースで0回になる。Windowsは2回。回数は経路の記録に残り、goldenで値を固定する。2026-10-29、版16のgoldenの生成で分かり、ユーザーが決めた）。
 
 ### Requirement 6: 研究ツールの意味を保つ
 #### Acceptance Criteria
