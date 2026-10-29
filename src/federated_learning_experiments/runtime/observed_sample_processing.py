@@ -110,6 +110,7 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment.pend
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
     MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME,
     validate_alarm_interval_assignment_policy,
+    validate_change_interval_search,
     validate_new_model_hypothesis_learners,
 )
 from federated_learning_experiments.runtime.alarm_interval_minimum_description_length_selection import (
@@ -321,6 +322,7 @@ def process_observed_sample(
     client_id: int,
     alarm_interval_assignment_policy: str,
     new_model_hypothesis_learners: str,
+    change_interval_search: str,
     switching_probability: float,
     maximum_alarm_interval_mean_loss_increase: float,
     candidate_parameter_initialization_settings: CandidateParameterInitializationSettings,
@@ -379,6 +381,7 @@ def process_observed_sample(
     validate_alarm_interval_assignment_policy(
         alarm_interval_assignment_policy=alarm_interval_assignment_policy
     )
+    validate_change_interval_search(change_interval_search=change_interval_search)
     validate_new_model_hypothesis_learners(
         new_model_hypothesis_learners=new_model_hypothesis_learners
     )
@@ -511,6 +514,7 @@ def process_observed_sample(
             switching_probability=switching_probability,
             change_interval_grid_sample_count=minimum_change_interval_sample_count,
             new_model_hypothesis_learners=new_model_hypothesis_learners,
+            change_interval_search=change_interval_search,
         )
         estimated_change_span_sample_count = (
             alarm_interval_assignment_selection.change_interval_sample_count

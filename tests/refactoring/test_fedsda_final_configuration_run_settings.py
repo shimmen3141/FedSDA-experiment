@@ -304,6 +304,7 @@ def test_final_configuration_defaults_match_legacy_configuration(
                     alarm_interval_assignment_policy="minimum_description_length",
                     # 2026-10-22から、「新しいモデル」の仮説を、初期化し直した学習者とwarm startの学習者で測る。
                     new_model_hypothesis_learners="reinitialized_and_warm_started_learners",
+                    change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
                 ),
                 prediction_combination_settings=replace(
                     legacy_equivalent_client_settings.prediction_combination_settings,

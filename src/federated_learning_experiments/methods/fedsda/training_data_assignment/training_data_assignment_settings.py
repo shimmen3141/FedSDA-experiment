@@ -42,6 +42,25 @@ NEW_MODEL_HYPOTHESIS_LEARNER_POLICY_NAMES: tuple[str, ...] = (
     REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME,
 )
 
+MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME = (
+    "minimum_interval_multiples_with_forward_prequential_code"
+)
+EVERY_SAMPLE_WITH_REVERSE_PREQUENTIAL_CODE_SEARCH_NAME = (
+    "every_sample_with_reverse_prequential_code"
+)
+CHANGE_INTERVAL_SEARCH_NAMES: tuple[str, ...] = (
+    MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME,
+    EVERY_SAMPLE_WITH_REVERSE_PREQUENTIAL_CODE_SEARCH_NAME,
+)
+
+
+def validate_change_interval_search(*, change_interval_search: str) -> None:
+    """変化区間の候補の探し方が、builtin strの宣言した値であることを確かめる。"""
+    if type(change_interval_search) is not str:
+        raise TypeError("change_interval_search must be builtin str")
+    if change_interval_search not in CHANGE_INTERVAL_SEARCH_NAMES:
+        raise ValueError("change_interval_search must be a declared value")
+
 
 def validate_new_model_hypothesis_learners(*, new_model_hypothesis_learners: str) -> None:
     """学習者の組が、builtin strの2つの値のどちらかであることを確かめる。"""
@@ -85,6 +104,9 @@ class TrainingDataAssignmentSettings:
     # 警報の後の最小記述長の選択の、「新しいモデル」の仮説の学習者の組。最小記述長の原理で選ぶ扱いだけが使う。
     new_model_hypothesis_learners: str = field(
         metadata={"allowed_parameter_values": NEW_MODEL_HYPOTHESIS_LEARNER_POLICY_NAMES},
+    )
+    change_interval_search: str = field(
+        metadata={"allowed_parameter_values": CHANGE_INTERVAL_SEARCH_NAMES},
     )
 
     def __post_init__(self) -> None:

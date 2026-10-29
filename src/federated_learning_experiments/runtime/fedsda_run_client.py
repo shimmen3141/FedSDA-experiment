@@ -299,6 +299,7 @@ class FedsdaRunClient:
             client_id=self.client_id,
             alarm_interval_assignment_policy=settings.training_data_assignment_settings.alarm_interval_assignment_policy,
             new_model_hypothesis_learners=settings.training_data_assignment_settings.new_model_hypothesis_learners,
+            change_interval_search=settings.training_data_assignment_settings.change_interval_search,
             # 切り替わりの確率は、予測の重み（Fixed-Share）の分け合いの割合と同じ1/T。
             switching_probability=1.0
             / settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples,

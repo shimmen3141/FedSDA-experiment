@@ -56,6 +56,7 @@ def make_pending_buffer(*, policy_name, capacity=3, sample_indices=()):
             pending_sample_retention_after_too_short_change_interval_policy=policy_name,
             alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             new_model_hypothesis_learners="reinitialized_learner",
+            change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
         )
     )
     for sample_index in sample_indices:
@@ -158,6 +159,7 @@ def test_settings_reject_undeclared_policy():
                 pending_sample_retention_after_too_short_change_interval_policy=invalid_policy,
                 alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
                 new_model_hypothesis_learners="reinitialized_learner",
+                change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
             )
         assert type(raised_error.value).__name__ == "RunSettingsValidationError"
 

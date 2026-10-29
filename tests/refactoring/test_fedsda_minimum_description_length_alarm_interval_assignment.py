@@ -89,6 +89,7 @@ def build_small_settings(configuration_name="fedsda", *, alarm_interval_assignme
                     if alarm_interval_assignment_policy is None
                     else alarm_interval_assignment_policy,
                     new_model_hypothesis_learners="reinitialized_learner",
+                    change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
                 ),
             ),
         ),

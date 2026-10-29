@@ -271,6 +271,7 @@ def test_both_shared_feature_policies_build_without_candidate_validation(
                 client.training_data_assignment_settings,
                 alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
                 new_model_hypothesis_learners="reinitialized_learner",
+                change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
             ),
         )
 

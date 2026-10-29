@@ -85,8 +85,8 @@ def test_mixed_plan_expands_only_applicable_axis_in_order_and_preserves_fedsda_h
         for seed in (0, 1)
         for threshold in (0.0, 0.2)
     ]
-    # FedSDAの識別子は、候補検証の設定の項目を消したので変わった（基準版15のspec。前はfc28fa415515）。
-    assert runs[0].run_identifier == "sine2_interval3_seed0_f9bff53a0cdc"
+    # change_interval_searchを今の扱いで追加したため、FedSDAのhashはf9bff53a0cdcから変わる。
+    assert runs[0].run_identifier == "sine2_interval3_seed0_8f83dd4d55c0"
     assert len({(r.configuration_name, r.run_identifier) for r in runs}) == 12
     for r in runs[4:]:
         participant = r.run_settings.run_participant_settings

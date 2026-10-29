@@ -235,6 +235,7 @@ def make_run_client_settings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             new_model_hypothesis_learners="reinitialized_learner",
+            change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
             pending_assignment_buffer_capacity_samples=PENDING_CAPACITY,
         ),
         candidate_parameter_initialization_settings=CandidateParameterInitializationSettings(
@@ -497,6 +498,7 @@ def use_legacy_compatible_policies(run_settings):
                     # 許容量で選ぶ。
                     alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
                     new_model_hypothesis_learners="reinitialized_learner",
+                    change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
                 ),
                 loss_change_detection_settings=replace(
                     run_client_settings.loss_change_detection_settings,

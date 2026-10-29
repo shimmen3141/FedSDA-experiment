@@ -13,6 +13,9 @@ from federated_learning_experiments.configuration.experiment_run_conditions impo
 from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
     RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
 )
+from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    EVERY_SAMPLE_WITH_REVERSE_PREQUENTIAL_CODE_SEARCH_NAME,
+)
 from federated_learning_experiments.runtime.fedavg_run_settings import (
     FedavgRunSettings,
     build_default_fedavg_run_settings,
@@ -70,6 +73,10 @@ LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME = "fedsda-local-parameter-predicti
 # `fedavg`の、局所更新の間隔を、集約の間隔と同じにした構成。roundの中は、そのroundの始めに配布されたモデルで
 # 予測し、局所更新は、roundの最後の標本の処理でまとめて行う（`fedavg`は、1標本ごとに局所更新する）。
 FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME = "fedavg-local-updates-per-aggregation"
+# 提案構成の、変化区間の探索だけを、逆向きの1本の流れでの1件刻みに替えた構成。
+EVERY_SAMPLE_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME = (
+    "fedsda-every-sample-change-interval-search"
+)
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
@@ -89,6 +96,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME,
     SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME,
     LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
+    EVERY_SAMPLE_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME,
 )
 
 
@@ -252,6 +260,22 @@ def build_experiment_run_settings(
             ),
             maximum_evaluating_client_count_per_model=(
                 proposed_run_settings.run_participant_settings.maximum_evaluating_client_count_per_model
+            ),
+        )
+    if configuration_name == EVERY_SAMPLE_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME:
+        participant = proposed_run_settings.run_participant_settings
+        client = participant.run_client_settings
+        return replace(
+            proposed_run_settings,
+            run_participant_settings=replace(
+                participant,
+                run_client_settings=replace(
+                    client,
+                    training_data_assignment_settings=replace(
+                        client.training_data_assignment_settings,
+                        change_interval_search=EVERY_SAMPLE_WITH_REVERSE_PREQUENTIAL_CODE_SEARCH_NAME,
+                    ),
+                ),
             ),
         )
     if configuration_name == LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME:

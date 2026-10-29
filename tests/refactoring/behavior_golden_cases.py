@@ -184,6 +184,7 @@ _NEW_MODEL_HYPOTHESIS_LEARNERS_PATH = (
     "training_data_assignment_settings",
     "new_model_hypothesis_learners",
 )
+_CHANGE_INTERVAL_SEARCH_PATH = ("training_data_assignment_settings", "change_interval_search")
 # 版10で足した、最小記述長の原理による選択の記録の表。版9までの比べる形には含めない（今の扱いでは空の表）。
 ALARM_INTERVAL_ASSIGNMENT_SELECTION_TABLE_PREFIX = "alarm_interval_assignment_selection."
 # 版11で、選択の記録の表に足した列（「新しいモデル」で最短だった学習者）。版10までの比べる形には含めない。
@@ -230,6 +231,10 @@ for _baseline_version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10):
     _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.setdefault(_baseline_version, {})[
         _NEW_MODEL_HYPOTHESIS_LEARNERS_PATH
     ] = "reinitialized_learner"
+for _baseline_version in range(1, 16):
+    _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.setdefault(_baseline_version, {})[
+        _CHANGE_INTERVAL_SEARCH_PATH
+    ] = "minimum_interval_multiples_with_forward_prequential_code"
 # 版の後に、最終構成の既定の値が変わった、FedSDAのclientの設定の項目と、その版の値。保存してある設定は、
 # この項目を持つので、比べる前に除かない（上の「後に足された項目」の表へ入れると、除かれて比べられなくなる）。
 # 版2・3: 登録の扱いは、送信保留の全部を、それ自身のIDで登録する（現在の既定——版5——とは違う扱い）。
@@ -308,6 +313,7 @@ BASELINE_CONFIGURATION_CASE_NAMES = (
 )
 # goldenの事例にしない構成の名前と、その構成を守る専用のtestのファイル（リポジトリの根からの位置）。
 CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN: dict[str, str] = {
+    "fedsda-every-sample-change-interval-search": "tests/refactoring/test_fedsda_reverse_prequential_change_interval_search.py",
     "fedavg-local-updates-per-aggregation": "tests/refactoring/test_fedavg_local_updates_per_aggregation.py",
     "fedsda-synchronized-model-prediction": "tests/refactoring/test_fedsda_synchronized_model_prediction.py",
     "fedsda-synchronized-local-mixture-prediction": "tests/refactoring/test_fedsda_synchronized_local_mixture_prediction.py",
@@ -841,6 +847,7 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
                 client.training_data_assignment_settings,
                 alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
                 new_model_hypothesis_learners="reinitialized_learner",
+                change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
             ),
             loss_change_detection_settings=replace(
                 client.loss_change_detection_settings,

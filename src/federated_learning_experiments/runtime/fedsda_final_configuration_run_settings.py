@@ -56,6 +56,7 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.predic
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
     MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME,
+    MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME,
     REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME,
     RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME,
     TrainingDataAssignmentSettings,
@@ -210,6 +211,7 @@ def build_final_configuration_fedsda_run_settings(
             # 2026-10-22から、「新しいモデル」の仮説を、初期化し直した学習者とwarm startの学習者の短い方＋ln 2で
             # 測る（基準版11）。
             new_model_hypothesis_learners=REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME,
+            change_interval_search=MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME,
             pending_assignment_buffer_capacity_samples=_PENDING_ASSIGNMENT_BUFFER_CAPACITY_SAMPLES,
         ),
         candidate_parameter_initialization_settings=CandidateParameterInitializationSettings(

@@ -31,7 +31,9 @@ from federated_learning_experiments.learning.training.parameter_optimizer_settin
 )
 from federated_learning_experiments.learning.training.prequential_code_length import (
     compute_reinitialized_learner_prequential_code_length,
+    compute_reinitialized_learner_prequential_code_length_prefixes,
     compute_warm_started_learner_prequential_code_length,
+    compute_warm_started_learner_prequential_code_length_prefixes,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection import (
     REINITIALIZED_LEARNER_NAME,
@@ -43,7 +45,9 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment.mini
     select_new_model_learner,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    EVERY_SAMPLE_WITH_REVERSE_PREQUENTIAL_CODE_SEARCH_NAME,
     REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME,
+    validate_change_interval_search,
     validate_new_model_hypothesis_learners,
 )
 
@@ -96,15 +100,17 @@ def select_alarm_interval_assignment(
     switching_probability: float,
     change_interval_grid_sample_count: int,
     new_model_hypothesis_learners: str,
+    change_interval_search: str,
 ) -> MinimumDescriptionLengthAssignmentSelection:
     """帰属の保留の標本（警報の標本を最後に含む、古い順）の列で、最小記述長の原理で選ぶ。
 
     行き先は、損失の統計を持つ、現在のモデル以外の保有モデル（保有の順）と、新しいモデル。新しいモデルの
-    予測的符号長は、刻みの倍数の変化区間の長さごとに、列の末尾の標本で計算する。学習者の組が
+    予測的符号長は、設定に応じて、末尾の区間ごとに前向きに、または逆向きの1本の流れで計算する。学習者の組が
     `reinitialized_and_warm_started_learners`なら、初期化し直した学習者の後に、warm startの学習者でも計算し、
     短い方＋ln 2を使う（`select_new_model_learner`）。
     """
     _validate_nonnegative_int(value=client_id, value_name="client_id")
+    validate_change_interval_search(change_interval_search=change_interval_search)
     validate_new_model_hypothesis_learners(
         new_model_hypothesis_learners=new_model_hypothesis_learners
     )
@@ -156,46 +162,87 @@ def select_alarm_interval_assignment(
         model_id=current_model_id
     ).classifier
     new_model_learner_selections: dict[int, NewModelLearnerSelection] = {}
-    for change_interval_sample_count in range(
-        change_interval_grid_sample_count,
-        sequence_length + 1,
-        change_interval_grid_sample_count,
-    ):
-        reinitialized_learner_code_length = compute_reinitialized_learner_prequential_code_length(
-            template_classifier=template_classifier,
-            input_features=input_features[sequence_length - change_interval_sample_count :],
-            observed_class_labels=observed_class_labels[
-                sequence_length - change_interval_sample_count :
-            ],
-            parameter_optimizer_settings=parameter_optimizer_settings,
-            initialization_seed=derive_reinitialized_learner_initialization_seed(
-                client_id=client_id,
-                alarm_sample_index=alarm_sample_index,
-                change_interval_sample_count=change_interval_sample_count,
-            ),
-        )
-        learner_code_lengths: tuple[tuple[str, float], ...] = (
-            (REINITIALIZED_LEARNER_NAME, reinitialized_learner_code_length),
-        )
-        if new_model_hypothesis_learners == REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME:
-            learner_code_lengths += (
-                (
-                    WARM_STARTED_LEARNER_NAME,
-                    compute_warm_started_learner_prequential_code_length(
-                        template_classifier=template_classifier,
-                        input_features=input_features[
-                            sequence_length - change_interval_sample_count :
-                        ],
-                        observed_class_labels=observed_class_labels[
-                            sequence_length - change_interval_sample_count :
-                        ],
-                        parameter_optimizer_settings=parameter_optimizer_settings,
-                    ),
+    change_interval_step_sample_count = change_interval_grid_sample_count
+    if change_interval_search == EVERY_SAMPLE_WITH_REVERSE_PREQUENTIAL_CODE_SEARCH_NAME:
+        change_interval_step_sample_count = 1
+        if sequence_length >= change_interval_grid_sample_count:
+            reversed_input_features = input_features.flip(0)
+            reversed_observed_class_labels = observed_class_labels.flip(0)
+            reinitialized_prefixes = compute_reinitialized_learner_prequential_code_length_prefixes(
+                template_classifier=template_classifier,
+                input_features=reversed_input_features,
+                observed_class_labels=reversed_observed_class_labels,
+                parameter_optimizer_settings=parameter_optimizer_settings,
+                initialization_seed=derive_reinitialized_learner_single_pass_initialization_seed(
+                    client_id=client_id,
+                    alarm_sample_index=alarm_sample_index,
                 ),
             )
-        new_model_learner_selections[change_interval_sample_count] = select_new_model_learner(
-            prequential_code_lengths_by_learner_name=learner_code_lengths
-        )
+            prefixes_by_learner_name = ((REINITIALIZED_LEARNER_NAME, reinitialized_prefixes),)
+            if new_model_hypothesis_learners == REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME:
+                warm_started_prefixes = (
+                    compute_warm_started_learner_prequential_code_length_prefixes(
+                        template_classifier=template_classifier,
+                        input_features=reversed_input_features,
+                        observed_class_labels=reversed_observed_class_labels,
+                        parameter_optimizer_settings=parameter_optimizer_settings,
+                    )
+                )
+                prefixes_by_learner_name += ((WARM_STARTED_LEARNER_NAME, warm_started_prefixes),)
+            for change_interval_sample_count in range(
+                change_interval_grid_sample_count, sequence_length + 1
+            ):
+                new_model_learner_selections[change_interval_sample_count] = (
+                    select_new_model_learner(
+                        prequential_code_lengths_by_learner_name=tuple(
+                            (name, prefixes[change_interval_sample_count - 1])
+                            for name, prefixes in prefixes_by_learner_name
+                        )
+                    )
+                )
+    else:
+        for change_interval_sample_count in range(
+            change_interval_grid_sample_count,
+            sequence_length + 1,
+            change_interval_grid_sample_count,
+        ):
+            reinitialized_learner_code_length = (
+                compute_reinitialized_learner_prequential_code_length(
+                    template_classifier=template_classifier,
+                    input_features=input_features[sequence_length - change_interval_sample_count :],
+                    observed_class_labels=observed_class_labels[
+                        sequence_length - change_interval_sample_count :
+                    ],
+                    parameter_optimizer_settings=parameter_optimizer_settings,
+                    initialization_seed=derive_reinitialized_learner_initialization_seed(
+                        client_id=client_id,
+                        alarm_sample_index=alarm_sample_index,
+                        change_interval_sample_count=change_interval_sample_count,
+                    ),
+                )
+            )
+            learner_code_lengths: tuple[tuple[str, float], ...] = (
+                (REINITIALIZED_LEARNER_NAME, reinitialized_learner_code_length),
+            )
+            if new_model_hypothesis_learners == REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME:
+                learner_code_lengths += (
+                    (
+                        WARM_STARTED_LEARNER_NAME,
+                        compute_warm_started_learner_prequential_code_length(
+                            template_classifier=template_classifier,
+                            input_features=input_features[
+                                sequence_length - change_interval_sample_count :
+                            ],
+                            observed_class_labels=observed_class_labels[
+                                sequence_length - change_interval_sample_count :
+                            ],
+                            parameter_optimizer_settings=parameter_optimizer_settings,
+                        ),
+                    ),
+                )
+            new_model_learner_selections[change_interval_sample_count] = select_new_model_learner(
+                prequential_code_lengths_by_learner_name=learner_code_lengths
+            )
     return select_assignment_by_minimum_description_length(
         current_model_log_losses=log_losses_by_model_id[current_model_id],
         held_model_log_losses_by_model_id=tuple(
@@ -214,5 +261,5 @@ def select_alarm_interval_assignment(
             destination_count=len(destination_model_ids) + 1,
         ),
         change_interval_grid_sample_count=change_interval_grid_sample_count,
-        change_interval_step_sample_count=change_interval_grid_sample_count,
+        change_interval_step_sample_count=change_interval_step_sample_count,
     )

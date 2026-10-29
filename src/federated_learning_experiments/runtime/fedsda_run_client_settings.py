@@ -38,6 +38,7 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.predic
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
     MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME,
+    MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME,
     REINITIALIZED_LEARNER_POLICY_NAME,
     TrainingDataAssignmentSettings,
 )
@@ -287,6 +288,17 @@ class FedsdaRunClientSettings:
                     "「新しいモデル」の仮説の学習者の組は、最小記述長の原理で警報の後の変化区間と帰属先を選ぶ"
                     "扱いだけが使います（ほかの選び方では、初期化し直した学習者だけを指定してください）。"
                 ),
+            )
+        if (
+            self.training_data_assignment_settings.alarm_interval_assignment_policy
+            != MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME
+            and self.training_data_assignment_settings.change_interval_search
+            != MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="change_interval_search",
+                specified_parameter_value=self.training_data_assignment_settings.change_interval_search,
+                validation_failure_reason="逆向きの1本の流れでの探索は、最小記述長の選択だけが使えます。",
             )
         local_batch_sample_count = self.scalar_settings.local_training_batch_sample_count
         candidate_batch_sample_count = (

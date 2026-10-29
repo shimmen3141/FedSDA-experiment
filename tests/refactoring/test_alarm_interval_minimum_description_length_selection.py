@@ -408,6 +408,7 @@ def test_selection_combines_the_model_losses_and_prequential_code_lengths(sequen
             switching_probability=1 / 120,
             change_interval_grid_sample_count=5,
             new_model_hypothesis_learners="reinitialized_learner",
+            change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
         )
     finally:
         selection_module.compute_reinitialized_learner_prequential_code_length = original
@@ -477,6 +478,7 @@ def test_selection_rejects_an_alarm_index_that_is_not_the_last_pending_sample():
             switching_probability=1 / 120,
             change_interval_grid_sample_count=5,
             new_model_hypothesis_learners="reinitialized_learner",
+            change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
         )
 
 
@@ -517,6 +519,7 @@ def test_selection_uses_the_shorter_learner_with_the_learner_selection_code_leng
             switching_probability=1 / 120,
             change_interval_grid_sample_count=5,
             new_model_hypothesis_learners="reinitialized_and_warm_started_learners",
+            change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
         )
     finally:
         selection_module.compute_reinitialized_learner_prequential_code_length = (

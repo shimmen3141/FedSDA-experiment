@@ -94,6 +94,7 @@ def valid_run_settings_mapping():
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             new_model_hypothesis_learners="reinitialized_learner",
+            change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
             pending_assignment_buffer_capacity_samples=2,
         ),
         "model_consolidation_settings": ModelConsolidationSettings(
@@ -151,6 +152,7 @@ def test_direct_subset_construction_uses_the_same_validation(
                 pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
                 alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
                 new_model_hypothesis_learners="reinitialized_learner",
+                change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
                 pending_assignment_buffer_capacity_samples=specified_parameter_value,
             )
         )
@@ -230,6 +232,7 @@ def test_run_settings_validation_accepts_valid_component_mapping(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             new_model_hypothesis_learners="reinitialized_learner",
+            change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
             pending_assignment_buffer_capacity_samples=specified_parameter_value,
         )
     )
@@ -311,6 +314,7 @@ def test_fixed_share_time_scale_may_differ_from_assignment_buffer_capacity(
         pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
         alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
         new_model_hypothesis_learners="reinitialized_learner",
+        change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
         pending_assignment_buffer_capacity_samples=specified_parameter_value,
     )
     assert validate_experiment_run_settings(unvalidated_run_settings) is None
@@ -492,6 +496,7 @@ def test_unknown_dataset_identifiers_are_rejected(specified_parameter_value):
                 pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
                 alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
                 new_model_hypothesis_learners="reinitialized_learner",
+                change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
             ),
             "pending_assignment_buffer_capacity_samples",
         ),
@@ -569,6 +574,7 @@ def test_integer_settings_reject_invalid_types_and_ranges(
                 pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
                 alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
                 new_model_hypothesis_learners="reinitialized_learner",
+                change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
             ),
             "pending_assignment_buffer_capacity_samples",
         ),
@@ -662,6 +668,7 @@ def test_aggregation_interval_can_exceed_stream_length():
                 pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
                 alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
                 new_model_hypothesis_learners="reinitialized_learner",
+                change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
             ),
         ),
         (
@@ -757,6 +764,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             "pending_sample_retention_after_too_short_change_interval_policy": str,
             "alarm_interval_assignment_policy": str,
             "new_model_hypothesis_learners": str,
+            "change_interval_search": str,
         }
         if settings_type is TrainingDataAssignmentSettings
         else {
@@ -848,6 +856,11 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 if settings_field.name == "alarm_interval_assignment_policy"
                 else ("reinitialized_learner", "reinitialized_and_warm_started_learners")
                 if settings_field.name == "new_model_hypothesis_learners"
+                else (
+                    "minimum_interval_multiples_with_forward_prequential_code",
+                    "every_sample_with_reverse_prequential_code",
+                )
+                if settings_field.name == "change_interval_search"
                 else ("restart_adahedge_preserve_fixed_share_prediction_state",)
             )
         elif settings_field.name in ("e_sr_false_alarm_control_alpha", "adwin_confidence_delta"):

@@ -4561,6 +4561,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_configurations.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.EVERY_SAMPLE_WITH_REVERSE_PREQUENTIAL_CODE_SEARCH_NAME",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.RAISE_ALARM_IMMEDIATELY_POLICY_NAME",
             "federated_learning_experiments.runtime.fedavg_run_settings.build_default_fedavg_run_settings",
             "federated_learning_experiments.runtime.fedavg_run_settings.FedavgRunSettings",
@@ -4620,6 +4621,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_final_configuration_run_settings.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME",
             "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
@@ -4961,6 +4963,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_run_client_settings.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.REINITIALIZED_LEARNER_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME",
@@ -5020,6 +5023,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/observed_sample_processing.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.validate_change_interval_search",
             "typing.cast",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.validate_new_model_hypothesis_learners",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.alarm_interval_assignment_selection_record_store.AlarmIntervalAssignmentSelectionRecordStore",
@@ -5438,6 +5442,10 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/alarm_interval_minimum_description_length_selection.py":
         return imported_module_name in (
+            "federated_learning_experiments.learning.training.prequential_code_length.compute_reinitialized_learner_prequential_code_length_prefixes",
+            "federated_learning_experiments.learning.training.prequential_code_length.compute_warm_started_learner_prequential_code_length_prefixes",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.EVERY_SAMPLE_WITH_REVERSE_PREQUENTIAL_CODE_SEARCH_NAME",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.validate_change_interval_search",
             "federated_learning_experiments.learning.training.prequential_code_length.compute_warm_started_learner_prequential_code_length",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.WARM_STARTED_LEARNER_NAME",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME",
