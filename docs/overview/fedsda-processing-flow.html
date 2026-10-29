@@ -317,16 +317,15 @@ function renderMdl(frame,insufficient){
   // 白い縁でセルの濃淡から経路を分離する。
   svg+=path(route(best),'white','mdl-path','stroke-width="11" style="stroke-width:11"');
   svg+=path(route(best),palette[best.key],'mdl-path selected',`data-selected-path="${best.key}"`);
-  // 格子の行とは独立に、ラベル・棒・凡例の縦方向の余白を確保する。
-  const bx=1400,scale=4.7,barYs=[950,1012,1074,1136];
-  svg+=text(1380,881,'符号長（短いほどよい）');
+  // 棒は、対応するモデルの行と同じ高さに置く（新モデルは2つの学習者の行の間）。ラベルは棒の右に置く。
+  const bx=1300,scale=3.8,barYs=[ys[0],ys[1],ys[2],(ys[3]+ys[4])/2];
+  svg+=text(bx,881,'符号長（短いほどよい）');
   ex.representatives.forEach(o=>{
-   const y=barYs[o.row],win=o===best,c=palette[o.key],label=o.key==='current'?'現在のまま':o.key==='candidate'?'新モデル（短い方＋ln 2）':`${o.row}′へ切替`;
-   svg+=text(bx,y-27,label,`style="fill:${c};font-weight:${win?'bold':'normal'}"`);
+   const y=barYs[o.row],win=o===best,c=palette[o.key],label=(o.key==='current'?'現在のまま':o.key==='candidate'?'新モデル（短い方＋ln 2）':`${o.row}′へ切替`)+(win?'　← 最短':'');
    let cursor=bx;
    [[o.pre,'#ada0c7'],[o.post,'#78b8bc'],[o.switching,'#334e63']].forEach(([v,fill])=>{if(v>0){svg+=rect(cursor,y-10,v*scale,20,fill,'bar-part');cursor+=v*scale;}});
    svg+=rect(bx-3,y-13,o.total*scale+6,26,`none;stroke:${c};stroke-width:${win?3:1}`,'bar-outline',`data-bar="${o.key}" data-total="${o.total}"`);
-   if(win)svg+=text(1715,y+7,'最短',`text-anchor="end" class="selected-label"`);
+   svg+=text(bx+o.total*scale+12,y+7,label,`style="fill:${c};font-weight:${win?'bold':'normal'};font-size:19px"${win?' class="selected-label"':''}`);
   });
   svg+=text(1380,1174,'■ 前半の損失和','style="fill:#79638e;font-size:18px"');
   svg+=text(1380,1198,'■ 後半の損失和','style="fill:#337d84;font-size:18px"');
