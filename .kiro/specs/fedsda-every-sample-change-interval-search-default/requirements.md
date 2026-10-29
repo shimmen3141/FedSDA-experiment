@@ -1,0 +1,70 @@
+# Requirements Document
+
+## Project Description (Input)
+- 誰が困っているか: FedSDAの手法を設計・評価し、論文（FedHASP、PAKDD 2027）に書く研究者（ユーザー）。
+- 今の状況: 警報の後の最小記述長（MDL）の選択は、既定（基準版15）で、変化区間の長さkの候補を最小変化区間（既定5件）の倍数に限り、「新しいモデル」の仮説の予測的符号長を、kごとに末尾k件を古い方から一から学習して測る。
+  逆向きの1本の流れで1件刻みに測る扱い（設定`change_interval_search=every_sample_with_reverse_prequential_code`、構成`fedsda-every-sample-change-interval-search`）は、前のspec（`fedsda-reverse-prequential-change-interval-search`）で選択肢として足した。
+- 何を変えるか: 最終構成の既定を、逆向きの1本の流れで1件刻みに測る扱いにし、基準版16を足す。今の扱いは選択肢として残し、比べるための構成を足す。
+- 背景: [IMPROVE-032](../../../docs/research/improvement-candidates/improve-032-reverse-order-prequential-code-for-all-change-intervals.md)の本規模の結果（2026-10-29、uranium、10データ×4間隔×seed 0〜9）。
+  既定との精度差は平均+0.01〜+0.02ppで、seedのばらつきの範囲。通信・MACの比は0.95〜1.05。
+  ユーザーは、説明のしやすさ（kの候補に5の倍数という恣意的な刻みが要らない）、ロジックの自然さ（全部のkを1本の流れの途中までの和で測る）、計算量（測定用の学習者の更新が警報あたり列の長さ以下）を理由に、既定にすると決めた（2026-10-29「R1を既定にしたい」）。
+  同じ日の「締め切りの前には既定を変えない」という判断は、この決定で置き換える。
+
+## Introduction
+設定の値と呼び方の対応:
+
+| 設定 | 値 | この文書での呼び方 |
+|---|---|---|
+| `TrainingDataAssignmentSettings.change_interval_search`（既存の項目） | `minimum_interval_multiples_with_forward_prequential_code` | 「今の扱い」（基準版15までの既定） |
+| 同上 | `every_sample_with_reverse_prequential_code` | 「新しい扱い」（基準版16からの既定） |
+
+用語:
+- **列W**: 警報の時点の帰属の保留（FIFO）の標本の列（警報の標本を含む、古い順、最大は容量＋1件）。
+- **最小変化区間の倍数でないk**: 選択の記録で、選んだ仮説が保有モデルか新しいモデルで、変化区間の長さkが最小変化区間（既定5件）の倍数でないもの。今の扱いでは起きず、新しい扱いでだけ起きる。
+
+## Boundary Context
+- 対象: 最終構成の既定の値、構成の扱い（新しい扱いの構成の名前の扱い、今の扱いを選ぶ新しい構成）、最小記述長の選択を使わない設定の組（旧と比べる入口、実旧との照合の組、testの設定）での今の扱いの明示、基準版のgolden（版1〜15の照合を保つことと、版16の追加）、既定に依るtest、研究ツールの基点の固定と意味の保持、文書。
+- 対象外: 2つの扱いの計算そのもの（前のspecのまま）、検出器、最小記述長の選択のほかの部分、件数不足の判定、帰属の保留、候補の学習と採用、登録、クロス評価、統合、予測、FedDrift・FedAvg、固定旧と旧golden、本規模の実験（必要ならユーザーが別に決める）、処理の流れのHTML（別のbranch）、論文の原稿。
+
+## Requirements
+### Requirement 1: 既定を新しい扱いにする
+**Objective:** As a 研究者, I want 最終構成の既定が新しい扱いであること, so that 論文で説明する手法と既定の実装が同じになる。
+#### Acceptance Criteria
+1. The FedSDA system shall 最終構成の既定の`change_interval_search`を「新しい扱い」にし、FedSDAの全部の構成（全部が最小記述長の選択を使う）が引き継ぐ。
+2. The FedSDA system shall 構成`fedsda-every-sample-change-interval-search`を、既定と同じ設定の構成として残す（これまでのコマンドと結果の記録のため。`fedsda-synchronized-local-mixture-prediction`と同じ扱い）。
+3. The FedSDA system shall 今の扱いを選ぶ構成`fedsda-minimum-interval-multiples-change-interval-search`を足す（最終構成の既定から、`change_interval_search`だけを「今の扱い」に替える）。goldenの事例にせず、専用のtestで守る。
+4. The FedSDA system shall 全部の構成の組立てが例外を出さず、実験のコマンドの引数を変えない。
+
+### Requirement 2: 最小記述長の選択を使わない設定の組で、今の扱いを明示する
+**Objective:** As a 研究者, I want 既定を変えても、過去の照合と比較が同じ意味で動くこと, so that 既存の照合を失わない。
+#### Acceptance Criteria
+1. The FedSDA system shall 最小記述長の選択を使わない設定の組（`alarm_interval_assignment_policy`が最小記述長でないもの: 旧と比べる設定の入口、実旧との照合の組、testとfresh scriptの設定）で、`change_interval_search`を「今の扱い」と明示する（組合せの検査は前のspecのまま。新しい扱いと最小記述長でない選び方の組は拒否する）。
+2. The validation shall 実旧との照合test（部品・全体run・構成）を、値を変えずに成功させる。
+
+### Requirement 3: これまでの基準を保つ
+#### Acceptance Criteria
+1. The validation shall 基準版1〜15のgoldenを、「今の扱い」で、値を変えずに照合し続ける（`_CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION`の今の扱いの明示は前のspecのまま。全部の版を、既存の版ごとの設定の組立てと照合のtestで確かめる）。
+2. The validation shall 構成`fedsda-minimum-interval-multiples-change-interval-search`の設定が、基準版15の構成`fedsda`の設定と同じであることを確かめる（構成の名前とrunの識別子を除く）。
+
+### Requirement 4: 新しい既定が、前のspecの構成と同じ値であることを確かめる
+#### Acceptance Criteria
+1. The validation shall 既定を変える前の構成`fedsda-every-sample-change-interval-search`の全体runと、変えた後の構成`fedsda`の全体runの、同じ条件の結果が、許容差なしで一致することを、複数のデータ（MNIST4、SINE2、SEA4、CIRCLE2、間隔50、seed 0、各client 1000標本と、列Wが最小変化区間より短い警報が起きるSINE2・seed 1）で確かめる。一致の定義:
+   (a) 記録の表の全配列が、同じ名前の配列と`numpy.array_equal`（浮動小数は`equal_nan=True`）で一致する。
+   (b) runの要約の全項目が一致する。除くのは、実行の時刻・秒数・出力先の名前・コードの来歴・基準版の番号・構成の名前・runの識別子。
+   (c) 最終のパラメータが一致する。
+
+### Requirement 5: 新しい既定を基準版16として足す
+#### Acceptance Criteria
+1. The validation shall 新しい既定での値を、基準版16のgoldenとして、Windowsの基準環境とWSLの両方で足す（ケースは版15と同じ18ケース）。各環境で2回の独立したprocessの一致と必須の経路を確かめて生成する。
+2. The validation shall 版15と16の差を、goldenを使わず両方の版をその場で実行して確かめる: FedDrift・FedAvgのケースは、指標・最終のパラメータ・記録の表・経路の記録（版16で足す項目を取り除いたもの）が版15と同じ。FedSDAのケースは、設定が`change_interval_search`だけ違う。
+3. The validation shall 経路の記録に、最小変化区間の倍数でないkの選択の回数を足し（版16から。FedSDAのケースだけ）、新しい既定を引き継ぐFedSDAのケースのうち少なくとも2つ（既定の候補は`fedsda-sine2-adoption-without-validation`と`fedsda-mnist4-warm-started-learner`。生成の前に主担当が値を確かめ、0なら1以上のケースを選び直して理由を記録する）で1以上であることを、必須の経路として確かめる。版15までの必須の経路は、版16でも求める。
+
+### Requirement 6: 研究ツールの意味を保つ
+#### Acceptance Criteria
+1. The research tool shall 既定を変えた後も、`product-default`系以外の既存の変種（基準版10の既定を基点にする変種）が同じ意味を持つようにする（基点の固定に、`change_interval_search`の今の扱いを足す）。
+2. The research tool shall 基準版12・15の既定の上で評価してきた研究用の変種（IMPROVE-031の変種、IMPROVE-032の変種`default-reverse-prequential-grid5`・`default-reverse-prequential-grid1`・`default-reverse-prequential-grid1-position-cost`）は、既定を変えた後も、評価したときの意味を保つ（`change_interval_search`を今の扱いに戻してから変種を当てる）。`product-default`は製品の既定（基準版16）を使い、変種`every-sample-change-interval-search-configuration`は構成をそのまま使う。
+3. The validation shall 既定を変えた後、研究用CLIの`default`、`default-reverse-prequential-grid1`、`product-default-loss-monitor-decrease-rebaseline`と、研究用の入口の`product-default-all-evaluating-clients-loss-monitor-decrease-rebaseline`の小さい条件の結果が、変える前と同じことを確かめる（秒数・時刻・コードの来歴を除く全部の出力）。
+
+### Requirement 7: 文書を合わせる
+#### Acceptance Criteria
+1. The documentation shall 手法の説明（提案手法の概要、モデル再利用の文書の最小記述長の節）、基準の文書（版16）、実験の入口（構成の一覧）、IMPROVE-032の状態、再開案内で、新しい既定を書く。過去の日付の記録は書き換えない。
