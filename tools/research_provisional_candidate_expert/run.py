@@ -31,6 +31,10 @@ from tools.research_provisional_candidate_expert.reverse_prequential import (
     REVERSE_PREQUENTIAL_VARIANTS,
     reverse_prequential_policy,
 )
+from tools.research_provisional_candidate_expert.candidate_initialization_follows_learner import (  # noqa: E402
+    CANDIDATE_INITIALIZATION_VARIANTS,
+    candidate_initialization_policy,
+)
 
 # 変種 -> （構成、仮の専門家を使うか、検証の標本数）。候補検証の変種は廃止した。
 _VARIANTS = {
@@ -210,9 +214,12 @@ for _variant_name in LOSS_MONITOR_REBASELINE_VARIANTS:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
 for _variant_name in REVERSE_PREQUENTIAL_VARIANTS:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
+for _variant_name in CANDIDATE_INITIALIZATION_VARIANTS:
+    _VARIANTS[_variant_name] = ("fedsda", False, None)
 # 組Eのproduct-default系は、基準版16から新しい探索を使う製品の既定の上で評価する。
 # 版10・版12を基点とする変種とIMPROVE-032の選択の差し替えは、実行時に元の探索へ戻す。
 _PRODUCT_DEFAULT_BASED_VARIANTS = (
+    *CANDIDATE_INITIALIZATION_VARIANTS,
     *REVERSE_PREQUENTIAL_VARIANTS,
     *LOSS_MONITOR_REBASELINE_VARIANTS,
     "product-default-class-conditioned-prediction",
@@ -2433,7 +2440,12 @@ def _execute_job(job):
     loss_monitor_rebaseline = {}
     class_conditioned_prediction = {}
     prequential_measurement = {}
+    candidate_initialization = {}
     with contextlib.ExitStack() as stack:
+        if job["variant"] in CANDIDATE_INITIALIZATION_VARIANTS:
+            stack.enter_context(candidate_initialization_policy(
+                variant=job["variant"], diagnostics=candidate_initialization,
+            ))
         # 新しい探索は途中までの和の製品関数を使う。研究用レコーダは総和の関数を
         # 包むため測定対象外とし、prequential_measurementは空（0回の意味ではない）。
         # R1との照合にはmodel_computation_countsと製品の選択記録を使う。
@@ -2668,6 +2680,13 @@ def _execute_job(job):
         candidate_maximum_epoch_count=client_settings.candidate_epoch_training_settings.maximum_epoch_count,
         model_computation_counts=dataclasses.asdict(metrics.model_computation_counts),
         prequential_measurement=prequential_measurement,
+        **({"candidate_initialization": candidate_initialization} if candidate_initialization else {}),
+        candidate_adoption_count=int(
+            sum(
+                outcome == "alarm_interval_candidate_adopted_as_new_model"
+                for outcome in tables.get("adaptation.adaptation_outcome", ())
+            )
+        ),
         alarm_interval_assignment_selection={
             name: values.tolist() for name, values in tables.items()
             if name.startswith("alarm_interval_assignment_selection.")

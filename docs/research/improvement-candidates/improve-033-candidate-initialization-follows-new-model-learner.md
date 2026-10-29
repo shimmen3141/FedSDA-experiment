@@ -44,3 +44,10 @@
 - 3回目（`bd43fc2a`）FAIL: 依頼文の本文のseedの指定の矛盾、6データの結果のまとめ方。全部反映。
 - 4回目（`25126e8d`）FAIL: 組Eの検査の期待値、結び付けの状態の持ち方（交互に来る警報）、5件刻みのseedの検査、全体の平均の重み。全部反映。
 - 5回目（`ef0d0664`）PASS。Minor 1（run全体の乱数の状態も比べる）は採らない: 案の変種では候補の初期値が変わるので、その後の経過とrun全体の乱数の消費は一致しないのが当然。乱数を変えないことは、初期化の関数の単位の検査で確かめる。
+
+## 研究ツールの実装（2026-10-30、実装: GPT-6.1-sol）
+
+- 変更: `tools/research_provisional_candidate_expert/candidate_initialization_follows_learner.py`（実行中の差し替えと警報ごとの診断。選択のオブジェクトごとの表、`alarm_buffer_response.resolve_alarm_change_interval`の入口で`is`と警報の標本の番号を確認、探し方に合わせたseedの関数、MDLの学習者の最初の概念固有部との実行中の照合）、`run.py`（2変種の登録・差し込み・診断の保存`candidate_initialization.candidates`）、`checks_change_interval_search_default.py`（組Eの期待値）、新しい検査`checks_candidate_initialization_follows_learner.py`。`src/`は変えていない。
+- 実装担当の小さい全体run（間隔50・seed 0・10 client・各client 1000標本）: 研究ツールの`product-default`は、差し込まない製品の`fedsda`と、決めた全項目（精度、上り・下りの通信、予測の記録と最終のパラメータのdigest、計算回数、選択の記録の全列、候補の採用の回数）で許容誤差なしに一致。案の変種の初期値の種類（初期化し直し／現在のモデルの写し）はSINE2で6／1、MNIST4で3／0（MNIST4では写しの分岐が出なかった。条件は探していない）。
+- 主担当の確認: 研究ツールの検査137 passed（Windows、12並列、742秒、JUnit `../../venv/refactoring-tests/improve033-checks.xml`。実装担当の環境で権限のため実行できなかった23件を含む）。Ruff成功。
+- 実装レビュー（GPT-6 Luna、effort medium）: FAIL（Minor 1件だけ: 「受け入れ条件は間隔0」）。採らない: 計画と依頼文の条件は間隔50で、実装はそのとおり（指摘は読み違い）。ほかの受け入れ条件（結び付け、交互の警報、使った後の消去、seedの2経路と学習者の初期値の照合、乱数、差し込みの復元、製品との一致、警報ごとの記録、`src/`を変えていないこと）は満たしていると確認された。
