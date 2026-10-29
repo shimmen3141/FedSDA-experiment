@@ -4,7 +4,7 @@
 
 ## 現在地
 
-- 2026-10-29: [fedsda-reverse-prequential-change-interval-search](../specs/fedsda-reverse-prequential-change-interval-search/tasks.md)はTask 3のR1との完全一致照合とTask 4の文書更新まで実施。既定は変えず、基準版15を維持する。照合のscript・JSONは`../../venv/refactoring-tests/reverse-prequential-task3-compare.*`、研究ツールの検査は主担当の環境で86 passed。次はTask 5の独立CLIによる実装レビューと最終検証、その後にTask 6の製品構成の本規模の実験（未実行）。
+- 2026-10-29: [fedsda-reverse-prequential-change-interval-search](../specs/fedsda-reverse-prequential-change-interval-search/tasks.md)はTask 1〜6を完了。既定は変えず、基準版15を維持する。本規模の640 runで既定との精度差は平均+0.01〜+0.02pp（[IMPROVE-032](../../docs/research/improvement-candidates/improve-032-reverse-order-prequential-code-for-all-change-intervals.md)）。採否は未判断（ユーザーが判断する）。
 - **最新の総括・再開順は[研究の引継ぎ（2026-10-26）](../../docs/research/research-handoff-20261026.md)**。Claude交代後の一連の研究、結果の所在、訂正、未着手事項をまとめている。
 - **候補検証の削除は完了、現在の基準版は15**（[対象spec](../specs/remove-post-alarm-candidate-validation/tasks.md)、2026-10-28）。版15のgoldenは生成元`c13149ea`（WindowsとWSL）。版1〜14の保存済みgoldenと乱数のfixtureは維持する。版14で始めた掃引は、版15のコードでは再開できない（始めたときのコードで再開する）。
 - 実装レビュー・全pytest・WSLの結果の正本は対象specのImplementation Notes。E1a/E2/S1/S3/B・E3とmain統合は未採用／未決定のまま。v13のablation（共有部の固定を外す枝を含む）と、評価の設計（研究バックログの9）は未着手。

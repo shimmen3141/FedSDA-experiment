@@ -1,9 +1,9 @@
 # IMPROVE-032: 新しいモデルの仮説の予測的符号長を、新しい方から1本の流れで測り、変化区間を1件刻みにする
 
-- 日付: 2026-10-29（ユーザーの指摘から）。状態: 製品の設定の選択肢と構成として実装（既定にはしない。[spec `fedsda-reverse-prequential-change-interval-search`](../../../.kiro/specs/fedsda-reverse-prequential-change-interval-search/tasks.md)）。本規模の実験は未実行。
+- 日付: 2026-10-29（ユーザーの指摘から）。状態: 製品の設定の選択肢と構成として実装（既定にはしない。[spec `fedsda-reverse-prequential-change-interval-search`](../../../.kiro/specs/fedsda-reverse-prequential-change-interval-search/tasks.md)）。本規模の実験は実施済み（[結果](#製品構成の本規模の結果2026-10-29uraniumspecのtask-6)、精度差は平均+0.01〜+0.02pp）、採否は未判断。
 - 対象: 警報の後の最小記述長（MDL）による変化点と帰属先の選択（`runtime/alarm_interval_minimum_description_length_selection.py`の`select_alarm_interval_assignment`、`methods/fedsda/training_data_assignment/minimum_description_length_assignment_selection.py`、`learning/training/prequential_code_length.py`）。[モデル再利用の文書](../../components/model-reuse.md#最小記述長の原理による選択既定)。
 
-製品では`training_data_assignment_settings.change_interval_search=every_sample_with_reverse_prequential_code`、構成`fedsda-every-sample-change-interval-search`で選ぶ。既定の`minimum_interval_multiples_with_forward_prequential_code`と構成`fedsda`は従来どおり。以下の研究ツールの128 runは実施済みの予備比較で、製品構成の本規模の実験（specのTask 6）は未実行。
+製品では`training_data_assignment_settings.change_interval_search=every_sample_with_reverse_prequential_code`、構成`fedsda-every-sample-change-interval-search`で選ぶ。既定の`minimum_interval_multiples_with_forward_prequential_code`と構成`fedsda`は従来どおり。以下の研究ツールの128 runは予備比較で、製品構成の本規模の実験（specのTask 6）は末尾に記録した。
 
 ## 今の扱い（基準版15）
 - 変化区間の長さkは、最小変化区間（既定5件）の倍数で、Wの長さ（最大31件）以下の全部を試す。
@@ -57,3 +57,33 @@
 - 位置の項（R1＋位置）は切替を減らし、SEA4で警報が大きく減った（間隔200で9.5→1.8回/run）。SEA4・200（0/4）とCIRCLE2・200で下がる。
 - 読み: 新しい方からの1本の流れは機能し、計算量を約3分の1にしても精度を下げない（R5）。1件刻み（R1）は、多くのセルで小さく上がる（最大+0.14pp）が、4 seedで差は0.1pp前後とseed間のばらつき（SD 0.2〜0.5pp）より小さく、改善とは言えない。位置の項は効かない。
 - 判断（暫定、採否はユーザー）: 締め切り前は既定を変えない。採用を検討するなら、R1（またはR5）を、MNIST2・SEA2と新しい4データ、4間隔、seed 0〜9の本規模で既定と比べる。
+
+## 製品構成の本規模の結果（2026-10-29、uranium、specのTask 6）
+
+- 結果: `results/fedsda-every-sample-change-interval-search/`の`20261029_151540_tuned-datasets-seeds0-9`（6データ、`fedsda`と新しい構成の480 run）と`20261029_172159_new-datasets-seeds0-9`（新しい4データ、新しい構成の160 run）。commit `541989d1`、基準版15、64 workers、640 runとも完了・失敗0。新しい4データの既定は`results/new-datasets-v15/20261029_024740_fedsda-seeds0-9/fedsda`（基準版15）と、データ・間隔・seedで対応させた。
+- 整合の確認: 6データの版15の`fedsda`240 runは、版13の結果（`results/fedsda-component-ablation-v13/20261027_044431_core-components-v13-seeds0-9/fedsda`）と、全体の累積精度・上りの通信・警報の回数が全run一致した。
+- 集計: `tools/research_feddrift_delta_comparison.py compare`の出力を`results/fedsda-every-sample-change-interval-search/comparison-{tuned,new}-datasets.csv`に置いた（別のscriptの集計と全セル一致）。
+
+既定（`fedsda`）との同じseedの対の差（pp、seed 0〜9の平均、括弧は95%信頼区間の半幅、勝/負/同）:
+
+| データ | 間隔50 | 間隔100 | 間隔200 | 間隔500 |
+|---|---|---|---|---|
+| SINE2 | +0.02（±0.06、6/4/0） | +0.02（±0.08、6/4/0） | +0.11（±0.10、7/3/0） | −0.03（±0.20、4/5/1） |
+| CIRCLE2 | +0.13（±0.13、8/2/0） | −0.04（±0.13、3/7/0） | −0.03（±0.18、5/5/0） | −0.22（±0.31、3/7/0） |
+| SEA2 | +0.02（±0.05、4/6/0） | +0.04（±0.04、7/2/1） | −0.08（±0.05、0/8/2） | +0.01（±0.07、6/3/1） |
+| SEA4 | +0.10（±0.38、7/3/0） | +0.23（±0.33、7/3/0） | +0.08（±0.12、6/4/0） | +0.11（±0.21、7/3/0） |
+| MNIST2 | −0.01（±0.08、5/5/0） | −0.01（±0.07、5/5/0） | −0.04（±0.07、4/6/0） | −0.02（±0.06、3/7/0） |
+| MNIST4 | +0.05（±0.16、6/4/0） | −0.04（±0.20、5/5/0） | −0.07（±0.10、5/5/0） | −0.01（±0.24、4/6/0） |
+| fmnist2 | −0.01（±0.14、4/6/0） | −0.03（±0.19、4/6/0） | +0.01（±0.14、6/4/0） | −0.03（±0.21、4/6/0） |
+| fmnist4 | −0.04（±0.43、4/6/0） | +0.10（±0.68、6/4/0） | −0.13（±0.33、3/7/0） | +0.24（±0.21、7/3/0） |
+| rotmnist2 | +0.04（±0.13、6/4/0） | −0.01（±0.08、3/7/0） | +0.04（±0.07、7/3/0） | +0.02（±0.14、5/5/0） |
+| rotmnist4 | −0.09（±0.28、3/7/0） | +0.02（±0.08、5/5/0） | +0.04（±0.12、8/2/0） | +0.19（±0.26、8/2/0） |
+
+- 全体: 6データの240対は平均+0.014pp（中央値+0.004、勝123/負112/同5）、新しい4データの160対は平均+0.023pp（中央値+0.014、勝83/負77）。符号の検定（正規近似、両側）はどちらもp≈0.5〜0.7。40セルのうち95%信頼区間が0を含まないのは、SINE2・200（+）、SEA2・200（−）、fmnist4・500（+）の3セル（偶然でも約2セル）。データ別ではSEA4だけが4間隔とも正（40対で勝27/負13、平均+0.13pp）、ほかは−0.04〜+0.04pp。
+- 通信（上り＋下り）の比は0.95〜1.05、clientのMAC（順伝播＋推定逆伝播）の比は0.95〜1.05で、どちらも系統的な差はない。このMACには、MDLの測定用学習者の計算は入らない（`prequential_code_length.py`に計数のコードが無い）。測定用学習者の更新回数が約1/3になること（研究ツールの128 runで測った）は、製品の指標では確かめていない。
+- 警報の回数（1 runの平均）は、データ×間隔ごとに既定の0.92〜1.07倍で、向きはそろわない。
+- MDLの選択の内訳（全run合計）: 6データは、現在のまま13480→13235、再利用6339→6476、新しいモデル3511→3614。新しい4データは7141→6789、7181→7326、1544→1505。SEA2・SEA4では再利用と新しいモデルが増えた（SEA2の再利用 0.7〜1.1→1.9〜2.4回/run）。
+- 選んだ変化区間の長さk（再利用か新しいモデルを選んだ警報、6データ9850→10090回・新しい4データ8725→8831回）: 既定はk=5・10・…・30だけで、Wの全長（31件）は候補に入らない。新しい構成では6〜29件と31件にも広がり、5の倍数は6データで38%・新しい4データで21%、Wの全長（31件）が16%・17%。新しい4データでは、既定でk=10に集まっていた選択（28%）が6〜9件に移った。kの平均は18.6→18.4、19.1→18.7でほぼ同じ。
+- 変化点の推定の誤差（平均絶対誤差、標本数）: rotmnist2・rotmnist4で1.7〜2.2→0.3〜0.8に下がった（4間隔とも）。CIRCLE2は5.9〜6.3→5.4〜5.9、SINE2・MNIST2・MNIST4・fmnistはほぼ同じ。急な変化で、1件刻みが変化点を正確に当てることを示すが、全体の累積精度には効いていない。
+- 読み: 1件刻みの逆向きの探索は、変化点の位置を細かく当て、MDLの計算も軽くする（研究ツールでの測定）が、全体の累積精度・通信・MACは既定とほぼ同じ（差はseedのばらつきの範囲）。研究ツールの128 runで見えた小さな正の差（R1 +0.06pp）は、本規模では+0.01〜+0.02ppに縮んだ。
+- 採否: ユーザーの判断（このspecでは既定を変えない）。

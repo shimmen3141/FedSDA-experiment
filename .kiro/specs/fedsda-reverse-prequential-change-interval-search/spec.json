@@ -3,7 +3,7 @@
   "created_at": "2026-10-29T00:00:00Z",
   "updated_at": "2026-10-29",
   "language": "ja",
-  "phase": "implementation",
+  "phase": "implementation-complete",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -65,5 +65,5 @@
     "target": "6bbac118..519b7170",
     "result": "PASS、指摘なし（独立のtest実行は環境の制約で無し。主担当の全pytest・WSL・fresh smokeで補った）"
   },
-  "remaining": "Task 6（本規模の実験と集計）"
+  "remaining": "なし（採否はユーザーの判断）"
 }
