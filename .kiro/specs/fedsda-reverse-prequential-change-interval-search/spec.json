@@ -1,0 +1,16 @@
+{
+  "feature_name": "fedsda-reverse-prequential-change-interval-search",
+  "created_at": "2026-10-29T00:00:00Z",
+  "updated_at": "2026-10-29",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {"generated": true, "approved": false},
+    "design": {"generated": true, "approved": false},
+    "tasks": {"generated": true, "approved": false},
+    "naming": {"generated": true, "approved": false, "revision": null, "approved_revision": null, "approved_sha256_lf": null}
+  },
+  "ready_for_implementation": false,
+  "base_revision": "76aa2940",
+  "implementation_assignment": "実装はGPT-6.1-sol（codex exec）、taskごとに渡し、主担当（Claude）が各taskを確かめてから次へ進む。主担当は仕様書群・確認・全pytest・レビューの起動。既定は変えないので、基準版（golden）は上げない"
+}
