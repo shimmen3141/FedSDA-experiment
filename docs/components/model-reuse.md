@@ -47,4 +47,6 @@ Pareto CSVには診断用として次の件数を保存する。
 
 構成`fedsda-every-sample-change-interval-search`は、基準版16から既定の`fedsda`と同じ設定として、これまでのコマンドと結果の記録のために残す。2つの扱いの間で、現在のモデル・保持モデルの符号長、切り替わりの符号長、同じ長さのときの優先順は変えない。
 
+warm startの学習者の寄与は、構成`fedsda-without-warm-started-learner`で比べられる（[spec](../../.kiro/specs/fedsda-without-warm-started-learner-configuration/design.md)）。最終提案の既定から`new_model_hypothesis_learners`だけを`reinitialized_learner`へ替え、「新しいモデル」の仮説を初期化し直した学習者だけで測る。学習者が1つなので、学習者の選択の符号長はln 1 = 0で、ln 2を足さない。変化区間の探索を含むほかの設定と既定は変えない。
+
 選択ごとに、run記録の表`alarm_interval_assignment_selection.*`（警報の標本の番号、選んだ仮説、変化区間の長さ、行き先のモデルのID、符号長、警報にしたか、「新しいモデル」を選んだときに短かった学習者——基準版11から——）を残す。サーバのクラスタリングの閾値（γ=0.1）は、この選択とは別に残る。

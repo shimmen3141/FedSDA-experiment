@@ -15,6 +15,7 @@ from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_ch
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
     MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME,
+    REINITIALIZED_LEARNER_POLICY_NAME,
 )
 from federated_learning_experiments.runtime.fedavg_run_settings import (
     FedavgRunSettings,
@@ -81,6 +82,8 @@ EVERY_SAMPLE_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME = (
 MINIMUM_INTERVAL_MULTIPLES_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME = (
     "fedsda-minimum-interval-multiples-change-interval-search"
 )
+# 提案構成から、「新しいモデル」の仮説のwarm startの学習者だけを外す構成。
+WITHOUT_WARM_STARTED_LEARNER_CONFIGURATION_NAME = "fedsda-without-warm-started-learner"
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
@@ -102,6 +105,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
     EVERY_SAMPLE_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME,
     MINIMUM_INTERVAL_MULTIPLES_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME,
+    WITHOUT_WARM_STARTED_LEARNER_CONFIGURATION_NAME,
 )
 
 
@@ -279,6 +283,22 @@ def build_experiment_run_settings(
                     training_data_assignment_settings=replace(
                         client.training_data_assignment_settings,
                         change_interval_search=MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME,
+                    ),
+                ),
+            ),
+        )
+    if configuration_name == WITHOUT_WARM_STARTED_LEARNER_CONFIGURATION_NAME:
+        participant = proposed_run_settings.run_participant_settings
+        client = participant.run_client_settings
+        return replace(
+            proposed_run_settings,
+            run_participant_settings=replace(
+                participant,
+                run_client_settings=replace(
+                    client,
+                    training_data_assignment_settings=replace(
+                        client.training_data_assignment_settings,
+                        new_model_hypothesis_learners=REINITIALIZED_LEARNER_POLICY_NAME,
                     ),
                 ),
             ),

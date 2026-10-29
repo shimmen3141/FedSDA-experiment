@@ -4561,6 +4561,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_configurations.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.REINITIALIZED_LEARNER_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.RAISE_ALARM_IMMEDIATELY_POLICY_NAME",
             "federated_learning_experiments.runtime.fedavg_run_settings.build_default_fedavg_run_settings",

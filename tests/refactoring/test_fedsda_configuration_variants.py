@@ -924,6 +924,7 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
         "fedsda-every-sample-change-interval-search",
         "fedsda-minimum-interval-multiples-change-interval-search",
+        "fedsda-without-warm-started-learner",
     )
     assert INDEPENDENT_MODELS_CONFIGURATION_NAME == "fedsda-independent-models"
     assert WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME == (
@@ -954,6 +955,7 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
         "fedsda-every-sample-change-interval-search",
         "fedsda-minimum-interval-multiples-change-interval-search",
+        "fedsda-without-warm-started-learner",
     }
     experiment_run_conditions = ExperimentRunConditions(
         dataset_name="sine2",

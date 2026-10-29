@@ -3,6 +3,8 @@
 - 発見日: 2026-10-22。対象: 基準版10の既定の、警報の後の変化点と帰属先の選択（`runtime/alarm_interval_minimum_description_length_selection.py`の`select_alarm_interval_assignment`、新しいモデルの予測的符号長は`learning/training/prequential_code_length.py`）。発見の経緯: MNIST4で、特定のseedに−4pp前後の精度の低下が散発する原因の調査（ユーザーの指示）。
 - 種別: 基準版10で入った選択の弱点（精度の低下を起こす）。状態: 対応済み（2026-10-22、基準版11。「新しいモデル」の仮説を、初期化し直した学習者とwarm startの学習者——下の「写しの学習者」——の短い方＋ln 2で測る扱いを、初期モデルの統計の交差検証（LEGACY-020）と一緒に既定にした。[spec](../../../.kiro/specs/fedsda-warm-started-learner-and-cross-validated-initial-statistics/design.md)）。
 
+- 比較用の構成: 基準版16の既定からwarm startの学習者だけを外す`fedsda-without-warm-started-learner`を追加した（[spec](../../../.kiro/specs/fedsda-without-warm-started-learner-configuration/design.md)）。`new_model_hypothesis_learners=reinitialized_learner`とし、初期化し直した学習者だけで測り、学習者の選択の符号長ln 2を足さない。ほかの設定と既定は変えない。この構成による本規模の精度比較は未実施。
+
 ## 内容
 
 MNIST4の概念k（k≥1）は、概念0の数字2つのラベルを入れ替えたもの（概念1は1↔2、概念2は3↔4、概念3は5↔6。`data/mnist/mnist_sample_generation.py`）。概念0のモデルで概念kを予測すると、約2割の標本（入れ替えた2つの数字）で誤り、約8割で正解する。

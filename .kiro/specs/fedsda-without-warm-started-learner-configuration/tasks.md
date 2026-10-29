@@ -14,3 +14,5 @@
   - _Depends:_ 2
 
 ## Implementation Notes
+- Task 1・2（実装: GPT-6.1-sol）: 構成`fedsda-without-warm-started-learner`（`experiment_configurations.py`）、新しいtest`test_fedsda_without_warm_started_learner_configuration.py`（設定の差と登録、固定条件の全体run、学習者1つでln 2を足さない部品のtest。実装前2 failed・1 passed、実装後3 passed）、`CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN`と依存境界への登録、既存のtest 2ファイルの構成の一覧の追従、文書（`experiment-sweep.md`、`model-reuse.md`、NEW-006）。固定条件（`fedsda-sine2-adoption-without-validation`のケースの条件）で、新しいモデルが17回選ばれ、`warm_started_learner`は無い（代わりの条件は使っていない）。既存の19構成の完全な設定と識別子は変更前と同じ（Solの確認）。
+- 主担当の確認: 新しいtest、構成・掃引・識別子・依存境界・設定の検査のtest、基準版1〜16のgoldenの照合（9ファイル、Windows、12並列）が4,091 passed / 8 skipped / 失敗0（815秒、JUnit `../../venv/refactoring-tests/without-warm-targeted.xml`）。Ruff成功。Pyright（設定の範囲）はSolの実行で0 errors。全pytestは設計どおり行わない（変更は構成の追加だけ）。

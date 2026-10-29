@@ -79,7 +79,7 @@ def test_comparison_configuration_changes_only_search_and_is_protected_without_g
         configurations.MINIMUM_INTERVAL_MULTIPLES_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME
         == COMPARISON
     )
-    assert configurations.EXPERIMENT_CONFIGURATION_NAMES[-1] == COMPARISON
+    assert COMPARISON in configurations.EXPERIMENT_CONFIGURATION_NAMES
     default, comparison = _build("fedsda"), _build(COMPARISON)
     participant = default.run_participant_settings
     client = participant.run_client_settings
