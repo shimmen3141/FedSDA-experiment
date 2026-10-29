@@ -3,14 +3,22 @@
   "created_at": "2026-10-29T00:00:00Z",
   "updated_at": "2026-10-29",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "implementation",
   "approvals": {
-    "requirements": {"generated": true, "approved": false},
-    "design": {"generated": true, "approved": false},
-    "tasks": {"generated": true, "approved": false},
-    "naming": {"generated": true, "approved": false, "revision": null, "approved_revision": null, "approved_sha256_lf": null}
+    "requirements": {"generated": true, "approved": true, "approved_by": "ユーザー委任、独立レビュー3回目PASS（GPT-6 Luna medium）"},
+    "design": {"generated": true, "approved": true, "approved_by": "ユーザー委任、独立レビュー3回目PASS（GPT-6 Luna medium）"},
+    "tasks": {"generated": true, "approved": true, "approved_by": "ユーザー委任、独立レビュー3回目PASS（GPT-6 Luna medium）"},
+    "naming": {"generated": true, "approved": true, "approved_by": "ユーザー委任、独立レビュー3回目PASS（GPT-6 Luna medium）", "revision": null, "approved_revision": null, "approved_sha256_lf": null}
   },
-  "ready_for_implementation": false,
+  "ready_for_implementation": true,
   "base_revision": "76aa2940",
+  "specification_review": {
+    "status": "passed",
+    "rounds": [
+      {"round": 1, "model": "gpt-6-luna", "reasoning_effort": "medium（指定値）", "target": "4acdbc31", "result": "FAIL（Major 3、Minor 3）。全部反映"},
+      {"round": 2, "model": "gpt-6-luna", "reasoning_effort": "medium（指定値）", "target": "78069465", "result": "FAIL（Major 1、Minor 1）。全部反映"},
+      {"round": 3, "model": "gpt-6-luna", "reasoning_effort": "medium（指定値）", "target": "32d7fa4b", "result": "PASS（Minor 1、文面のみ反映）"}
+    ]
+  },
   "implementation_assignment": "実装はGPT-6.1-sol（codex exec）、taskごとに渡し、主担当（Claude）が各taskを確かめてから次へ進む。主担当は仕様書群・確認・全pytest・レビューの起動。既定は変えないので、基準版（golden）は上げない"
 }
