@@ -14,4 +14,5 @@
 
 ## 本規模の追加の実行（要求3.2）
 - 6データ: `--configurations fedsda-without-warm-started-learner --datasets sea2 sea4 sine2 circle2 mnist2 mnist4 --seeds 0-9 --aggregation-intervals 50 100 200 500 --client-count 10 --per-client-sample-count 5000 --workers 64 --study fedsda-component-ablation-v16 --label without-warm-started-learner-seeds0-9`（240 run）。
-- 新しい4データ: 同じで`--datasets fmnist2 fmnist4 rotmnist2 rotmnist4 --study fedsda-component-ablation-new-datasets-v16`（160 run）。
+- 新しい4データ: まだ実行していない構成要素の比較のコマンド（`--configurations fedsda fedsda-minimum-interval-multiples-change-interval-search fedsda-without-prediction-weight-recalibration fedsda-overall-loss-esr-detection fedsda-without-concept-specific-adapter fedsda-loss-distance-clustering fedsda-local-parameter-prediction fedsda-without-candidate-validation fedsda-single-model-prediction --datasets fmnist2 fmnist4 rotmnist2 rotmnist4 ... --study fedsda-component-ablation-new-datasets-v16 --label core-components-v16-seeds0-9`）の構成に`fedsda-without-warm-started-learner`を加える（10構成×160 = 1,600 run）。比べる相手は同じ実行の`fedsda`。
+- 6データの追加分は、実行中の`fedsda-component-ablation-v16`（基準版16、このspecの前のcommit）の`fedsda`と比べる。このspecは既定と`fedsda`の設定・識別子を変えないので、コードのcommitが違っても`fedsda`の値は同じ（基準版16のgoldenの照合で確かめる）。

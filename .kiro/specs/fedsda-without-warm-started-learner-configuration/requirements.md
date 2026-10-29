@@ -26,4 +26,4 @@
 ### Requirement 3: 文書と追加の実行
 #### Acceptance Criteria
 1. The documentation shall 実験の入口（構成の一覧）、モデル再利用の文書の最小記述長の節、NEW-006に、新しい構成を書く。
-2. The experiment shall 実装・commit・pushの後、主担当が内部確認（`--print-plan`）をして、構成要素の比較の2つのstudy（6データと新しい4データ、seed 0〜9、間隔4つ、10 client×5000標本）へ、この構成だけを追加で実行するコマンドをユーザーに渡す。結果は、同じstudyの`fedsda`（基準版16）とデータ・間隔・seedで対応させて集計し、NEW-006と実験の台帳に記録する。採否はユーザーが判断する。
+2. The experiment shall 実装・commit・pushの後、主担当が内部確認（`--print-plan`）をして、次のコマンドをユーザーに渡す（seed 0〜9、間隔4つ、10 client×5000標本）。(a) 6データ: 実行中の構成要素の比較`fedsda-component-ablation-v16`（`fedsda`ほか9構成、2026-10-29に開始）へ、この構成だけを追加で実行する。比べる相手は同じstudyの`fedsda`（基準版16）。(b) 新しい4データ: まだ実行していない構成要素の比較`fedsda-component-ablation-new-datasets-v16`のコマンド（`fedsda`ほか9構成）に、この構成を加えて一緒に実行する。比べる相手は同じ実行の`fedsda`（基準版16）。結果は、データ・間隔・seedで対応させて集計し、NEW-006と実験の台帳に記録する。採否はユーザーが判断する。
