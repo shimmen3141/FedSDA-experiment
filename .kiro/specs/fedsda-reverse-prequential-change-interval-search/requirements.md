@@ -55,7 +55,7 @@
 
 ### Requirement 7: 本規模の実験で既定と比べる
 #### Acceptance Criteria
-1. The experiment shall 新しい構成を、研究室サーバ（uranium、標準64 workers）で、10データ（SINE2、CIRCLE2、SEA2、SEA4、MNIST2、MNIST4、fmnist2、fmnist4、rotmnist2、rotmnist4）×集約間隔4つ（50・100・200・500）×seed 0〜9、10 client×5000標本で実行する（400 run）。比べる相手の既定のFedSDAは実行済みの結果を使う（6データは`results/fedsda-component-ablation-v13/20261027_044431_core-components-v13-seeds0-9/fedsda`——基準版15と同じ値——、新しい4データは`results/new-datasets-v15/20261029_024740_fedsda-seeds0-9/fedsda`）。runの対応はデータ・間隔・seedで取る。
+1. The experiment shall 新しい構成を、研究室サーバ（uranium、標準64 workers）で、10データ（SINE2、CIRCLE2、SEA2、SEA4、MNIST2、MNIST4、fmnist2、fmnist4、rotmnist2、rotmnist4）×集約間隔4つ（50・100・200・500）×seed 0〜9、10 client×5000標本で実行する（新しい構成は400 run。下の既定の240 runと合わせて640 run）。比べる相手の既定のFedSDA（構成`fedsda`）は、基準版15の結果を使う: 6データ（SINE2〜MNIST4）は、同じsweepで構成`fedsda`も実行する（240 run）。新しい4データは、基準版15で実行済みの`results/new-datasets-v15/20261029_024740_fedsda-seeds0-9/fedsda`（commit `e23b0182`、その後の`src/`の変更はこのspecだけで、既定の値を変えないことを基準版1〜15の照合で確かめる）を使う。runの対応はデータ・間隔・seedで取る。整合の確認として、6データの版15の`fedsda`の結果が、論文の主表に使う版13の結果（`results/fedsda-component-ablation-v13/20261027_044431_core-components-v13-seeds0-9/fedsda`）と一致するかを記録する（一致しなければ、比べる相手は版15の結果のままとし、差をユーザーに報告する）。
 2. The experiment shall 全体の累積精度（同じseedの対の差、平均±SD、勝ち/負け）、上り・下りの通信、clientの計算回数（MAC）、警報の回数、選んだ変化区間の長さの分布を、データ×間隔ごとに集計し、IMPROVE-032と実験の台帳に記録する。採否はユーザーが判断する（このspecでは既定を変えない）。
 
 ### Requirement 6: 文書を合わせる

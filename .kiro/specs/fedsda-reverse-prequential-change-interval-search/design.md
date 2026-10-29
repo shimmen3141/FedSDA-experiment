@@ -57,7 +57,10 @@
 
 ### 本規模の実験（Requirement 7）
 - 実装・検証・commit・pushの後、uraniumで次のコマンドを流す（`tools/run_server_sweep.sh`は使わず、過去の本規模の実験と同じく`run_experiment_sweep.py`を直接、tmuxで）。実行はユーザーが行い、主担当がコマンドを渡す（内部確認として`--print-plan`で構成を確かめる。提示するコマンドには含めない）。
-  `python run_experiment_sweep.py --configurations fedsda-every-sample-change-interval-search --datasets sine2 circle2 sea2 sea4 mnist2 mnist4 fmnist2 fmnist4 rotmnist2 rotmnist4 --seeds 0-9 --aggregation-intervals 50 100 200 500 --client-count 10 --per-client-sample-count 5000 --workers 64 --study fedsda-every-sample-change-interval-search --label seeds0-9 --purpose "..."`
+  - 6データ（新しい構成と既定、480 run）: `python run_experiment_sweep.py --configurations fedsda fedsda-every-sample-change-interval-search --datasets sine2 circle2 sea2 sea4 mnist2 mnist4 --seeds 0-9 --aggregation-intervals 50 100 200 500 --client-count 10 --per-client-sample-count 5000 --workers 64 --study fedsda-every-sample-change-interval-search --label tuned-datasets-seeds0-9 --purpose "変化区間を逆向きの予測的符号長で1件刻みに探す構成を、基準版15の既定と、調整に使った6データで比べる"`
+  - 新しい4データ（新しい構成だけ、160 run。既定は実行済み）: `python run_experiment_sweep.py --configurations fedsda-every-sample-change-interval-search --datasets fmnist2 fmnist4 rotmnist2 rotmnist4 --seeds 0-9 --aggregation-intervals 50 100 200 500 --client-count 10 --per-client-sample-count 5000 --workers 64 --study fedsda-every-sample-change-interval-search --label new-datasets-seeds0-9 --purpose "変化区間を逆向きの予測的符号長で1件刻みに探す構成を、調整に使っていない4データで、実行済みの基準版15の既定と比べる"`
+  - 2つを同時に流すときは、workersの合計とサーバの負荷を見て配分する。
+- 6データの版15の`fedsda`と版13の結果（`fedsda-component-ablation-v13`）の、データ・間隔・seedごとの精度・通信量の一致を確かめて記録する（整合の確認。比べる相手は版15の結果）。
 - 集計は`tools/research_feddrift_delta_comparison.py compare`（既定のFedSDAとの同じseedの対の差、SD、勝ち/負け、通信、MAC）と、選択の記録の集計（警報の回数、選んだkの分布）で行い、IMPROVE-032と実験の台帳に書く。
 - 研究ツールの他の変種の意味は変わらない（新しい項目の既定は今の扱い）。
 

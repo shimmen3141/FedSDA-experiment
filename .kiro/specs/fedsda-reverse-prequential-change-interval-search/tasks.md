@@ -42,11 +42,12 @@
   - _Depends:_ 3, 4
 
 - [ ] 6. 本規模の実験と集計
-  - commit・pushの後、主担当が内部確認（`--print-plan`）をして、uraniumで流すコマンド（設計の「本規模の実験」。400 run、64 workers）をユーザーに渡す。結果が届いたら、既定のFedSDA（実行済み）とデータ・間隔・seedで対応させ、`tools/research_feddrift_delta_comparison.py compare`で対の差・SD・勝ち/負け・通信・MACを、選択の記録から警報の回数と選んだkの分布を集計する。
-  - 完了条件: 400 runの完了（失敗0）を確かめ、集計をIMPROVE-032と実験の台帳に記録する。採否はユーザーが判断する（既定は変えない）。
+  - commit・pushの後、主担当が内部確認（`--print-plan`）をして、uraniumで流す2つのコマンド（設計の「本規模の実験」。6データは新しい構成と既定の480 run、新しい4データは新しい構成の160 run、64 workers）をユーザーに渡す。結果が届いたら、既定のFedSDA（6データは同じsweepの版15、新しい4データは実行済みの版15）とデータ・間隔・seedで対応させ、6データの版15の既定が版13の結果と一致するかを確かめ、`tools/research_feddrift_delta_comparison.py compare`で対の差・SD・勝ち/負け・通信・MACを、選択の記録から警報の回数と選んだkの分布を集計する。
+  - 完了条件: 640 runの完了（失敗0）を確かめ、版13との一致の確認と集計をIMPROVE-032と実験の台帳に記録する。採否はユーザーが判断する（既定は変えない）。
   - _Requirements: 7.1, 7.2_
   - _Depends:_ 5
 
 ## Implementation Notes
 - 背景（2026-10-29）: 研究ツールの変種R1（`default-reverse-prequential-grid1`、commit `75fcc893`）の研究室サーバでの128 run（`results/fedsda-reverse-prequential/20261029_083601_uranium-n5000`）。結果は[IMPROVE-032](../../../docs/research/improvement-candidates/improve-032-reverse-order-prequential-code-for-all-change-intervals.md)。ユーザーが、specとして実装して本規模で実験すると決めた（既定にはしない）。
 - 仕様レビュー1回目（GPT-6 Luna、effort medium、対象`4acdbc31`）: FAIL。Major 3件（研究ツールとの数値の一致の比べ方、本規模の実験のtaskが無い、版15のgoldenとrunの識別子の扱いが具体的でない）、Minor 3件（純粋な計算の刻みの引数の契約、短い列の扱いと設定のtestの具体化、命名の「reverse」の意味）。全部反映: 製品と研究ツールの足す順が同じ（標本1件ずつの評価の値をfloatで足す）ことをコードで確かめ、完全一致（許容誤差なし）を要求した（要求5.1、設計）。要求7とTask 6（本規模の実験と集計）を足した。`_CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION`への追加と識別子のtestの扱いを設計とTask 2に書いた。刻みの引数の契約、Task 2のtest項目、命名の説明を足した。
+- 仕様レビュー2回目（GPT-6 Luna、effort medium、対象`78069465`）: FAIL。1回目の指摘は全部反映済みと確認（足す順が同じことも両方のコードで確認）。Major 1件（6データの比較の相手が版13の結果で、版15と同じ根拠がspecに無い）、Minor 1件（`--purpose`が仮の文字）。反映: 6データは同じsweepで版15の`fedsda`も流して比べる相手にし（240 run増えて計640 run）、版13の結果との一致は整合の確認として記録する。コマンドの`--purpose`を具体的にした。
