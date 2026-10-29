@@ -163,6 +163,16 @@ def structural_document():
             golden.WARM_STARTED_LEARNER_PATH_CASE_NAME,
         ):
             cases[name]["coverage"]["loss_monitoring_baseline_lowering_count"] = 1
+        if golden.BASELINE_VERSION >= 16 and name.startswith("fedsda"):
+            cases[name]["coverage"][
+                "non_minimum_interval_multiple_change_interval_selection_count"
+            ] = int(
+                name
+                in (
+                    "fedsda-sine2-adoption-without-validation",
+                    golden.WARM_STARTED_LEARNER_PATH_CASE_NAME,
+                )
+            )
     return dict(
         baseline_version=golden.BASELINE_VERSION,
         schema_version=1,
@@ -390,6 +400,138 @@ def capture_case_once(case_name, baseline_version):
     if key not in _CAPTURED_CASES:
         _CAPTURED_CASES[key] = golden.capture_case_reusing_runs(case_name, baseline_version)
     return _CAPTURED_CASES[key]
+
+
+def test_baseline_16_keeps_cases_and_changes_only_change_interval_search():
+    assert 16 in golden.SUPPORTED_BASELINE_VERSIONS
+    assert golden.CASE_NAMES_BY_BASELINE_VERSION[16] == golden.CASE_NAMES_BY_BASELINE_VERSION[15]
+    assert len(golden.CASE_NAMES_BY_BASELINE_VERSION[16]) == 18
+    assert golden.EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION[16] == ()
+    for case_name in golden.CASE_NAMES_BY_BASELINE_VERSION[16]:
+        previous = golden._plain(golden.build_case_settings(case_name, 15))
+        current = golden._plain(golden.build_case_settings(case_name, 16))
+        if case_name.startswith("fedsda"):
+            for mapping, expected in (
+                (previous, "minimum_interval_multiples_with_forward_prequential_code"),
+                (current, "every_sample_with_reverse_prequential_code"),
+            ):
+                assignment = mapping["run_participant_settings"]["run_client_settings"][
+                    "training_data_assignment_settings"
+                ]
+                assert assignment.pop("change_interval_search") == expected
+        assert current == previous, case_name
+
+
+@pytest.mark.parametrize("minimum", (3, 5))
+def test_baseline_16_counts_only_non_multiple_held_or_new_model_selections(monkeypatch, minimum):
+    from types import SimpleNamespace
+
+    import numpy as np
+
+    settings = golden.build_case_settings("fedsda", 15)
+    participant = settings.run_participant_settings
+    client = participant.run_client_settings
+    settings = replace(
+        settings,
+        run_participant_settings=replace(
+            participant,
+            run_client_settings=replace(
+                client,
+                scalar_settings=replace(
+                    client.scalar_settings, minimum_change_interval_sample_count=minimum
+                ),
+            ),
+        ),
+    )
+    run = SimpleNamespace(
+        run_settings=settings,
+        measured_run=SimpleNamespace(
+            run_result=SimpleNamespace(
+                generated_sample_count_per_client=0,
+                processed_sample_count_per_client=0,
+                unprocessed_tail_sample_count_per_client=0,
+                synchronization_interval_count=0,
+            )
+        ),
+        run_metrics=SimpleNamespace(
+            training_model_switch_detection_metrics=SimpleNamespace(detection_count=0),
+            change_response_metrics=SimpleNamespace(
+                adaptation_action_metrics=SimpleNamespace(adopt_candidate_model_count=0)
+            ),
+        ),
+    )
+    monkeypatch.setattr(golden, "count_unregistered_adopted_models", lambda run: 0)
+    monkeypatch.setattr(golden, "count_repeated_training_sample_assignments", lambda run: 0)
+    key = "non_minimum_interval_multiple_change_interval_selection_count"
+    # 各仮説とkの組を1行ずつ確かめ、まとめた表の行数も確かめる。
+    hypotheses, counts = [], []
+    for hypothesis in ("current_model", "held_model", "new_model"):
+        for count in (0, minimum, minimum + 1, 2 * minimum - 1, 2 * minimum):
+            tables = {
+                "alarm_interval_assignment_selection.selected_hypothesis": np.asarray([hypothesis]),
+                "alarm_interval_assignment_selection.change_interval_sample_count": np.asarray(
+                    [count]
+                ),
+            }
+            expected = int(
+                hypothesis != "current_model" and count in (minimum + 1, 2 * minimum - 1)
+            )
+            assert golden._coverage("fedsda", run, tables, 16)[key] == expected
+            for version in range(1, 16):
+                assert key not in golden._coverage("fedsda", run, tables, version)
+            hypotheses.append(hypothesis)
+            counts.append(count)
+    tables = {
+        "alarm_interval_assignment_selection.selected_hypothesis": np.asarray(hypotheses),
+        "alarm_interval_assignment_selection.change_interval_sample_count": np.asarray(counts),
+    }
+    assert golden._coverage("fedsda", run, tables, 16)[key] == 4
+    assert golden._coverage("fedsda", run, {}, 16)[key] == 0
+    for case_name in ("fedavg", "feddrift"):
+        run.run_settings = golden.build_case_settings(case_name, 16)
+        assert key not in golden._coverage(case_name, run, tables, 16)
+
+
+@pytest.mark.parametrize(
+    "case_name",
+    ("fedsda-sine2-adoption-without-validation", golden.WARM_STARTED_LEARNER_PATH_CASE_NAME),
+)
+def test_baseline_16_requires_non_multiple_selections_only_from_16(structural_document, case_name):
+    coverage = structural_document["cases"][case_name]["coverage"]
+    key = "non_minimum_interval_multiple_change_interval_selection_count"
+    coverage[key] = 1
+    golden.assert_required_paths(case_name, coverage, 16)
+    coverage[key] = 0
+    golden.assert_required_paths(case_name, coverage, 15)
+    with pytest.raises(AssertionError, match=key):
+        golden.assert_required_paths(case_name, coverage, 16)
+
+
+@pytest.mark.parametrize("case_name", golden.CASE_NAMES_BY_BASELINE_VERSION[15])
+@pytest.mark.slow
+def test_baseline_16_runs_both_versions_without_goldens_and_keeps_unaffected_results(case_name):
+    previous = deepcopy(capture_case_once(case_name, 15)[0])
+    current = deepcopy(capture_case_once(case_name, 16)[0])
+    if case_name.startswith("fedsda"):
+        for snapshot, expected in (
+            (previous, "minimum_interval_multiples_with_forward_prequential_code"),
+            (current, "every_sample_with_reverse_prequential_code"),
+        ):
+            assignment = snapshot["run_settings"]["run_participant_settings"][
+                "run_client_settings"
+            ]["training_data_assignment_settings"]
+            # 版15の照合用設定からは、後に足された項目として既に除かれている。
+            if snapshot is previous:
+                assert "change_interval_search" not in assignment
+            else:
+                assert assignment.pop("change_interval_search") == expected
+        golden.assert_case_matches(case_name, current["run_settings"], previous["run_settings"])
+    else:
+        current["coverage"].pop(
+            "non_minimum_interval_multiple_change_interval_selection_count", None
+        )
+        for section in ("run_metrics", "global_parameters", "record_tables", "coverage"):
+            golden.assert_case_matches(case_name, current[section], previous[section], section)
 
 
 @pytest.mark.numerical_golden

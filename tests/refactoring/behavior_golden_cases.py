@@ -93,7 +93,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 # 版5: FedSDAが、さらに、推定変化区間が最小件数に達するまで警報を待つ（IMPROVE-006。案Y。最終構成の既定。
 #      ADWINの2構成は、警報を即時に明示）。版4との差は、版4の扱いで、警報を待つ場面が起きるケースに限る。
 # 版6: 予測を同期時点・局所更新の混合へ、Fixed-Shareの時間尺度を120へ替える（容量は30）。
-SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
 BASELINE_VERSION = 15
 SCHEMA_VERSION = 1
 # 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
@@ -458,6 +458,7 @@ EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION = {
     },
     **{version: CANDIDATE_VALIDATION_PATH_CASE_NAMES for version in range(7, 15)},
     15: (),
+    16: (),
 }
 # 版15は、版14の検証ありの4 caseだけを外す。残すcaseの条件・順序は変えない。
 CASE_NAMES_BY_BASELINE_VERSION[15] = tuple(
@@ -465,6 +466,8 @@ CASE_NAMES_BY_BASELINE_VERSION[15] = tuple(
     for name in CASE_NAMES_BY_BASELINE_VERSION[14]
     if name not in EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION[14]
 )
+# 版16は、新しい既定で版15と同じ18ケースを実行する。
+CASE_NAMES_BY_BASELINE_VERSION[16] = CASE_NAMES_BY_BASELINE_VERSION[15]
 CASE_NAMES = CASE_NAMES_BY_BASELINE_VERSION[BASELINE_VERSION]
 # 記録・指標・設定を消した項目の、goldenの中の完全な鍵の道（task 3・4で足した。一覧にない差は失敗のまま）。
 REMOVED_CANDIDATE_VALIDATION_ITEM_PATHS: tuple[tuple[str, ...], ...] = (
@@ -1127,6 +1130,17 @@ def _coverage(case_name, run, tables, baseline_version=BASELINE_VERSION):
             selected_held_model_count=selected_hypotheses.count("held_model"),
             selected_new_model_count=selected_hypotheses.count("new_model"),
         )
+        if baseline_version >= 16:
+            minimum = run.run_settings.run_participant_settings.run_client_settings.scalar_settings.minimum_change_interval_sample_count
+            change_interval_sample_counts = column(
+                "alarm_interval_assignment_selection.change_interval_sample_count"
+            )
+            coverage["non_minimum_interval_multiple_change_interval_selection_count"] = int(
+                np.count_nonzero(
+                    np.isin(selected_hypotheses, ("held_model", "new_model"))
+                    & (change_interval_sample_counts % minimum != 0)
+                )
+            )
         if baseline_version >= 11:
             # 「新しいモデル」を選んだときに、短かった学習者ごとの回数（版11で足した列から）。
             new_model_learner_names = column(NEW_MODEL_LEARNER_NAME_TABLE_NAME).tolist()
@@ -1155,6 +1169,12 @@ def _coverage(case_name, run, tables, baseline_version=BASELINE_VERSION):
 
 def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION):
     """イベントが空のケースを重要経路の基準に採用しない。"""
+    if baseline_version >= 16 and case_name in (
+        "fedsda-sine2-adoption-without-validation",
+        WARM_STARTED_LEARNER_PATH_CASE_NAME,
+    ):
+        key = "non_minimum_interval_multiple_change_interval_selection_count"
+        assert coverage[key] > 0, f"{case_name}: required {key}"
     if baseline_version >= 13 and case_name.startswith("fedsda"):
         if case_name in CANDIDATE_VALIDATION_PATH_CASE_NAMES:
             # 候補検証を消したので、goldenの照合から外したこのcaseを補助のtestで流すときは、確かめない（基準版15のspec）。
