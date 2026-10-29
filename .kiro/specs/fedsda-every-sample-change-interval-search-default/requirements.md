@@ -31,7 +31,7 @@
 **Objective:** As a 研究者, I want 最終構成の既定が新しい扱いであること, so that 論文で説明する手法と既定の実装が同じになる。
 #### Acceptance Criteria
 1. The FedSDA system shall 最終構成の既定の`change_interval_search`を「新しい扱い」にし、FedSDAの全部の構成（全部が最小記述長の選択を使う）が引き継ぐ。
-2. The FedSDA system shall 構成`fedsda-every-sample-change-interval-search`を、既定と同じ設定の構成として残す（これまでのコマンドと結果の記録のため。`fedsda-synchronized-local-mixture-prediction`と同じ扱い）。
+2. The FedSDA system shall 構成`fedsda-every-sample-change-interval-search`を、既定と同じ設定の構成として残す（これまでのコマンドと結果の記録のため。`fedsda-synchronized-local-mixture-prediction`と同じ扱い）。runの識別子は構成の名前と完全な設定から作るので、この構成の識別子は前のspecのときと同じ（実行済みの結果、例えば`circle2_interval100_seed0_f07c86311252`と同じ）で、構成`fedsda`の識別子とは違う。
 3. The FedSDA system shall 今の扱いを選ぶ構成`fedsda-minimum-interval-multiples-change-interval-search`を足す（最終構成の既定から、`change_interval_search`だけを「今の扱い」に替える）。goldenの事例にせず、専用のtestで守る。
 4. The FedSDA system shall 全部の構成の組立てが例外を出さず、実験のコマンドの引数を変えない。
 
@@ -57,13 +57,21 @@
 #### Acceptance Criteria
 1. The validation shall 新しい既定での値を、基準版16のgoldenとして、Windowsの基準環境とWSLの両方で足す（ケースは版15と同じ18ケース）。各環境で2回の独立したprocessの一致と必須の経路を確かめて生成する。
 2. The validation shall 版15と16の差を、goldenを使わず両方の版をその場で実行して確かめる: FedDrift・FedAvgのケースは、指標・最終のパラメータ・記録の表・経路の記録（版16で足す項目を取り除いたもの）が版15と同じ。FedSDAのケースは、設定が`change_interval_search`だけ違う。
-3. The validation shall 経路の記録に、最小変化区間の倍数でないkの選択の回数を足し（版16から。FedSDAのケースだけ）、新しい既定を引き継ぐFedSDAのケースのうち少なくとも2つ（既定の候補は`fedsda-sine2-adoption-without-validation`と`fedsda-mnist4-warm-started-learner`。生成の前に主担当が値を確かめ、0なら1以上のケースを選び直して理由を記録する）で1以上であることを、必須の経路として確かめる。版15までの必須の経路は、版16でも求める。
+3. The validation shall 経路の記録に、最小変化区間の倍数でないkの選択の回数を足し（版16から。FedSDAのケースだけ）、新しい既定を引き継ぐFedSDAのケースのうち2つで1以上であることを、必須の経路として確かめる。2つのケースの名前は、実装の前（task 1）に、版15の18ケースのうちFedSDAのケースの設定の`change_interval_search`だけを新しい扱いに替えて実行し、回数が1以上のケースから決めて記録する（第一候補は`fedsda-sine2-adoption-without-validation`と`fedsda-mnist4-warm-started-learner`。2つに満たなければ、ケースの条件を変えずに、ユーザーへ報告して扱いを決める）。版15までの必須の経路は、版16でも求める。
 
 ### Requirement 6: 研究ツールの意味を保つ
 #### Acceptance Criteria
-1. The research tool shall 既定を変えた後も、`product-default`系以外の既存の変種（基準版10の既定を基点にする変種）が同じ意味を持つようにする（基点の固定に、`change_interval_search`の今の扱いを足す）。
-2. The research tool shall 基準版12・15の既定の上で評価してきた研究用の変種（IMPROVE-031の変種、IMPROVE-032の変種`default-reverse-prequential-grid5`・`default-reverse-prequential-grid1`・`default-reverse-prequential-grid1-position-cost`）は、既定を変えた後も、評価したときの意味を保つ（`change_interval_search`を今の扱いに戻してから変種を当てる）。`product-default`は製品の既定（基準版16）を使い、変種`every-sample-change-interval-search-configuration`は構成をそのまま使う。
-3. The validation shall 既定を変えた後、研究用CLIの`default`、`default-reverse-prequential-grid1`、`product-default-loss-monitor-decrease-rebaseline`と、研究用の入口の`product-default-all-evaluating-clients-loss-monitor-decrease-rebaseline`の小さい条件の結果が、変える前と同じことを確かめる（秒数・時刻・コードの来歴を除く全部の出力）。
+1. The research tool shall 変種を次の組に分け、組ごとに`change_interval_search`の値を決める（`tools/research_provisional_candidate_expert/run.py`の`_execute_job`）:
+   - 組A（基準版10の既定を基点にする変種。`_PRODUCT_DEFAULT_BASED_VARIANTS`に無い変種。研究用CLIの`default`を含む）: 基点の固定に、今の扱いを足す。
+   - 組B（基準版12へ戻すIMPROVE-031の変種。`LOSS_MONITOR_REBASELINE_VARIANTS`、`product-default-all-evaluating-clients`、`product-default-all-evaluating-clients-candidate-shared-feature-update`）: 基準版12への戻しに、今の扱いを足す。
+   - 組C（IMPROVE-032の研究用の変種`default-reverse-prequential-grid5`・`default-reverse-prequential-grid1`・`default-reverse-prequential-grid1-position-cost`）: 今の扱いへ戻す。選択の関数の差し替え（kの候補・測り方・位置の項）は今のまま。列が最小変化区間より短い警報で製品の選択へ戻すときも、戻した今の扱いを使う。
+   - 組D（`product-default`と`every-sample-change-interval-search-configuration`）: 戻さない（製品の既定・構成のまま。基準版16では両方とも新しい扱い）。
+   - 組E（ほかの`product-default`系の変種）: 戻さない（版13のspecと同じく、製品の既定、基準版16の上で評価する。意味が変わることをコメントに書く）。
+2. The research tool shall 測定用の学習者の更新回数の測定（`reverse_prequential_policy`、`prequential_measurement`）を、runの`change_interval_search`が今の扱いのときと組Cだけで行う。新しい扱いの組D・組Eでは測定を差し込まず、`prequential_measurement`は空にする（0回の意味ではない。前のspecの`every-sample-change-interval-search-configuration`と同じ扱い）。
+3. The validation shall 研究ツールの検査に、組A〜Eの代表の変種で、runの設定の`change_interval_search`が上の値になることのtestを足す。
+4. The validation shall 既定を変える前と後の、研究ツールの小さい条件（SINE2・seed 0・10 client・600標本・間隔100）の結果を比べる（秒数・時刻・コードの来歴を除く全部の出力）:
+   - 同じであること: 研究用CLIの`default`、組Cの3変種、`product-default-loss-monitor-decrease-rebaseline`、`every-sample-change-interval-search-configuration`、研究用の入口（`tools/research_loss_monitor_rebaseline.py`）の`product-default-all-evaluating-clients-loss-monitor-decrease-rebaseline`。
+   - 製品の既定が替わったこと: 後の`product-default`が、前の`every-sample-change-interval-search-configuration`と同じ（測定の`prequential_measurement`はどちらも空）で、前の`product-default`と違う（変化区間の長さが最小変化区間の倍数でない選択が1回以上ある）。
 
 ### Requirement 7: 文書を合わせる
 #### Acceptance Criteria
