@@ -23,13 +23,13 @@
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.3, 2.6, 2.7, 3.1, 3.2, 4.1, 4.2, 5.2_
   - _Depends:_ 1
 
-- [ ] 3. 研究ツールの変種R1と同じ値になることを確かめる
+- [x] 3. 研究ツールの変種R1と同じ値になることを確かめる
   - 研究ツールに、新しい構成を使う変種`every-sample-change-interval-search-configuration`を足す。照合のscript（Git管理外）で、手元の小さい条件（MNIST4・SINE2・SEA4・CIRCLE2、間隔50、seed 0、各client 1000標本程度。列Wが最小変化区間より短い警報が1回以上起きる条件を含める。起きなければ条件を足す）で、研究ツールの変種R1とこの変種の、精度・下り・上り・予測の記録のdigest・最終のパラメータのdigest・計算回数の指標・選択の記録（警報ごとの変化区間の長さ、仮説、行き先、学習者の名前、符号長）が完全に一致する（許容誤差なし）ことを確かめる。
   - 完了条件: 一致の結果（条件ごと）と、照合のscriptの場所がImplementation Notesにある。一致しない場合は、原因を特定して直すまで次へ進まない。
   - _Requirements: 5.1_
   - _Depends:_ 2
 
-- [ ] 4. 文書を合わせる
+- [x] 4. 文書を合わせる
   - モデル再利用の文書の最小記述長の節、実験の入口の構成の一覧、IMPROVE-032の状態と一覧、再開案内。既定が変わらないことを明記する。
   - 完了条件: 文書が新しい選択肢と構成を説明する。
   - _Requirements: 6.1_
@@ -54,3 +54,5 @@
 - 仕様レビュー3回目（GPT-6 Luna、effort medium、対象`32d7fa4b`）: PASS。Minor 1件（実行前の計画の確認で見る点を明記する）。文面の補足だけなので反映し、再レビューは省いた（2026-10-09のユーザー決定）。
 - Task 1（実装: GPT-6.1-sol）: REDは、1.1が新しい関数が無いことによる42件の失敗、1.2が刻みの引数が無いことによる19件の失敗。`_accumulate_prequential_code_length`に、各標本を足した直後の和を残す内部の引数を足し（今の2つの関数の値と足す順は同じ）、2つの学習者の内部の関数を共通にして、総和の関数（今の公開名のまま）と途中までの和の関数（`compute_*_prequential_code_length_prefixes`）を足した。`derive_reinitialized_learner_single_pass_initialization_seed`を足した。純粋な計算に必須の`change_interval_step_sample_count`を足し、`select_alarm_interval_assignment`は刻み＝`change_interval_grid_sample_count`を渡す（今の扱い）。既存のtestの呼出し3ファイル（`test_alarm_interval_minimum_description_length_selection.py`、`test_minimum_description_length_assignment_selection.py`、`test_research_s3_contribution.py`）に刻みの引数を足した。新しいtest 67件（`tests/refactoring/test_fedsda_reverse_prequential_change_interval_search.py`）。Solの実行で、新しいtest・関係するtest・依存境界の2,398 passed、版15のgolden`fedsda-mnist4-warm-started-learner`の照合が一致。主担当の再実行で、新しいtest・最小記述長の関係のtestと版15のgolden（MNIST4・SINE2のケース）225 passed。Ruff成功、Pyright（設定の範囲）0 errors。変更した既存のtest 3ファイルを個別にPyrightにかけると46件の指摘が出るが、どれも今回足した行ではない既存の行で、設定の範囲外（testは対象外）。依存境界の許可は、新しいmodule間のimportが無いので変えていない。
 - Task 2（実装: GPT-6.1-sol）: REDは、新しい設定・接続・構成の24件が未実装で失敗。設定の項目`change_interval_search`と値の定数・検査、`FedsdaRunClientSettings`での組合せの拒否、最終構成の既定で今の扱いを明示、`process_observed_sample`→`select_alarm_interval_assignment`への受け渡し（新しい扱いは列Wを新しい順へ並べ替え、初期化し直した学習者→warm startの学習者の順に途中までの和を1回ずつ計算し、刻み1を純粋な計算へ渡す。列が最小変化区間より短いと学習者を計算しない。今の扱いは今の経路のまま）、構成`fedsda-every-sample-change-interval-search`、基準版1〜15の「後に足された項目」の表への追加（goldenのJSONは不変）。runの識別子: FedSDA `sine2_interval3_seed0` `f9bff53a0cdc`→`8f83dd4d55c0`、`circle2_interval10_seed0` `96d95864063a`→`a52261f74bb2`、FedDrift（`c5772bf27573`）・FedAvg（`fb8821cf5897`）は不変。既存の全構成は、新しい項目を除いた設定のhashが変更前と同じ。Solの環境は一時ディレクトリの権限エラーで全体の確認が完了しなかった（基準版1〜15のgoldenの数値照合188件は全部一致）。主担当の全pytest（Windows、12並列）: 13,172 passed / 8 skipped / 失敗0（1,222秒、JUnit `../../venv/refactoring-tests/reverse-prequential-task2-full.xml`。基準版1〜15のgolden、実旧との照合、`tests/test_regression.py`、`tests/test_proposed_regression.py`を含む）。ほかに、`results/implementation-audits/fedavg-20261021/test-results.txt`をpytestが収集して文字コードで失敗したエラー12件（testではない成果物のファイル。コードと無関係）。直前のspecの最終の全pytest（13,030 passed / 9 skipped）から、このspecで足したtestの分だけ増えた。Ruff成功、Pyright（設定の範囲）0 errors。
+- Task 3（実装: GPT-6.1-sol）: 研究ツールに、新しい構成をそのまま使う変種`every-sample-change-interval-search-configuration`を足した（研究ツールの更新回数の測定`reverse_prequential_policy`は、この変種では使わず、`prequential_measurement`は空。R1との照合は製品の計算回数の指標と選択の記録で行う）。照合のscript`../../venv/refactoring-tests/reverse-prequential-task3-compare.py`、結果`reverse-prequential-task3-compare.json`。研究ツールの`_execute_job`を順に呼び、間隔50・各client 1000標本で、MNIST4・SINE2・SEA4・CIRCLE2（seed 0）とSINE2（seed 1、列Wが最小変化区間より短い警報を起こすために足した条件）の5条件とも、精度・下り・上り・予測の記録のdigest・最終のパラメータのdigest・計算回数の指標・選択の記録の全8列が、R1と完全に一致した（許容誤差なし）。短い列の警報は、SINE2 seed 1のclient 4・標本934〜936で長さ2・3・4件の3回、両方とも「現在のモデルのまま」。研究ツールの既存の検査`checks_reverse_prequential.py`を、Task 1・2で足した必須の引数に合わせた。主担当の環境で研究ツールの検査86 passed（Solの環境では一時ディレクトリの権限エラーで17件が未確認だった）、このspecの製品のtest 108件成功。
+- Task 4（実装: GPT-6.1-sol）: `docs/components/model-reuse.md`（設定の2つの値、新しい扱いの測り方とseed、短い列、既定は不変）、`docs/experiments/experiment-sweep.md`（構成の一覧）、IMPROVE-032と一覧（製品の選択肢と構成として実装、既定にはしない、本規模の実験は未実行）、`.kiro/steering/resume.md`（現在地と次の作業）。

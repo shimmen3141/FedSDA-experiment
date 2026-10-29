@@ -1,7 +1,9 @@
 # IMPROVE-032: 新しいモデルの仮説の予測的符号長を、新しい方から1本の流れで測り、変化区間を1件刻みにする
 
-- 日付: 2026-10-29（ユーザーの指摘から）。状態: 未検証・未採用。手元の研究ツールで機能を確かめる（下の「検証の計画」）。
+- 日付: 2026-10-29（ユーザーの指摘から）。状態: 製品の設定の選択肢と構成として実装（既定にはしない。[spec `fedsda-reverse-prequential-change-interval-search`](../../../.kiro/specs/fedsda-reverse-prequential-change-interval-search/tasks.md)）。本規模の実験は未実行。
 - 対象: 警報の後の最小記述長（MDL）による変化点と帰属先の選択（`runtime/alarm_interval_minimum_description_length_selection.py`の`select_alarm_interval_assignment`、`methods/fedsda/training_data_assignment/minimum_description_length_assignment_selection.py`、`learning/training/prequential_code_length.py`）。[モデル再利用の文書](../../components/model-reuse.md#最小記述長の原理による選択既定)。
+
+製品では`training_data_assignment_settings.change_interval_search=every_sample_with_reverse_prequential_code`、構成`fedsda-every-sample-change-interval-search`で選ぶ。既定の`minimum_interval_multiples_with_forward_prequential_code`と構成`fedsda`は従来どおり。以下の研究ツールの128 runは実施済みの予備比較で、製品構成の本規模の実験（specのTask 6）は未実行。
 
 ## 今の扱い（基準版15）
 - 変化区間の長さkは、最小変化区間（既定5件）の倍数で、Wの長さ（最大31件）以下の全部を試す。

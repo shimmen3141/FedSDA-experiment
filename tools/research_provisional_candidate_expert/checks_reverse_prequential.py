@@ -110,7 +110,9 @@ def test_grid5_comparison_matches_product_including_ties():
         )
         assert select_reverse_assignment(position_cost=False, **arguments) == (
             product.select_assignment_by_minimum_description_length(
-                change_interval_grid_sample_count=5, **arguments
+                change_interval_grid_sample_count=5,
+                change_interval_step_sample_count=5,
+                **arguments,
             )
         )
 
@@ -150,6 +152,7 @@ def test_update_counts_and_default_transparency(variant):
         switching_probability=1 / 120,
         change_interval_grid_sample_count=5,
         new_model_hypothesis_learners="reinitialized_and_warm_started_learners",
+        change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
     )
     before = _random_states()
     expected = processing.select_alarm_interval_assignment(**arguments)
@@ -205,6 +208,7 @@ def test_short_window_falls_back_to_product_selection(variant):
         switching_probability=1 / 120,
         change_interval_grid_sample_count=5,
         new_model_hypothesis_learners="reinitialized_and_warm_started_learners",
+        change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
     )
     before = _random_states()
     expected = processing.select_alarm_interval_assignment(**arguments)

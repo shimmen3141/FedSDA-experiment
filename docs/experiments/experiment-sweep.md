@@ -162,6 +162,7 @@ NPZ・run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変
 | 名前 | 内容 | 旧実装（`tools/run_main_ablation_suite.sh`）での名前 |
 |---|---|---|
 | `fedsda` | 提案構成。同期時点と局所更新の結合予測を混ぜる。FIFO容量30・T120。候補を検証せずに採用し、候補の学習では共有部を固定する（基準版7） | `reference`（現在は予測方式・T・候補の採否などに意図した差がある） |
+| `fedsda-every-sample-change-interval-search` | 提案構成の`change_interval_search`だけを`every_sample_with_reverse_prequential_code`へ替える。新しい順の1本の流れの途中和で、最小変化区間以上の全部のkを1件刻みで測る。既定の`fedsda`は変えない | 対応なし（製品の選択肢。[spec](../../.kiro/specs/fedsda-reverse-prequential-change-interval-search/design.md)） |
 | `fedsda-without-prediction-weight-recalibration` | 提案構成から、サーバの集約の後の、予測重みの再較正を外す（集約の後も、予測重みと診断重みを、作り直さずに使う） | `no-recalibration` |
 | `fedsda-without-candidate-validation` | 候補モデルの検証をせず（警報の区間に合う保有モデルが無いとき、区間で学習した候補を、警報の後の標本で検証せずに、その場で採用する）、候補の学習で共有部も更新する。2026-10-20からの提案構成からは、候補の共有部の固定を外した構成に当たる（設定は、それまでと同じ） | `immediate-creation` |
 | `fedsda-loss-distance-clustering` | 提案構成の、サーバのクラスタリングの、モデル対の比べ方を替える（クラス別の正誤の信頼下限の代わりに、互いの標本での平均損失の増加量で判定する。閾値とlinkageは同じ） | `distance-average` |

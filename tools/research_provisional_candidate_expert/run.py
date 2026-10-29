@@ -180,6 +180,10 @@ for _variant_name in _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_
     _VARIANTS[_variant_name] = ("fedsda", False, None)
 # 製品の既定（基準版11以降）を、そのまま使う変種。ほかの変種は、基準版10の既定を基点にする（`_execute_job`）。
 _VARIANTS["product-default"] = ("fedsda", False, None)
+# 製品の構成を設定の差し替えなしで使う、R1との照合用の変種。
+_VARIANTS["every-sample-change-interval-search-configuration"] = (
+    "fedsda-every-sample-change-interval-search", False, None,
+)
 # 製品の既定の上で、クロス評価で評価させるclientを、対象の標本を返せるclientに限る（IMPROVE-028）。
 # 製品の既定がこの扱いになった後は、製品が同じ候補の集合を作るので、product-defaultと同じ選び方になる。
 # 包みの対象のget_cross_evaluation_held_model_idsは、製品の新しい扱いのクロス評価では呼ばれない。
@@ -216,6 +220,7 @@ _PRODUCT_DEFAULT_BASED_VARIANTS = (
     *_PREDICTION_DISTILLATION_VARIANTS,
     *_SOFT_CONCEPT_SHARING_VARIANTS,
     "product-default",
+    "every-sample-change-interval-search-configuration",
     "product-default-sample-holding-cross-evaluation",
     "product-default-sample-holding-usage-evidence-veto",
     "product-default-all-evaluating-clients",
@@ -2403,9 +2408,13 @@ def _execute_job(job):
     class_conditioned_prediction = {}
     prequential_measurement = {}
     with contextlib.ExitStack() as stack:
-        stack.enter_context(reverse_prequential_policy(
-            variant=job["variant"], diagnostics=prequential_measurement,
-        ))
+        # この構成は途中までの和の製品関数を使う。研究用レコーダは総和の関数を
+        # 包むため測定対象外とし、prequential_measurementは空（0回の意味ではない）。
+        # R1との照合にはmodel_computation_countsと製品の選択記録を使う。
+        if job["variant"] != "every-sample-change-interval-search-configuration":
+            stack.enter_context(reverse_prequential_policy(
+                variant=job["variant"], diagnostics=prequential_measurement,
+            ))
         if job["variant"] in LOSS_MONITOR_REBASELINE_VARIANTS:
             from tools.research_provisional_candidate_expert.loss_monitor_rebaseline import loss_monitor_rebaseline_policy
 
