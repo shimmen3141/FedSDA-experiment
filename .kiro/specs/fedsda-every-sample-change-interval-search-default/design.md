@@ -42,6 +42,7 @@
 - goldenの生成・設置（`tests/refactoring/behavior_regression_goldens/v16/`）と版の定数の切替は、版16のコードをcommitした後に主担当が行う（Windowsの基準環境とWSL。`docs/experiments/refactoring-baseline.md`の手順）。
 
 ### 前のspecの構成との一致（Requirement 4）
+- 実行環境と入口は要求4.1のとおり（Windowsの基準環境、`run_experiment_sweep.py --workers 1`、前後を同じ機械で続けて実行）。
 - 既定を替える前（このspecの基点のcommit）に、構成`fedsda-every-sample-change-interval-search`で、5条件（MNIST4・SINE2・SEA4・CIRCLE2は間隔50・seed 0・各client 1000標本、SINE2は同じ条件のseed 1）の全体runを実行し、製品の保存関数でrawを保存する（Git管理外。`../../venv/refactoring-tests/every-sample-default-before/`）。
 - 既定を替えた後、構成`fedsda`で同じ5条件を実行して保存し（`…-after/`）、要求4.1の(a)〜(c)で比べる一時scriptを使う（Git管理外。場所と結果をImplementation Notesに書く）。
 
@@ -57,6 +58,7 @@
   - 組D・組E: 戻さない。組Eの変種の定義の近くに、基準版16から新しい扱いの上で評価することをコメントで書く。
 - 測定の差し込み（今は`job["variant"] != "every-sample-change-interval-search-configuration"`のとき`reverse_prequential_policy`を入れる）を、「組Cの変種か、runの設定の`change_interval_search`が今の扱い」のときだけにする（要求6.2）。新しい扱いでは、測定用の学習者は途中までの和の関数を使い、研究用の記録器（総和の関数を包む）では測れないため。
 - 研究用の入口`tools/research_loss_monitor_rebaseline.py`の組み合わせた変種も、IMPROVE-031の基準版12への戻しと同じ場所で、今の扱いへ戻す。
+- 全変種の設定と差し替えの取り出し（要求6.3）: 一時script（Git管理外）で、`_VARIANTS`の全部の名前について、小さい条件のjobを`_execute_job`へ渡し、製品の全体runの入口（`_execute_job`が呼ぶ関数）を、渡された設定を保存して例外で止める関数に`unittest.mock.patch`で替え、設定（`convert_settings_to_plain_mapping`の辞書）と、入ったcontextの名前（`reverse_prequential_policy`ほかの研究用のcontextを包んで記録）を取り出す。task 1で前を保存し、task 2で後を取り出して要求6.3の規則で比べる。組は`run.py`の一覧（`_PRODUCT_DEFAULT_BASED_VARIANTS`、`LOSS_MONITOR_REBASELINE_VARIANTS`、`REVERSE_PREQUENTIAL_VARIANTS`ほか）から機械的に決め、どの組にも入らない名前と重なる名前が無いことを確かめる。
 - 研究ツールの検査（`tools/research_provisional_candidate_expert/checks_reverse_prequential.py`か新しい検査）に、組A〜Eの代表（`default`、`product-default-loss-monitor-decrease-rebaseline`、`default-reverse-prequential-grid1`、`product-default`、`every-sample-change-interval-search-configuration`、組Eの1つ）の設定の`change_interval_search`と、測定を差し込むかどうかのtestを足す。
 - 前後の比較（要求6.4）: task 1で、既定を替える前の結果を保存する（研究用CLIの`default`、組Cの3変種、`product-default`、`product-default-loss-monitor-decrease-rebaseline`、`every-sample-change-interval-search-configuration`と、研究用の入口の組み合わせた変種。SINE2・seed 0・10 client・600標本・間隔100）。task 2で、替えた後に同じ条件で実行して比べる。研究ツールの既存の検査が通ることも確かめる。
 
