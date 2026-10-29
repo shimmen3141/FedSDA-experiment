@@ -173,10 +173,10 @@ header{gap:8px}header #open-notes{margin-left:auto;font-size:11px;padding:2px 8p
 <p><b>配布時と更新用は、同じモデルIDの2状態です。</b>配布はまず更新用へ反映し、その直後の全状態を配布時側へコピーして固定します。追加学習するのは更新用だけです。新規モデルに配布時の対がまだなければ、その固有部は更新用を使います。</p>
 <p><b>混合するのは予測確率です。</b>配布時・更新用を共通のモデル別重みwでそれぞれ結合し、その二つを重みvで混ぜます。wは配布時側の各モデルの損失、vは二つの結合予測の損失で、正解観測後に更新します。損失はいずれも1−正解確率です。分け合いの時間尺度Tはwとvで共用（既定120標本）。𝐩ₘと𝐩ₘ′は入力xₜに対する全クラスの予測確率ベクトルです。</p>
 <p><b>FIFOは、学習データの帰属を保留する場所です。</b>平時の容量は30件。新着標本を足してからMDLへ渡すため、警報時の評価列Wは最大31件です。FIFO左の枠外の標本は容量超過分の模式表示で、別バッファではありません。通常は超過分を現行ストアへ確定してFIFOから外します。警報応答では選んだ変化点より前を現行へ、末尾の選択区間を選んだモデルへ取り込み、FIFOを空にします。現在維持ではW全列を現行へ取り込みます。</p>
-<p><b>警報の後は、MDLで変化点と帰属先を同時に選びます。</b>検出器の合図を受けた時点の更新用モデルでW全列を評価し、「現在のまま」「変化点τで保持モデルへ」「変化点τで新しいモデルへ」の符号長を比べます。保持モデルへの切替候補は、現行以外で損失統計を持つモデル。変化区間長kは5、10、15、…とWの長さ以下を全て試し、kごとに保持モデルの区間損失和と、末尾k件で別々に一から学習させた二つの測定用学習者の予測的符号長を求め、全てのkと帰属先の組から最短を選ぶ時点で初めて変化点τが決まります。同率なら現在維持、短い区間、保持モデル、新モデルの順を優先します。現在維持を選んでも現行が履歴の基準を持たなければ新モデル作成へ進みます（図の現在維持は基準を持つ例）。固定の許容量γによる再利用判定ではありません。</p>
+<p><b>警報の後は、MDLで変化点と帰属先を同時に選びます。</b>検出器の合図を受けた時点の更新用モデルでW全列を評価し、「現在のまま」「変化点τで保持モデルへ」「変化点τで新しいモデルへ」の符号長を比べます。保持モデルへの切替候補は、現行以外で損失統計を持つモデル。基準版16では、変化区間長kは5件以上・Wの長さ以下の全ての整数を1件刻みで試し、保持モデルの区間損失和と、新しいモデルの予測的符号長を比べます。後者は学習者ごとに、新しい方（警報の標本）から古い方へ1本の流れで測り、途中までの和を各kに使います。全てのkと帰属先の組から最短を選ぶ時点で初めて変化点τが決まります。同率なら現在維持、短い区間、保持モデル、新モデルの順を優先します。現在維持を選んでも現行が履歴の基準を持たなければ新モデル作成へ進みます（図の現在維持は基準を持つ例）。固定の許容量γによる再利用判定ではありません。</p>
 <p><b>格子と経路の読み方。</b>列は1標本（通常のMDL拡大図は16件の模式例、件数不足は4件）、行は更新用の保持モデルです。単色の濃淡は対数損失 −ln p(真のクラス)を表します。各経路は区切りτより前を現行0′、後を行き先で説明します。右の棒は「τより前の損失和」＋「τ以後の損失和」＋「切替の符号長」。新モデルの後半は二つの測定用学習者の短い方＋ln 2です。切替の符号長は −ln(1/T)＋ln(保持モデルの行き先数＋1)、Tは予測のFixed-Shareと同じで既定120です。これは各標本で確率1/Tの切り替わりがここで起きたことと行き先を表す長さで、この分より多く損失を減らすときだけ切替の仮説が選ばれます。薄い経路は候補の一部です。棒の長さと色は模式値から計算しています。学習に伴う損失低下は模式例であり、実際の各標本で単調に下がる保証はありません。</p>
-<p><b>新モデル仮説の学習者は、実際に作る候補とは別です。</b>現在モデルの写しの固有部を初期化し直した学習者と、初期化せず学ぶwarm startの学習者を使います。共有部を固定し、標本ごとに予測→対数損失の加算→1回更新を行う予測的符号長の短い方にln 2を加えます。ln 2はどちらの学習者で符号化したかを一様選択として表す長さ −ln(1/2)で、新モデルの仮説だけが二度試して短い方を選べる有利さを補正します。測定用学習者は捨てます。実候補の初期値は、履歴基準を使える保持モデルのうち選択区間の有界平均損失が最小のモデルの写し（なければ現行モデル）です。</p>
-<p><b>件数不足では、警報にせず通常処理を続けます。</b>MDL選択後の区間長とFIFO件数の小さい方が5件未満なら、警報の記録・監視の再初期化を行わず、検出器の証拠を残します。MDLの切替候補は5件刻みなので、Wが5件以上なら検出器の推定区間が短いことだけでは保留しません。件数充分の場合は、警報を記録し、選択済みの区間と帰属先に従って取り込みます。</p>
+<p><b>新モデル仮説の学習者は、実際に作る候補とは別です。</b>現在モデルの写しの固有部を初期化し直した学習者と、初期化せず学ぶwarm startの学習者を使います。共有部を固定し、標本ごとに予測→対数損失の加算→1回更新を行います。学習は学習者ごとにWの件数回（最大31回）。初期化seedはclientの番号と警報の標本の番号から決まり、kには依存しません。各kで予測的符号長の短い方にln 2を加えます。符号化の順序が受け手に分かれば逆向きでも正しく、同じ概念内の標本が交換可能なら順序によらず符号長の期待値は同じです。ln 2はどちらの学習者で符号化したかを一様選択として表す長さ −ln(1/2)で、新モデルの仮説だけが二度試して短い方を選べる有利さを補正します。測定用学習者は捨てます。実候補の初期値は、履歴基準を使える保持モデルのうち選択区間の有界平均損失が最小のモデルの写し（なければ現行モデル）です。</p>
+<p><b>件数不足では、警報にせず通常処理を続けます。</b>MDL選択後の区間長とFIFO件数の小さい方が5件未満なら、警報の記録・監視の再初期化を行わず、検出器の証拠を残します。MDLの切替候補は5件以上の末尾区間なので、Wが5件以上なら検出器の推定区間が短いことだけでは保留しません。件数充分の場合は、警報を記録し、選択済みの区間と帰属先に従って取り込みます。</p>
 <p><b>監視基準は、損失低下に応じて引き下げます。</b>低下側e-SRが損失低下を検出し、悪化警報がなく、現行モデルの履歴平均が現在の凍結基準より低い場合に、その平均で全体・正解クラス別の監視を再開します。初期モデルの損失統計は、事前学習標本の5分割交差検証で各標本を学習に使わない一時モデルの損失から作ります（実際の初期モデルは全事前学習標本で学習）。</p>
 <p>コードでは監視が先だが、二つは互いの結果を使わないので順序を入れ替えて示す。</p><p><b>共同学習は、警報にならなかった標本の処理の最後に行います。</b>変化の合図がない場合も、件数不足で警報を保留した場合も、FIFOの容量超過分を現行ストアへ確定した後、学習要求を1件記録します。既定の間隔（training_requests_per_update_interval = 1）では、毎標本1回、各モデルのストアから小バッチ（既定32件）を取り、更新用の共有部と固有部を共同学習します。小バッチの件数に満たないモデルは参加しません。FIFOが満杯でなく確定する標本がない間も、ストアに既にある標本で学習し、FIFO内の今の標本はまだ使いません。警報になった標本では要求を記録せず、取込み後の共同学習も行いません。取り込んだストアでの共同学習は、次の標本で通常の流れのN05へ進むときからです。新モデルを作る場合の候補の固有部の学習は、警報の処理の中で別に行います。学習要求をまとめる設定（間隔＞1）では要求が溜まり、間隔に達したとき・警報の前（MDL選択後、取込み前）・ラウンドの境界で消化します。既定では要求が溜まらず、警報の前とラウンドの境界での消化は何もしません。</p>
 <p><b>新モデルの作成では、共有部を固定して固有部を学習します。</b>MDLで選んだ変化区間を学習部分と早期終了用の検証部分へ分け、adapterと分類層だけを更新します。学習後は同じ警報応答で即時採用し、区間の標本を新モデルの学習ストアへ追加します。将来標本を使った候補の採否検証や、そのための待ちはありません。通常の共同学習では、標本のある各モデルの損失を標本数で重み付けし、共有部と固有部を更新します。</p>
@@ -187,7 +187,7 @@ header{gap:8px}header #open-notes{margin-left:auto;font-size:11px;padding:2px 8p
 <p><b>共有と再較正は、ラウンド境界で行います。</b>登録ではIDだけを割り当て、集約でパラメータを1回だけ送ります。非負IDかつ学習ストアが非空のモデルが参加し、共有部はclientごとの参加標本件数の合計で、固有部はモデルIDごとの件数でFedAvgします。配布反映直後の状態を予測用に保存し、FIFOを更新用の各モデルで再評価してモデル別重みwを時系列で再構築します。モデルの値と二者重みvは保持します。FIFOが空、またはモデルが1個以下なら再生しません。モデル数・標本の絵は模式例です。</p></dialog>
 <script>
 (()=>{'use strict';
-const frames={"A08": {"actors": ["stores", "models", "backbone", "param-local"], "edges": [], "title": "この標本では共同学習しない → 取り込んだストアでの学習は次の標本から", "note": "この警報標本の学習要求は記録しない。次の標本で通常の流れのN05へ進むときに共同学習する。新モデルを作る場合、候補の固有部の学習は別の処理。"}, "O01": {"actors": [], "edges": [], "title": "全体図：モデルを中心に、四方向の受け渡しを見る", "note": "左の配布時モデルと右の更新用モデルが同じIDの対。モデルの下に個別のクラス確率pを表示。"}, "P01": {"actors": ["input"], "edges": [], "title": "特徴が到着する", "note": "正解はまだ使わない。到着ノードはここ一か所。"}, "P02": {"actors": ["input", "backbone", "models", "param-sync", "param-local", "probabilities"], "edges": ["feature", "features-0", "features-1", "features-2", "model-prob-sync-0", "model-prob-sync-1", "model-prob-sync-2", "feature-local", "features-local-0", "features-local-1", "features-local-2", "model-prob-local-0", "model-prob-local-1", "model-prob-local-2"], "title": "各モデルが、全クラスへの確率を出力する", "note": "配布時は𝐩₀・𝐩₁・𝐩₂、更新用は𝐩₀′・𝐩₁′・𝐩₂′。同じIDの出力を左右で対応させる。"}, "P03": {"actors": ["models", "probabilities", "param-sync", "param-local", "prob-sync", "prob-local"], "edges": ["collect-sync-0", "collect-sync-1", "collect-sync-2", "collect-sync", "probabilities", "collect-local-0", "collect-local-1", "collect-local-2", "collect-local", "probabilities-local"], "title": "それぞれのモデル確率を、対応する結合へ渡す", "note": "pは全クラスの確率分布。配布時と更新用を別々に集め、同じモデル別重みwで結合する。"}, "P04": {"actors": ["prob-sync", "prob-local", "model-weights", "combine-sync", "combine-local"], "edges": ["prob-sync-w", "prob-local-w", "w-combine-sync", "w-combine-local"], "title": "共通のモデル別重み w で、それぞれ結合", "note": "二つの状態で同じwを使う。左の0と右の0′は同じモデルIDの対。"}, "P05": {"actors": ["combine-sync", "combine-local", "mixture-weights"], "edges": ["mix-sync", "mix-local"], "title": "二者の重み v で、二つの結合確率を混ぜる", "note": "混ぜるのは確率。モデルのパラメータを混ぜる処理ではない。"}, "P06": {"actors": ["mixture-weights", "output"], "edges": ["output"], "title": "予測を出力する", "note": "この標本の予測は、正解を見て差し替えない。"}, "P07": {"actors": ["input", "model-weights", "mixture-weights"], "edges": ["label-weights", "label-mixture"], "title": "観測した正解で損失を求め、次回の重みへ", "note": "wには配布時側の各モデル損失、vには各結合損失。分け合いの時間尺度Tは両方で共用。"}, "N01": {"actors": ["input", "probabilities", "monitor", "loss-calculation"], "edges": ["current-loss", "label-loss", "loss-monitor"], "title": "更新用の現行モデルの損失を、監視へ渡す", "note": "★の更新用現行モデルの確率と正解だけから ℓ = 1 − 𝐩₀′(yₜ) を求める。監視はFIFOを読まない。"}, "N02": {"actors": ["input", "fifo"], "edges": ["sample-fifo"], "title": "新しい標本を、FIFOの右端へ追加", "note": "新しい標本だけを濃く表示。ここではまだ容量で切り捨てず、ドリフト判定の後に通常の確定へ進む。"}, "N03": {"actors": ["fifo", "released-sample"], "edges": ["fifo-release"], "title": "容量を超えた最古の標本を選ぶ", "note": "枠外の1標本は取り出し対象の模式表示。帰属確定とFIFOからの解放は、同じ通常処理で行う。"}, "N04": {"actors": ["released-sample", "stores"], "edges": ["released-store"], "title": "はみ出す標本をストアへ確定し、FIFOから外す", "note": "通常の学習に渡すのは容量超過分。FIFO内に残す直近の標本とは区別する。"}, "N05": {"actors": ["stores", "models", "backbone", "param-local"], "edges": ["train"], "title": "モデル別の標本から、共同学習する", "note": "既定では毎標本1回、ストアの小バッチ（既定32件）で共有部と固有部を共同学習。FIFOからストアへ確定する標本がない間も、ストアにある標本で学習する。"}, "A01": {"actors": ["monitor", "alarm"], "edges": ["signal", "alarm-outcome"], "title": "全体・正解クラス別の監視から、変化の合図を得る", "note": "合図がなければ通常処理。合図があれば、まずMDLで変化点と帰属先を選び、その区間の件数から警報にするかを決める。"}, "A02": {"actors": ["stores", "models", "backbone", "param-local"], "edges": ["train"], "title": "MDL選択の後、未消化のローカル更新を終える", "note": "選んだ区間が最小件数以上なら、保留中の学習要求を消化し、警報の位置を記録して区間の取込みへ進む。"}, "A03": {"actors": ["fifo", "models", "backbone", "reuse-decision", "monitor", "alarm", "param-local"], "edges": ["assess", "alarm-partition", "signal", "alarm-outcome"], "title": "FIFO内全データを、更新用の保持モデルだけで評価する", "note": "警報標本を含む列Wが対象。全仮説（変化点×帰属先）の符号長の最小を選ぶ。配布時の写しは使わない。"}, "A04": {"actors": ["fifo", "stores"], "edges": ["earlier-store"], "title": "選んだ変化点より前の標本を、現行へ確定", "note": "前区間を現行ストアへ取り込み、非負IDなら評価用ストアにも抽出追加。現在維持では前区間が空のため、このコマを省く。"}, "A05": {"actors": ["fifo", "reuse-decision", "mdl-comparison"], "edges": ["partition-fifo"], "title": "MDLで、変化点と帰属先を同時に選ぶ", "note": "kは5の倍数。全ての変化点τと帰属先の組で経路上の損失和と切替の符号長を足し、全仮説で最短の経路から変化点と帰属先を同時に選ぶ。同じ長さなら、現在のまま・短い区間・保持モデル・新モデルの順に優先する。"}, "A06": {"actors": ["fifo", "reuse-decision"], "edges": ["partition-fifo", "reuse-outcome"], "title": "MDLで選んだ帰属先への取込みを始める", "note": "予測重みwの最大モデルを選ぶ規則ではない。現在維持はW全列、切替は選んだ末尾区間を行き先へ渡す。"}, "A07": {"actors": ["fifo", "reuse-decision", "stores", "models"], "edges": ["reused-store"], "title": "選んだモデルへ標本を取り込み、学習帰属を設定", "note": "現在維持では全列を現行へ、再利用では選択区間を別モデルへ確定。履歴統計から監視を再開し、取り込んだFIFOを空にする。"}, "W01": {"actors": ["alarm", "monitor", "fifo", "reuse-decision"], "edges": ["signal", "alarm-outcome"], "title": "MDL選択後の区間が最小件数未満 → 警報を保留", "note": "FIFO件数と選択区間長の小さい方が5件未満。警報とは記録せず検出器の証拠を残す。この例では容量超過がなく、学習要求に応じた処理へ。"}, "C01": {"actors": ["candidate", "backbone", "models", "candidate-backbone", "candidate-head"], "edges": ["copy-backbone", "copy-model"], "title": "区間平均損失が最小のモデルを、初期値にコピー", "note": "履歴基準を使える保持モデルから選ぶ（なければ現行）。更新用共有部とその固有部の写し。MDLの符号長測定用学習者とは別。"}, "C02": {"actors": ["candidate", "candidate-backbone", "candidate-head"], "edges": ["candidate-input", "candidate-features"], "title": "バックボーンコピーを固定し、新モデル候補を学習する", "note": "選んだ区間を学習・早期終了用の検証に分け、残差アダプタと分類ヘッドを学習。共有部は特徴抽出のみ。採否検証は行わない。"}, "C03": {"actors": ["candidate", "candidate-head", "backbone", "new-model", "new-store", "models", "stores"], "edges": ["adopt", "candidate-assign"], "title": "新モデル n′ を即時追加し、標本をそのストアへ確定", "note": "既存の更新用共有部へ接続し、学習帰属を新モデルへ。履歴統計から監視を再開してFIFOを空にする。将来標本での採否検証待ちはない。"}, "R01": {"actors": ["backbone", "new-model", "registration", "models"], "edges": [], "title": "新モデルが現行の同期後だけ、登録待ちを進める", "note": "作成直後とは別の、後のラウンドの例。既定1回の待ちを同期後に進める。別モデルが現行の間は停止し、戻れば再開。"}, "R02": {"actors": ["models", "registration", "new-model"], "edges": [], "title": "待ちを終え、現行である新モデルへサーバIDを登録", "note": "登録機会で現行かつ待ち0のモデルだけを登録。ここではIDを割り当て、パラメータはこの後の集約入力として1回だけ送る。"}, "R03": {"actors": ["aggregation"], "edges": [], "title": "学習ストアの標本件数で、重み付き集約", "note": "共有部はclientごとに参加モデルの標本件数の合計で、固有部はモデルIDごとの標本件数で平均。"}, "R04": {"actors": ["synchronization-condition", "round-decision-result"], "edges": [], "title": "登録可能な新モデルと、集約対象の数から判定", "note": "登録可能な新モデルがあり、集約対象IDが複数なら評価・統合を実施。サンプル分岐とは別周期のラウンド例。"}, "R05": {"actors": ["synchronization-condition", "cross-evaluation"], "edges": ["early-models"], "title": "集約後の全モデルを先に配布し、反映せず保持する", "note": "共有部1個と全モデルの固有部を全clientへ送る。更新用モデルも予測用の配布時モデルも、まだ置き換えない。"}, "R06": {"actors": ["cross-evaluation", "models", "backbone", "param-local", "eval-data", "evaluation-results", "server-evaluation"], "edges": ["cross-compare", "evaluate-received", "evaluate-held", "evaluation-result"], "title": "全候補を対象の標本で評価し、損失・正誤の統計を返す", "note": "異なるモデルIDの組では、手元の対象モデルも同じ標本で推論して正誤を比較。受信済みモデルは反映まで保持する。"}, "R07": {"actors": ["consolidation", "cross-evaluation"], "edges": [], "title": "クラス別の正誤比較でクラスタを作り、代表IDへ統合", "note": "片側だけ正解の割合の信頼下限で階層クラスタリング。学習ストアの標本件数で加重平均し、共有部が同じなら値を保つ。"}, "R08": {"actors": ["consolidation", "cross-evaluation"], "edges": ["changed-models"], "title": "統合した場合だけ、ID対応と変更分を送り直す", "note": "統合代表の固有部を再送。配布する共有部も変わった場合は再送する。統合しなければ再送は不要。"}, "R09": {"actors": ["cross-evaluation", "models", "backbone"], "edges": ["apply-received"], "title": "受信済みモデルと変更分を、更新用モデルへ反映する", "note": "モデルとID対応を手元へ反映するクライアント内部の処理。ここで全モデルを再送するわけではない。"}, "R10": {"actors": ["models", "backbone", "param-sync"], "edges": ["copy-snapshot"], "title": "配布反映直後の全モデルを、配布時側へコピーして保存", "note": "右の保有モデルから左の予測用の写しへ、共有バックボーンも含めて一括コピー。写しは次の配布まで学習しない。"}, "R11": {"actors": ["fifo", "models", "backbone", "model-weights"], "edges": ["replay-use-0", "replay-use-1", "replay-use-2", "replay-use-models", "replay-use-backbone", "replay-evaluate", "replay"], "title": "FIFOを更新用モデルで再評価し、重みwを再構築", "note": "FIFOの時系列で損失を再生。モデルの値と二者重みvは保持。FIFOが空、または保持モデル1個以下なら再生しない。"}, "R12": {"actors": ["models", "backbone", "param-local", "aggregation"], "edges": ["upload"], "title": "更新用モデルをサーバへ送る（集約の入力）", "note": "非負IDで学習ストアが非空のモデルが参加。共有部はclientごとに1回、固有部はモデルIDごとに送り、生データは手元に残す。"}, "C00": {"actors": ["fifo", "candidate"], "edges": ["assign-candidate"], "title": "MDLで選んだ変化区間を、候補学習へ渡す", "note": "新モデルが選ばれた場合の経路。選択後の区間平均損失評価で実候補の初期値を選び、同じ警報応答で学習・採用する。"}, "R05a": {"actors": ["server-evaluation", "cross-evaluation"], "edges": ["evaluation-request"], "title": "対象モデルの標本を持つclient全員に、IDで評価を依頼", "note": "対象の標本を返せるclientだけが候補。上限はclient総数なので候補全員へ依頼し、全候補モデル×全対象モデルの組を評価。"}, "A05a": {"actors": ["fifo", "models", "backbone", "param-local", "reuse-decision", "mdl-loss-table"], "edges": [], "title": "FIFOの標本を下へ伸ばし、更新用モデルごとの損失を色にする", "note": "薄いマスほど対数損失 −ln p が小さい。更新用の保持モデルを、パラメータを変えずに使い（測るだけで学習しない）、警報標本を含むW全列（最大31件）の損失を測る。"}, "A05b": {"actors": ["fifo", "reuse-decision", "mdl-learner"], "edges": [], "title": "全てのkで、末尾k件を測定用の学習者で符号化する", "note": "kごとに二つの学習者を別々に一から学習させる（共有部固定）。図はk＝10を強調。変化点は次の比較で初めて決まり、実際の候補は後で別に作る。"}};
+const frames={"A08": {"actors": ["stores", "models", "backbone", "param-local"], "edges": [], "title": "この標本では共同学習しない → 取り込んだストアでの学習は次の標本から", "note": "この警報標本の学習要求は記録しない。次の標本で通常の流れのN05へ進むときに共同学習する。新モデルを作る場合、候補の固有部の学習は別の処理。"}, "O01": {"actors": [], "edges": [], "title": "全体図：モデルを中心に、四方向の受け渡しを見る", "note": "左の配布時モデルと右の更新用モデルが同じIDの対。モデルの下に個別のクラス確率pを表示。"}, "P01": {"actors": ["input"], "edges": [], "title": "特徴が到着する", "note": "正解はまだ使わない。到着ノードはここ一か所。"}, "P02": {"actors": ["input", "backbone", "models", "param-sync", "param-local", "probabilities"], "edges": ["feature", "features-0", "features-1", "features-2", "model-prob-sync-0", "model-prob-sync-1", "model-prob-sync-2", "feature-local", "features-local-0", "features-local-1", "features-local-2", "model-prob-local-0", "model-prob-local-1", "model-prob-local-2"], "title": "各モデルが、全クラスへの確率を出力する", "note": "配布時は𝐩₀・𝐩₁・𝐩₂、更新用は𝐩₀′・𝐩₁′・𝐩₂′。同じIDの出力を左右で対応させる。"}, "P03": {"actors": ["models", "probabilities", "param-sync", "param-local", "prob-sync", "prob-local"], "edges": ["collect-sync-0", "collect-sync-1", "collect-sync-2", "collect-sync", "probabilities", "collect-local-0", "collect-local-1", "collect-local-2", "collect-local", "probabilities-local"], "title": "それぞれのモデル確率を、対応する結合へ渡す", "note": "pは全クラスの確率分布。配布時と更新用を別々に集め、同じモデル別重みwで結合する。"}, "P04": {"actors": ["prob-sync", "prob-local", "model-weights", "combine-sync", "combine-local"], "edges": ["prob-sync-w", "prob-local-w", "w-combine-sync", "w-combine-local"], "title": "共通のモデル別重み w で、それぞれ結合", "note": "二つの状態で同じwを使う。左の0と右の0′は同じモデルIDの対。"}, "P05": {"actors": ["combine-sync", "combine-local", "mixture-weights"], "edges": ["mix-sync", "mix-local"], "title": "二者の重み v で、二つの結合確率を混ぜる", "note": "混ぜるのは確率。モデルのパラメータを混ぜる処理ではない。"}, "P06": {"actors": ["mixture-weights", "output"], "edges": ["output"], "title": "予測を出力する", "note": "この標本の予測は、正解を見て差し替えない。"}, "P07": {"actors": ["input", "model-weights", "mixture-weights"], "edges": ["label-weights", "label-mixture"], "title": "観測した正解で損失を求め、次回の重みへ", "note": "wには配布時側の各モデル損失、vには各結合損失。分け合いの時間尺度Tは両方で共用。"}, "N01": {"actors": ["input", "probabilities", "monitor", "loss-calculation"], "edges": ["current-loss", "label-loss", "loss-monitor"], "title": "更新用の現行モデルの損失を、監視へ渡す", "note": "★の更新用現行モデルの確率と正解だけから ℓ = 1 − 𝐩₀′(yₜ) を求める。監視はFIFOを読まない。"}, "N02": {"actors": ["input", "fifo"], "edges": ["sample-fifo"], "title": "新しい標本を、FIFOの右端へ追加", "note": "新しい標本だけを濃く表示。ここではまだ容量で切り捨てず、ドリフト判定の後に通常の確定へ進む。"}, "N03": {"actors": ["fifo", "released-sample"], "edges": ["fifo-release"], "title": "容量を超えた最古の標本を選ぶ", "note": "枠外の1標本は取り出し対象の模式表示。帰属確定とFIFOからの解放は、同じ通常処理で行う。"}, "N04": {"actors": ["released-sample", "stores"], "edges": ["released-store"], "title": "はみ出す標本をストアへ確定し、FIFOから外す", "note": "通常の学習に渡すのは容量超過分。FIFO内に残す直近の標本とは区別する。"}, "N05": {"actors": ["stores", "models", "backbone", "param-local"], "edges": ["train"], "title": "モデル別の標本から、共同学習する", "note": "既定では毎標本1回、ストアの小バッチ（既定32件）で共有部と固有部を共同学習。FIFOからストアへ確定する標本がない間も、ストアにある標本で学習する。"}, "A01": {"actors": ["monitor", "alarm"], "edges": ["signal", "alarm-outcome"], "title": "全体・正解クラス別の監視から、変化の合図を得る", "note": "合図がなければ通常処理。合図があれば、まずMDLで変化点と帰属先を選び、その区間の件数から警報にするかを決める。"}, "A02": {"actors": ["stores", "models", "backbone", "param-local"], "edges": ["train"], "title": "MDL選択の後、未消化のローカル更新を終える", "note": "選んだ区間が最小件数以上なら、保留中の学習要求を消化し、警報の位置を記録して区間の取込みへ進む。"}, "A03": {"actors": ["fifo", "models", "backbone", "reuse-decision", "monitor", "alarm", "param-local"], "edges": ["assess", "alarm-partition", "signal", "alarm-outcome"], "title": "FIFO内全データを、更新用の保持モデルだけで評価する", "note": "警報標本を含む列Wが対象。全仮説（変化点×帰属先）の符号長の最小を選ぶ。配布時の写しは使わない。"}, "A04": {"actors": ["fifo", "stores"], "edges": ["earlier-store"], "title": "選んだ変化点より前の標本を、現行へ確定", "note": "前区間を現行ストアへ取り込み、非負IDなら評価用ストアにも抽出追加。現在維持では前区間が空のため、このコマを省く。"}, "A05": {"actors": ["fifo", "reuse-decision", "mdl-comparison"], "edges": ["partition-fifo"], "title": "MDLで、変化点と帰属先を同時に選ぶ", "note": "kは5件からWの長さまで1件刻み。全ての変化点τと帰属先の組で経路上の損失和と切替の符号長を足し、全仮説で最短の経路から変化点と帰属先を同時に選ぶ。同じ長さなら、現在のまま・短い区間・保持モデル・新モデルの順に優先する。"}, "A06": {"actors": ["fifo", "reuse-decision"], "edges": ["partition-fifo", "reuse-outcome"], "title": "MDLで選んだ帰属先への取込みを始める", "note": "予測重みwの最大モデルを選ぶ規則ではない。現在維持はW全列、切替は選んだ末尾区間を行き先へ渡す。"}, "A07": {"actors": ["fifo", "reuse-decision", "stores", "models"], "edges": ["reused-store"], "title": "選んだモデルへ標本を取り込み、学習帰属を設定", "note": "現在維持では全列を現行へ、再利用では選択区間を別モデルへ確定。履歴統計から監視を再開し、取り込んだFIFOを空にする。"}, "W01": {"actors": ["alarm", "monitor", "fifo", "reuse-decision"], "edges": ["signal", "alarm-outcome"], "title": "MDL選択後の区間が最小件数未満 → 警報を保留", "note": "FIFO件数と選択区間長の小さい方が5件未満。警報とは記録せず検出器の証拠を残す。この例では容量超過がなく、学習要求に応じた処理へ。"}, "C01": {"actors": ["candidate", "backbone", "models", "candidate-backbone", "candidate-head"], "edges": ["copy-backbone", "copy-model"], "title": "区間平均損失が最小のモデルを、初期値にコピー", "note": "履歴基準を使える保持モデルから選ぶ（なければ現行）。更新用共有部とその固有部の写し。MDLの符号長測定用学習者とは別。"}, "C02": {"actors": ["candidate", "candidate-backbone", "candidate-head"], "edges": ["candidate-input", "candidate-features"], "title": "バックボーンコピーを固定し、新モデル候補を学習する", "note": "選んだ区間を学習・早期終了用の検証に分け、残差アダプタと分類ヘッドを学習。共有部は特徴抽出のみ。採否検証は行わない。"}, "C03": {"actors": ["candidate", "candidate-head", "backbone", "new-model", "new-store", "models", "stores"], "edges": ["adopt", "candidate-assign"], "title": "新モデル n′ を即時追加し、標本をそのストアへ確定", "note": "既存の更新用共有部へ接続し、学習帰属を新モデルへ。履歴統計から監視を再開してFIFOを空にする。将来標本での採否検証待ちはない。"}, "R01": {"actors": ["backbone", "new-model", "registration", "models"], "edges": [], "title": "新モデルが現行の同期後だけ、登録待ちを進める", "note": "作成直後とは別の、後のラウンドの例。既定1回の待ちを同期後に進める。別モデルが現行の間は停止し、戻れば再開。"}, "R02": {"actors": ["models", "registration", "new-model"], "edges": [], "title": "待ちを終え、現行である新モデルへサーバIDを登録", "note": "登録機会で現行かつ待ち0のモデルだけを登録。ここではIDを割り当て、パラメータはこの後の集約入力として1回だけ送る。"}, "R03": {"actors": ["aggregation"], "edges": [], "title": "学習ストアの標本件数で、重み付き集約", "note": "共有部はclientごとに参加モデルの標本件数の合計で、固有部はモデルIDごとの標本件数で平均。"}, "R04": {"actors": ["synchronization-condition", "round-decision-result"], "edges": [], "title": "登録可能な新モデルと、集約対象の数から判定", "note": "登録可能な新モデルがあり、集約対象IDが複数なら評価・統合を実施。サンプル分岐とは別周期のラウンド例。"}, "R05": {"actors": ["synchronization-condition", "cross-evaluation"], "edges": ["early-models"], "title": "集約後の全モデルを先に配布し、反映せず保持する", "note": "共有部1個と全モデルの固有部を全clientへ送る。更新用モデルも予測用の配布時モデルも、まだ置き換えない。"}, "R06": {"actors": ["cross-evaluation", "models", "backbone", "param-local", "eval-data", "evaluation-results", "server-evaluation"], "edges": ["cross-compare", "evaluate-received", "evaluate-held", "evaluation-result"], "title": "全候補を対象の標本で評価し、損失・正誤の統計を返す", "note": "異なるモデルIDの組では、手元の対象モデルも同じ標本で推論して正誤を比較。受信済みモデルは反映まで保持する。"}, "R07": {"actors": ["consolidation", "cross-evaluation"], "edges": [], "title": "クラス別の正誤比較でクラスタを作り、代表IDへ統合", "note": "片側だけ正解の割合の信頼下限で階層クラスタリング。学習ストアの標本件数で加重平均し、共有部が同じなら値を保つ。"}, "R08": {"actors": ["consolidation", "cross-evaluation"], "edges": ["changed-models"], "title": "統合した場合だけ、ID対応と変更分を送り直す", "note": "統合代表の固有部を再送。配布する共有部も変わった場合は再送する。統合しなければ再送は不要。"}, "R09": {"actors": ["cross-evaluation", "models", "backbone"], "edges": ["apply-received"], "title": "受信済みモデルと変更分を、更新用モデルへ反映する", "note": "モデルとID対応を手元へ反映するクライアント内部の処理。ここで全モデルを再送するわけではない。"}, "R10": {"actors": ["models", "backbone", "param-sync"], "edges": ["copy-snapshot"], "title": "配布反映直後の全モデルを、配布時側へコピーして保存", "note": "右の保有モデルから左の予測用の写しへ、共有バックボーンも含めて一括コピー。写しは次の配布まで学習しない。"}, "R11": {"actors": ["fifo", "models", "backbone", "model-weights"], "edges": ["replay-use-0", "replay-use-1", "replay-use-2", "replay-use-models", "replay-use-backbone", "replay-evaluate", "replay"], "title": "FIFOを更新用モデルで再評価し、重みwを再構築", "note": "FIFOの時系列で損失を再生。モデルの値と二者重みvは保持。FIFOが空、または保持モデル1個以下なら再生しない。"}, "R12": {"actors": ["models", "backbone", "param-local", "aggregation"], "edges": ["upload"], "title": "更新用モデルをサーバへ送る（集約の入力）", "note": "非負IDで学習ストアが非空のモデルが参加。共有部はclientごとに1回、固有部はモデルIDごとに送り、生データは手元に残す。"}, "C00": {"actors": ["fifo", "candidate"], "edges": ["assign-candidate"], "title": "MDLで選んだ変化区間を、候補学習へ渡す", "note": "新モデルが選ばれた場合の経路。選択後の区間平均損失評価で実候補の初期値を選び、同じ警報応答で学習・採用する。"}, "R05a": {"actors": ["server-evaluation", "cross-evaluation"], "edges": ["evaluation-request"], "title": "対象モデルの標本を持つclient全員に、IDで評価を依頼", "note": "対象の標本を返せるclientだけが候補。上限はclient総数なので候補全員へ依頼し、全候補モデル×全対象モデルの組を評価。"}, "A05a": {"actors": ["fifo", "models", "backbone", "param-local", "reuse-decision", "mdl-loss-table"], "edges": [], "title": "FIFOの標本を下へ伸ばし、更新用モデルごとの損失を色にする", "note": "薄いマスほど対数損失 −ln p が小さい。更新用の保持モデルを、パラメータを変えずに使い（測るだけで学習しない）、警報標本を含むW全列（最大31件）の損失を測る。"}, "A05b": {"actors": ["fifo", "reuse-decision", "mdl-learner"], "edges": [], "title": "新しい方から1本の流れで、全てのkの符号長を測る", "note": "二つの学習者それぞれで、新しい方から学習する（共有部固定）。途中までの和で全てのk（5件以上）を測る。学習は学習者ごとにWの件数回。変化点は次の比較で決まり、実候補は後で別に作る。"}};
 const $=id=>document.getElementById(id),actors=[...document.querySelectorAll('[data-actor]')],edges=[...document.querySelectorAll('[data-edge]')];
 const mode='mixture';let index=-1,timer=null,seq=[];
 let choices={alarm:'alarm',response:'candidate'};
@@ -225,37 +225,39 @@ function build(){
 function mdlExample(insufficient){
  const n=insufficient?4:16,branch=insufficient?'current':choices.response;
  const losses=[Array.from({length:n},(_,i)=>branch==='current'||i<6?.18:4.4),Array.from({length:n},(_,i)=>branch==='known'&&i>=6?.12:3.8),Array(n).fill(3.3)];
- const measure=(k,warm=false)=>Array.from({length:k},(_,j)=>{
-  // 変化前まで含む長い候補では、変化点で測定用の予測も再び外れる模式例。
-  const before=Math.max(0,k-10),age=j<before?j:j-before;
+ // 新しい方から古い方への測定は、学習者ごとに1本だけ作る。
+ const streams=[false,true].map(warm=>Array.from({length:n},(_,j)=>{
+  // 警報標本から学習して損失が下がり、変化前へ入ると再び外れる模式例。
+  const age=j<10?j:j-10;
   return (warm?3.4:2.6)*Math.pow(warm?.76:.66,age)+.12;
- });
+ }));
+ const prefixes=streams.map(values=>values.reduce((a,v)=>{a.push(a.at(-1)+v);return a;},[0]));
+ // 図の横軸は古い→新しい。測定順の先頭k件を逆に並べて右端に揃える。
+ const measure=(k,warm=false)=>streams[Number(warm)].slice(0,k).reverse();
  const switching=Math.log(120)+Math.log(3),sum=a=>a.reduce((s,x)=>s+x,0);
  const options=[{key:'current',row:0,tau:n,pre:sum(losses[0]),post:0,switching:0}];
- for(let k=5;k<=n;k+=5){
+ for(let k=5;k<=n;k++){
   const tau=n-k,pre=sum(losses[0].slice(0,tau));
   [1,2].forEach(row=>options.push({key:'known'+row,row,tau,pre,post:sum(losses[row].slice(tau)),switching}));
-  options.push({key:'candidate',row:3,tau,pre,post:Math.min(sum(measure(k)),sum(measure(k,true)))+Math.log(2),switching});
+  options.push({key:'candidate',row:3,tau,pre,post:Math.min(prefixes[0][k],prefixes[1][k])+Math.log(2),switching});
  }
  options.forEach(o=>o.total=o.pre+o.post+o.switching);
  const best=options.reduce((a,b)=>b.total<a.total?b:a);
  const representatives=['current','known1','known2','candidate'].map(key=>options.filter(o=>o.key===key).reduce((a,b)=>!a||b.total<a.total?b:a,null)).filter(Boolean);
- return {n,branch,losses,measure,options,best,representatives};
+ return {n,branch,losses,measure,prefixes,options,best,representatives};
 }
 function renderMdl(frame,insufficient){
  if(!['A05a','A05b','A05'].includes(frame))return;
  const ex=mdlExample(insufficient),{n,losses,measure,best}=ex;
  const comparison=frame==='A05',learn=frame!=='A05a'&&!insufficient;
- const x=800,w=480/n,ys=[920,966,1012,1082,1128];
- // 測定コマの代表kは表示用に固定し、比較結果から先取りしない。
- const k=insufficient?0:10,cut=x+(n-k)*w;
+ const x=800,w=480/n,ys=[920,966,1012,1082,frame==='A05b'?1165:1128];
  const color=v=>{const t=Math.min(1,v/4.4);return 'rgb('+[237,242,250].map((a,i)=>Math.round(a+([55,79,131][i]-a)*t)).join(',')+')';};
  const text=(x,y,t,attrs='')=>`<text x="${x}" y="${y}" ${attrs}>${t}</text>`;
  const rect=(x,y,width,height,fill,cls='',attrs='')=>`<rect x="${x}" y="${y}" width="${width}" height="${height}" class="${cls}" style="fill:${fill}" ${attrs}/>`;
  const path=(d,stroke,cls='',attrs='')=>`<path d="${d}" stroke="${stroke}" class="${cls}" fill="none" ${attrs}/>`;
  const palette={current:'#674a96',known1:'#087d89',known2:'#66767d',candidate:'#a56512'};
  let svg=path('M1100 625L700 790M1170 625L1320 790','#8f9dae','','stroke-width="2" stroke-dasharray="5 4"');
- svg+=rect(270,790,1470,comparison?550:440,'#fff','mdl-panel','rx="12"');
+ svg+=rect(270,790,1470,frame==='A05a'?440:550,'#fff','mdl-panel','rx="12"');
  svg+=text(290,824,frame==='A05a'?'① FIFOを下へ伸ばす：更新用モデルごとの損失':frame==='A05b'?'② 全ての末尾区間長kで、新モデル仮説を測る':'③ 最短の経路から、変化点と帰属先を選ぶ','class="panel-title"');
  // 区切りへの縦線が見出しやWの説明を横切らないよう、説明は左へ寄せる。
  svg+=text(290,857,insufficient?'W：全4件（警報標本を含む）':'W：全16件の模式例（警報標本を含む・最大31件）');
@@ -277,35 +279,32 @@ function renderMdl(frame,insufficient){
  }
  if(!comparison)svg+=text(800,884,'変化点は未確定（次の比較で決まる）');
  if(learn){
-  if(!comparison){
-   svg+=text(290,1048,'k＝5, 10, 15, …のそれぞれで、末尾k件を一から学習して測る（図はk＝10を強調）','style="font-size:18px"');
-   // 全候補を右端で揃え、代表の10件以外は少しずらして薄く重ねる。
-   for(let other=5;other<=n;other+=5){
-    if(other===k)continue;
-    const start=x+(n-other)*w,offset=other<k?8:-8;
-    [false,true].forEach((warm,r)=>{
-     const y=ys[r+3]+offset;
-     svg+=`<g opacity=".22" data-measure-k="${other}" data-measure-learner="${warm?'warm':'reset'}">`;
-     measure(other,warm).forEach((v,i)=>svg+=rect(start+i*w,y-17,w,34,color(v),'loss-cell'));
-     svg+=rect(start-3,y-20,other*w+6,40,'none','measure-outline');
-     svg+='</g>';
-    });
-   }
-  }else svg+=text(1280,1053,'測定の代表：k＝10','text-anchor="end"');
+  if(!comparison)svg+=text(290,1048,'新しい方から1本の流れで学習し、途中までの和で全部のk（5件以上）を測る','style="font-size:18px"');
   [false,true].forEach((warm,r)=>{
-   const y=ys[r+3],values=measure(k,warm);
-   svg+=`<g opacity="${warm?.65:1}" data-measure-k="${k}" data-measure-learner="${warm?'warm':'reset'}">`;
-   values.forEach((v,i)=>svg+=rect(cut+i*w,y-17,w,34,color(v),'loss-cell',`data-learner="${warm?'warm':'reset'}"`));
-   svg+=rect(cut-3,y-20,k*w+6,40,'none','measure-outline');
+   const y=ys[r+3],learner=warm?'warm':'reset';
+   svg+=`<g opacity="${warm?.65:1}" data-measure-learner="${learner}">`;
+   measure(n,warm).forEach((v,i)=>svg+=rect(x+i*w,y-17,w,34,color(v),'loss-cell',`data-learner="${learner}" data-measure-column="${i}"`));
+   svg+=rect(x-3,y-20,n*w+6,40,'none','measure-outline');
    svg+=text(785,y+6,warm?'新モデル・現行からwarm start':'新モデル・固有部を初期化','text-anchor="end"');
+   // 矢印は警報標本の右端から、古い標本の左端へ向く。
+   svg+=path(`M1270 ${y+8}H810`,'#a56512','','stroke-width="2" marker-end="url(#arrow)" data-learning-order="reverse"');
+   if(!comparison){
+    svg+=path(`M${x} ${y+27}H${x+(n-5)*w}`,'#a56512');
+    for(let k=5;k<=n;k++){
+     const xx=x+(n-k)*w;
+     svg+=path(`M${xx} ${y+21}V${y+33}`,'#a56512','',`data-prefix-k="${k}" data-prefix-learner="${learner}" data-prefix-total="${ex.prefixes[r][k]}"`);
+    }
+    svg+=text(x,y+49,`k＝${n}`,'style="font-size:17px"');
+    svg+=text(x+(n-5)*w,y+49,'k＝5','text-anchor="middle" style="font-size:17px"');
+    svg+=text(1300,y+32,'各目盛りから右端までの損失和','style="font-size:17px"');
+   }
    svg+='</g>';
   });
-  svg+=text(1298,1088,'短い方 +ln 2','class="selected-label"');
-  svg+=text(1298,1134,'× 長い方は捨てる');
-  // 比較コマでは棒の空間を確保する。
-  if(comparison)svg=svg.replace(text(1298,1088,'短い方 +ln 2','class="selected-label"'),'').replace(text(1298,1134,'× 長い方は捨てる'),'');
-  svg+=text(290,1174,'↻ 1件ずつ予測 → 損失を足す → 1回学習（共有部固定）');
-  svg+=text(290,1205,'破線の行は測定後に捨てる。左下の実際の新モデル候補とは別。');
+  if(!comparison){
+   svg+=text(290,1240,'↻ 1件ずつ予測 → 損失を足す → 1回学習（共有部固定）');
+   svg+=text(290,1275,'学習は学習者ごとにWの件数回（最大31回）。各kで短い方＋ln 2。');
+   svg+=text(290,1310,'測定用の2本の行は測定後に捨てる。実際の新モデル候補とは別。');
+  }
  }
  if(frame==='A05b'&&insufficient){
   svg+=text(690,1100,'4件 ＜ 5件：末尾区間の候補なし','class="selected-label"');
@@ -313,7 +312,7 @@ function renderMdl(frame,insufficient){
  }
  if(comparison){
   const route=o=>{const y=ys[o.row],xx=x+o.tau*w;return o.row===0?`M${x} ${ys[0]}H1280`:`M${x} ${ys[0]}H${xx}V${y}H1280`;};
-  ex.options.filter(o=>o!==best&&o.row>0&&o.row<3).forEach(o=>svg+=path(route(o),palette[o.key],'mdl-path alternative'));
+  ex.options.filter(o=>o.row>0&&!ex.representatives.includes(o)).forEach(o=>svg+=path(route(o),palette[o.key],'mdl-path alternative'));
   ex.representatives.filter(o=>o!==best).forEach(o=>svg+=path(route(o),palette[o.key],'mdl-path','stroke-dasharray="8 4" opacity=".65"'));
   // 白い縁でセルの濃淡から経路を分離する。
   svg+=path(route(best),'white','mdl-path','stroke-width="11" style="stroke-width:11"');
@@ -394,11 +393,11 @@ function render(){
  if(id==='R09'&&!evaluationRound()){title='受信済みモデルを、更新用モデルへ反映する';note='受信済みモデルとID対応を手元へ反映する。ここでモデルを送り直す処理ではない。';}
  document.querySelector('[data-edge="mdl-selected-fifo"]').classList.toggle('active',id==='A05'&&choices.alarm==='alarm'&&choices.response!=='current');
  const mdlDetail=['A05a','A05b','A05'].includes(id);
- diagram.setAttribute('viewBox',mdlDetail?(id==='A05'?'220 525 1550 835':'220 525 1550 725'):'0 15 1800 770');
+ diagram.setAttribute('viewBox',mdlDetail?(id==='A05a'?'220 525 1550 725':'220 525 1550 835'):'0 15 1800 770');
  const insufficient=choices.alarm==='wait';
  renderMdl(id,insufficient);
  if(insufficient&&id==='A05a')note='Wは4件。存在する4列だけを、更新用の保持モデルで評価する。';
- if(insufficient&&id==='A05b'){title='5件以上の末尾区間がなく、新モデル仮説の測定は行わない';note='Wは4件。5の倍数となる末尾区間がないため、測定用の学習者も作らない。';}
+ if(insufficient&&id==='A05b'){title='5件以上の末尾区間がなく、新モデル仮説の測定は行わない';note='Wは4件。5件以上の末尾区間がないため、測定用の学習者も作らない。';}
  const elapsed=seq.slice(0,index+1).map(x=>x.frame),adopted=elapsed.includes('C03');
  let current=elapsed.includes('A07')&&choices.response==='known'?1:0;if(adopted)current=-1;
  [0,1,2].forEach(i=>{$('current-'+i).style.opacity=current===i?'1':'0';$('star-'+i).style.opacity=current===i?'1':'0';});
