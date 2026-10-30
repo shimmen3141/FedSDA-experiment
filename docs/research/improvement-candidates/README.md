@@ -48,7 +48,7 @@
 | IMPROVE-030 | client側で部分変化を新モデルへ分ける | S1/S3/B本規模・W/B再現・交差解析まで完了、未採用。2026-10-27: SEAの見逃しを検討。概念を分ける価値の上限はSEA2で2.9pp・SEA4で4.9ppだが、基準版13はほとんど取れていない。今の検出は帯の狭い変化に区間の長さ以上の標本を要する。oracleの天井は+1.1〜1.8ppだが、警報だけの正解（5・50標本目、保留の容量200も）は効かず、ボトルネックはモデルを分ける段と分かった。塊単位の事後の再帰属（製品外）は条件がそろえば分けられるが、製品化の費用に見合わないため、ユーザーの判断でSEAの検討を止めた（2026-10-27）。事後の再帰属は将来の候補 | [詳細](improve-030-split-partially-changed-concept-on-client.md) |
 | IMPROVE-031 | 損失の監視の基準を、損失の低下の検出で再設定する | 採用（2026-10-27、基準版13。評価clientの上限の撤廃と合わせて既定にした。本規模で採否の基準を満たす） | [詳細](improve-031-loss-monitor-rebaseline-on-loss-decrease.md) |
 | IMPROVE-032 | 新しいモデルの仮説の予測的符号長を、新しい方から1本の流れで測り、変化区間を1件刻みにする | 基準版16で既定（[spec `fedsda-every-sample-change-interval-search-default`](../../../.kiro/specs/fedsda-every-sample-change-interval-search-default/tasks.md)、2026-10-29のユーザー判断）。本規模の実験（640 run）で基準版15の既定との精度差は平均+0.01〜+0.02pp | [詳細](improve-032-reverse-order-prequential-code-for-all-change-intervals.md) |
-| IMPROVE-033 | 新しいモデルの候補の初期値を、MDLの選択で短かった学習者の種類に合わせる | 研究ツールで比べる予定（2026-10-30、ユーザーの指摘） | [詳細](improve-033-candidate-initialization-follows-new-model-learner.md) |
+| IMPROVE-033 | 新しいモデルの候補の初期値を、MDLの選択で短かった学習者の種類に合わせる | 手元で比べた（2026-10-31）。合成データ・rotmnist4・50で上がり、MNIST・fmnistの全セルで下がる。既定は変えない案（採否はユーザー） | [詳細](improve-033-candidate-initialization-follows-new-model-learner.md) |
 
 ## 決定（2026-10-13、ユーザー）
 
