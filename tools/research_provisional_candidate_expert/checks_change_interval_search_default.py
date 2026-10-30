@@ -44,6 +44,7 @@ def test_variant_groups_partition_all_declared_variants():
         ("every-sample-change-interval-search-configuration", REVERSE, False),
         ("product-default-class-conditioned-prediction", REVERSE, False),
         *[(name, REVERSE, False) for name in research.CANDIDATE_INITIALIZATION_VARIANTS],
+        (research.CANDIDATE_START_DIAGNOSTICS_VARIANT, REVERSE, False),
     ],
 )
 def test_cli_passes_group_settings_and_only_measures_forward_or_group_c(

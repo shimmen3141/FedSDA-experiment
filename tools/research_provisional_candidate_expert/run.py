@@ -35,6 +35,10 @@ from tools.research_provisional_candidate_expert.candidate_initialization_follow
     CANDIDATE_INITIALIZATION_VARIANTS,
     candidate_initialization_policy,
 )
+from tools.research_provisional_candidate_expert.candidate_start_diagnostics import (  # noqa: E402
+    VARIANT as CANDIDATE_START_DIAGNOSTICS_VARIANT,
+    candidate_start_diagnostics,
+)
 
 # 変種 -> （構成、仮の専門家を使うか、検証の標本数）。候補検証の変種は廃止した。
 _VARIANTS = {
@@ -216,9 +220,11 @@ for _variant_name in REVERSE_PREQUENTIAL_VARIANTS:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
 for _variant_name in CANDIDATE_INITIALIZATION_VARIANTS:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
+_VARIANTS[CANDIDATE_START_DIAGNOSTICS_VARIANT] = ("fedsda", False, None)
 # 組Eのproduct-default系は、基準版16から新しい探索を使う製品の既定の上で評価する。
 # 版10・版12を基点とする変種とIMPROVE-032の選択の差し替えは、実行時に元の探索へ戻す。
 _PRODUCT_DEFAULT_BASED_VARIANTS = (
+    CANDIDATE_START_DIAGNOSTICS_VARIANT,
     *CANDIDATE_INITIALIZATION_VARIANTS,
     *REVERSE_PREQUENTIAL_VARIANTS,
     *LOSS_MONITOR_REBASELINE_VARIANTS,
@@ -2441,7 +2447,12 @@ def _execute_job(job):
     class_conditioned_prediction = {}
     prequential_measurement = {}
     candidate_initialization = {}
+    candidate_start_measurements = {}
     with contextlib.ExitStack() as stack:
+        if job["variant"] == CANDIDATE_START_DIAGNOSTICS_VARIANT:
+            stack.enter_context(candidate_start_diagnostics(
+                dataset=job["dataset"], run_seed=job["seed"], diagnostics=candidate_start_measurements,
+            ))
         if job["variant"] in CANDIDATE_INITIALIZATION_VARIANTS:
             stack.enter_context(candidate_initialization_policy(
                 variant=job["variant"], diagnostics=candidate_initialization,
@@ -2681,6 +2692,7 @@ def _execute_job(job):
         model_computation_counts=dataclasses.asdict(metrics.model_computation_counts),
         prequential_measurement=prequential_measurement,
         **({"candidate_initialization": candidate_initialization} if candidate_initialization else {}),
+        **({"candidate_start_diagnostics": candidate_start_measurements} if candidate_start_measurements else {}),
         candidate_adoption_count=int(
             sum(
                 outcome == "alarm_interval_candidate_adopted_as_new_model"
@@ -2776,6 +2788,30 @@ def _execute_job_in_worker(job):
         raise RuntimeError(f"{type(error).__name__}: {error}\n{traceback.format_exc()}") from None
 
 
+def _save_candidate_start_diagnostics(result, output):
+    """大きい診断だけをrun別gzipへ退避し、results.jsonには相対参照を残す。"""
+    import gzip
+
+    measurements = result.get("candidate_start_diagnostics")
+    if measurements is None or "alarms" not in measurements:
+        return
+    payload = json.dumps(measurements, ensure_ascii=False, allow_nan=False).encode("utf-8")
+    digest = hashlib.sha256(payload).hexdigest()
+    relative = Path("diagnostics") / f"{digest}.json.gz"
+    destination = output / relative
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_suffix(".gz.tmp")
+    temporary.write_bytes(gzip.compress(payload, mtime=0))
+    temporary.replace(destination)
+    result["candidate_start_diagnostics"] = dict(
+        schema_version=measurements["schema_version"],
+        path=relative.as_posix(),
+        uncompressed_sha256=digest,
+        alarm_count=len(measurements["alarms"]),
+        candidate_count_per_alarm=13,
+    )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, required=True)
@@ -2846,6 +2882,7 @@ def main():
                     json.dumps(failures, indent=1), encoding="utf-8"
                 )
                 continue
+            _save_candidate_start_diagnostics(result, arguments.output)
             results.append(result)
             print(
                 result["variant"],

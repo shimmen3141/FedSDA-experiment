@@ -145,3 +145,10 @@
 - 逐次評価は、独立な静的評価と別の「学び続けるときの性能」として扱う。学習者の標本ごとの損失は、探し方に合わせた処理の順（基準版16の既定は逆向き）で記録し、その順で後半を定める。
 - 2回目（`98b32997`）FAIL（Major 1、Minor 1）。反映: S4で足す標本は、区間の訓練の側の各標本について、その標本の真の概念から3件ずつ生成する（訓練の側の概念の構成比を変えず、件数だけを4倍にする。区間に変化前の概念の標本が含まれていれば、その割合も保つ）。依頼文の本文と記録の要件にもS4を入れた（候補は、出発点3×学び方3の9つと、AとCのS4・T30とS4・E300の4つ、計13）。
 - 3回目（`3d1715a5`）PASS（Critical・Major無し。Minorは、評価の標本の生成の乱数の分け方とラベルの対応を実装時の検査で確かめること。依頼文の検査にある）。
+
+### 診断の実装（2026-10-31、実装: GPT-6.1-sol）
+
+- 変更: `tools/research_provisional_candidate_expert/candidate_start_diagnostics.py`（13候補の経過の外の学習と評価、乱数の保存と候補ごとの復元、計算回数の計測を診断中だけ止める、評価の標本の用途別のseed、学習者の標本ごとの損失の取り出し）、`run.py`（変種の登録、診断を`<output>/diagnostics/<hash>.json.gz`に保存し`results.json`からパスとSHA-256で参照）、`checks_change_interval_search_default.py`（組E）、新しい検査`checks_candidate_start_diagnostics.py`。`src/`は変えていない。
+- 実装担当の小さい全体run（SINE2・MNIST4・rotmnist2、間隔50、seed 0、各client 1000標本）: 精度、通信、計算回数とMAC、予測の記録と最終のパラメータのdigest、選択の記録の全列、候補の採用の回数が`product-default`と許容誤差なしで一致。16警報・208候補。所要時間はSINE2で41→141秒、MNIST4で175→217秒、rotmnist2で137→183秒。
+- 主担当の確認: 研究ツールの検査165 passed（Windows、12並列、971秒、JUnit `../../venv/refactoring-tests/improve033-diagnostics-checks.xml`。実装担当の環境で権限のため実行できなかった24件を含む）。Ruff成功。
+- 実装レビュー（GPT-6 Luna、effort medium）: FAIL（Major 2件）。どちらも採らない。(1) 「最良の検証損失の記録が製品の選び方と違う（製品は厳密な`<`）」: 製品も`validation_loss < best_validation_loss - minimum_validation_loss_decrease`で最良を更新する（`candidate_epoch_training.py`の278〜281行）ので、診断の計算は同じ（指摘は読み違い）。(2) 「CUDAの乱数を戻していない」: 保有モデルの登録がパラメータをCPUのfloat32に限るので、runはGPUを使わない。ほかの点（S4の作り方、A・T30の照合、Cの初期値の照合、ownerの状態、学習者の損失の和の照合）は問題なしとされた。
