@@ -20,6 +20,13 @@ from multiprocessing import get_context
 from pathlib import Path
 from unittest.mock import patch
 
+from tools.research_provisional_candidate_expert.fixed_value_sensitivity import (
+    FIXED_VALUE_SENSITIVITY_VARIANTS,
+    FixedValues,
+    fixed_value_settings,
+    observe_fixed_value_consumers,
+)
+
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT / "src"))
 
@@ -188,6 +195,8 @@ for _variant_name in _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_
     _VARIANTS[_variant_name] = ("fedsda", False, None)
 # 製品の既定（基準版11以降）を、そのまま使う変種。ほかの変種は、基準版10の既定を基点にする（`_execute_job`）。
 _VARIANTS["product-default"] = ("fedsda", False, None)
+for _variant_name in FIXED_VALUE_SENSITIVITY_VARIANTS:
+    _VARIANTS[_variant_name] = ("fedsda", False, None)
 # 製品の構成を設定の差し替えなしで使う、R1との照合用の変種。
 _VARIANTS["every-sample-change-interval-search-configuration"] = (
     "fedsda-every-sample-change-interval-search", False, None,
@@ -224,6 +233,7 @@ _VARIANTS[CANDIDATE_START_DIAGNOSTICS_VARIANT] = ("fedsda", False, None)
 # 組Eのproduct-default系は、基準版16から新しい探索を使う製品の既定の上で評価する。
 # 版10・版12を基点とする変種とIMPROVE-032の選択の差し替えは、実行時に元の探索へ戻す。
 _PRODUCT_DEFAULT_BASED_VARIANTS = (
+    *FIXED_VALUE_SENSITIVITY_VARIANTS,
     CANDIDATE_START_DIAGNOSTICS_VARIANT,
     *CANDIDATE_INITIALIZATION_VARIANTS,
     *REVERSE_PREQUENTIAL_VARIANTS,
@@ -2252,9 +2262,11 @@ def _execute_job(job):
         server_aggregation_interval_per_client_samples=job["interval"],
     )
     configuration_name, _, _ = _VARIANTS[job["variant"]]
-    settings = build_experiment_run_settings(
-        configuration_name=configuration_name, experiment_run_conditions=conditions
-    )
+    fixed_values = FIXED_VALUE_SENSITIVITY_VARIANTS.get(job["variant"])
+    with fixed_value_settings(fixed_values) if fixed_values is not None else contextlib.nullcontext():
+        settings = build_experiment_run_settings(
+            configuration_name=configuration_name, experiment_run_conditions=conditions
+        )
     if job["variant"] in (
         *LOSS_MONITOR_REBASELINE_VARIANTS,
         "product-default-all-evaluating-clients",
@@ -2448,7 +2460,12 @@ def _execute_job(job):
     prequential_measurement = {}
     candidate_initialization = {}
     candidate_start_measurements = {}
+    fixed_value_measurements = {}
     with contextlib.ExitStack() as stack:
+        if fixed_values is not None or job["variant"] == "product-default":
+            stack.enter_context(observe_fixed_value_consumers(
+                values=fixed_values or FixedValues(), diagnostics=fixed_value_measurements,
+            ))
         if job["variant"] == CANDIDATE_START_DIAGNOSTICS_VARIANT:
             stack.enter_context(candidate_start_diagnostics(
                 dataset=job["dataset"], run_seed=job["seed"], diagnostics=candidate_start_measurements,
@@ -2666,6 +2683,7 @@ def _execute_job(job):
     return dict(
         **{key: job[key] for key in ("variant", "dataset", "interval", "seed", "sample_count", "check")},
         accuracy=metrics.prediction_accuracy,
+        **({"fixed_value_sensitivity": fixed_value_measurements} if fixed_value_measurements else {}),
         **({"prediction_period_accuracies": dataclasses.asdict(metrics.prediction_diagnostic_metrics.combined_prediction_period_accuracies)} if job.get("record_prediction_period_metrics", False) else {}),
         concept_accuracies={
             str(k): float(tables["sample_prediction.combined_prediction_is_correct"][tables["sample_prediction.observed_concept_id"] == k].mean())

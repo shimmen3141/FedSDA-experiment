@@ -42,3 +42,12 @@
   - 比較手法（判定に使うもの、事前に固定）: 6データのFedDriftは`results/feddrift-tuned-delta-v15`のうち`results/feddrift-delta-tuning-v14/selected-delta-tolerance-0.1pp.csv`で選んだδのrun。新しい4データのFedDriftは`results/new-datasets-baselines/feddrift`（公式の既定のδ）。調整したδの結果がこの集計より先に出ても、判定には使わず、参考として別に示す。FedAvgは`results/method-comparison-v15/20261029_204550_fedavg-seeds0-9`と`results/new-datasets-baselines`の`fedavg`・`fedavg-local-updates-per-aggregation`。比較手法の最良は、セルごとに、これらの10 seedの平均の最大。
   - 条件の照合: どの結果も、`run_summary.csv`の`dataset_name`・`server_aggregation_interval_per_client_samples`・`random_seed`・`client_count`・`per_client_sample_count`が一致する行だけを使い、セルごとに10 seedがそろわなければ集計を止める。
 - 5回目FAIL（Major 3）。(1) run数の書き方の食い違い: 採る（「条件」の行に、`product-default`を足して1,400 runと書いた）。(2) 「FIFOの容量が15と0」: 採らない（読み違い。表は15、60）。(3) 「感度が小さい」の許容幅が無い: 採らない。この計画は、許容幅の数値を後から選べないように、「小さい」という結論を出さないと決め、論文の主張（データごとの調整なしで比較手法を上回る）が固定値を変えても保たれるかを判定する（3回目の反映）。差の大きさは数値のまま報告する。許容幅を論文で使うかはユーザーが決める（2026-11-01の報告で伝える）。実装の範囲に影響しないので、ここで計画レビューを終え、実装に進む。
+
+## 実装（2026-11-01、実装: GPT-6.1-sol）
+
+- 変更: `tools/research_provisional_candidate_expert/fixed_value_sensitivity.py`（`build_final_configuration_fedsda_run_settings`の戻り値を`dataclasses.replace`で置き換える。消費する側〈Fixed-Shareの更新、同期と局所の混合の重みの更新、MDLの選択に渡る切替の確率、検出器のα、帰属の保留の列の容量と長さ〉で実際の値を照合し、違えば例外）、`run.py`（6変種の登録と、`_execute_job`での差し込み、結果の`fixed_value_sensitivity`への記録）、新しい検査`checks_fixed_value_sensitivity.py`、組Eの期待値、既存の検査の軌跡の比較から新しい診断の項目を除外。`src/`は変えていない。
+- FIFOの容量に連動する値の調査（実装担当）: 帰属の保留の列（解放の件数と最大の長さ）と、MDLの探索・学習者の更新の範囲が容量から決まる。初期の統計（500標本、5分割）、e-SRの候補の保持数（1000）、最小の変化区間（5件）は容量と独立。ADWINの補助の窓と研究ツールの2つの方策は容量から決まるが、この構成では使われない。旧い容量30を渡すと止まることを検査で確かめた。
+- Tは、Fixed-Share、MDLの切替の確率、同期と局所の混合の分け直しの率（`fedsda_run_client.py`が`share_rate=1/T`を渡す）の3か所で使われる。
+- 小さいrun（実装担当、間隔50、seed 0、10 client×1000標本）: 既定の値を差し込みの仕組みに渡すと`product-default`と全項目一致。各変種で消費する側の値が指定どおり。
+- 実装レビュー（GPT-6 Luna、effort medium）: FAIL（Major 1件: 同期と局所の混合の率を照合していない）。採って、主担当が照合（`synchronized_local_share_rate`）と検査の確認を足した。
+- 主担当の確認: 研究ツールの検査194 passed（修正の前、12並列、1578秒、JUnit `../../venv/refactoring-tests/fixed-value-sensitivity-checks.xml`。実装担当の環境で権限のため実行できなかった24件を含む）。修正の後に感度の検査23 passed（JUnit `fixed-value-sensitivity-checks-2.xml`）。Ruff成功。

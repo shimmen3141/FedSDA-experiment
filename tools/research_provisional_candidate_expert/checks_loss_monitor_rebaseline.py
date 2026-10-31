@@ -648,6 +648,7 @@ def test_observe_only_research_run_matches_product_including_parameter_digest():
         } & record.keys()
     assert actual.pop("loss_monitor_rebaseline")["rebaseline_count"] == 0
     for record in (actual, expected):
+        record.pop("fixed_value_sensitivity", None)
         for key in ("variant", "seconds"):
             record.pop(key)
     assert actual == expected

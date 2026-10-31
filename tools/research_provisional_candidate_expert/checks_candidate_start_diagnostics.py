@@ -40,7 +40,7 @@ def test_small_run_exact_product_trajectory(dataset):
         diagnostic.resolution.train_candidate_on_alarm_change_interval,
         diagnostic.streams.build_client_observed_streams,
     )
-    for key in baseline.keys() - {"variant", "seconds"}:
+    for key in baseline.keys() - {"variant", "seconds", "fixed_value_sensitivity"}:
         assert measured[key] == baseline[key], key
     alarms = measured["candidate_start_diagnostics"]["alarms"]
     assert len(alarms) == measured["candidate_adoption_count"] > 0

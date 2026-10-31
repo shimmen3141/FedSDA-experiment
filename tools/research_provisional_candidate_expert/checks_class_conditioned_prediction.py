@@ -160,6 +160,7 @@ def test_active_path_full_run_check_and_training_invariance(dataset):
     for item in [baseline, check, active]:
         item.pop("seconds")
         item.pop("variant")
+        item.pop("fixed_value_sensitivity", None)
     assert check == baseline
     prediction_keys = {
         "accuracy",

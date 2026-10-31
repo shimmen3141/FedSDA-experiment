@@ -209,6 +209,7 @@ def test_disabled_full_run_matches_product(dataset):
         {**job, "variant": "product-default-mixing-past-posteriors-disabled"}
     )
     for record in (actual, expected):
+        record.pop("fixed_value_sensitivity", None)
         for key in ("variant", "seconds"):
             record.pop(key)
     assert actual == expected
