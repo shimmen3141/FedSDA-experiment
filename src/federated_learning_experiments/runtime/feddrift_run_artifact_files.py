@@ -30,8 +30,10 @@ from federated_learning_experiments.runtime.feddrift_run_record_tables import (
 
 # 保存の形式の版。要約のキーや、表の名前・列の意味を変えるときに上げる。
 # 版2: runの来歴（`run_provenance`）を足した。版1の要約（来歴を持たない）も読む。
-RUN_ARTIFACT_FORMAT_VERSION = 2
-_READABLE_RUN_ARTIFACT_FORMAT_VERSIONS = (1, 2)
+# 版3: Oracleの標本ごとの学習先sample_prediction.training_model_idを追加した。
+# 列は真概念で割り当てる構成だけが持つ。既存構成の表は変更しない。
+RUN_ARTIFACT_FORMAT_VERSION = 3
+_READABLE_RUN_ARTIFACT_FORMAT_VERSIONS = (1, 2, 3)
 _SUMMARY_FILE_SUFFIX = ".json"
 _RECORD_TABLE_FILE_SUFFIX = ".npz"
 

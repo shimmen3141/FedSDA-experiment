@@ -190,7 +190,7 @@ class FeddriftRunClient:
         observed_samples: tuple[ObservedSample, ...],
         evaluation_concept_ids: tuple[int | None, ...],
     ) -> bool:
-        """全blockを変換してからstreamへ渡し、概念は診断記録だけへ渡す。"""
+        """全blockを検査して渡す。Oracleでは概念をラベル観測後の帰属にも使う。"""
         if type(observed_samples) is not tuple or type(evaluation_concept_ids) is not tuple:
             raise TypeError("観測と概念列はexact tupleが必要です。")
         if len(observed_samples) != len(evaluation_concept_ids):
@@ -247,6 +247,7 @@ def assemble_feddrift_run_client(
     initial_loss_statistics: ModelAndClassLossStatistics,
     run_client_settings: FeddriftRunClientSettings,
     python_random_generator: Random,
+    initial_model_count: int = 1,
 ) -> FeddriftRunClient:
     """入力検査後だけ分類器/optimizerを同時に写し、同じownerへ接続する。"""
     if type(client_id) is not int or client_id < 0:
@@ -254,6 +255,13 @@ def assemble_feddrift_run_client(
     if type(run_client_settings) is not FeddriftRunClientSettings:
         raise TypeError("client設定はexact FeddriftRunClientSettingsが必要です。")
     run_client_settings.__post_init__()
+    if type(initial_model_count) is not int or initial_model_count < 1:
+        raise ValueError("初期モデル数は正のbuiltin intが必要です。")
+    if (
+        run_client_settings.model_assignment_policy == "detection_batch_assignment"
+        and initial_model_count != 1
+    ):
+        raise ValueError("検出バッチの帰属では初期モデルは1つです。")
     if type(python_random_generator) is not Random:
         raise TypeError("乱数はexact Randomが必要です。")
     _validate_held_model_training_state_inputs(
@@ -286,10 +294,21 @@ def assemble_feddrift_run_client(
         classifier=classifier,
         concept_specific_parameter_optimizer_state=optimizer_state,
     )
+    for model_id in range(1, initial_model_count):
+        copied_classifier, copied_optimizer = deepcopy(
+            (initial_classifier, initial_parameter_optimizer_state)
+        )
+        registry.register_held_model_training_state(
+            model_id=model_id,
+            classifier=copied_classifier,
+            concept_specific_parameter_optimizer_state=copied_optimizer,
+        )
     owners = FeddriftRunClientOwners(
         held_model_training_state_registry=registry,
         loss_statistics_store=ModelAndClassLossStatisticsStore(
-            initial_loss_statistics_by_model_id={0: statistics}
+            initial_loss_statistics_by_model_id={
+                mid: statistics for mid in range(initial_model_count)
+            }
         ),
         current_training_model_assignment=CurrentTrainingModelAssignment(initial_model_id=0),
         training_sample_store=ModelTrainingSampleStore(),
@@ -328,5 +347,6 @@ def assemble_feddrift_run_client(
         stream_processor=FeddriftClientStreamProcessor(
             detection_batch_processor=processor,
             detection_batch_sample_count=run_client_settings.detection_batch_sample_count,
+            model_assignment_policy=run_client_settings.model_assignment_policy,
         ),
     )

@@ -33,6 +33,7 @@ class FeddriftSamplePrediction:
     observed_class_id: int
     prediction_is_correct: bool
     detection_batch_transition: FeddriftDetectionBatchTransition | None = None
+    training_model_id: int | None = None
 
     def __post_init__(self) -> None:
         for value in (
@@ -51,6 +52,10 @@ class FeddriftSamplePrediction:
             raise TypeError("正否はbuiltin boolが必要です。")
         if self.prediction_is_correct != (self.predicted_class_id == self.observed_class_id):
             raise ValueError("正否と予測/観測クラスが対応していません。")
+        if self.training_model_id is not None and (
+            type(self.training_model_id) is not int or self.training_model_id < 0
+        ):
+            raise ValueError("学習の行き先は非負のbuiltin intが必要です。")
         if self.detection_batch_transition is not None:
             if type(self.detection_batch_transition) is not FeddriftDetectionBatchTransition:
                 raise TypeError("バッチ結果はexact FeddriftDetectionBatchTransitionが必要です。")
@@ -67,12 +72,18 @@ class FeddriftClientStreamProcessor:
         *,
         detection_batch_processor: FeddriftDetectionBatchProcessor,
         detection_batch_sample_count: int,
+        model_assignment_policy: str = "detection_batch_assignment",
     ) -> None:
         if type(detection_batch_processor) is not FeddriftDetectionBatchProcessor:
             raise TypeError("バッチ処理はexact FeddriftDetectionBatchProcessorが必要です。")
         if type(detection_batch_sample_count) is not int or detection_batch_sample_count < 1:
             raise ValueError("検出件数は正のbuiltin intが必要です。")
         self._processor = detection_batch_processor
+        if model_assignment_policy not in ("detection_batch_assignment", "true_concept_assignment"):
+            raise ValueError("未対応の割当方式です。")
+        self._true_concept_assignment = model_assignment_policy == "true_concept_assignment"
+        self._indexed_buffer: list[IndexedObservedTrainingSample] = []
+        self._current_timestep_assigned_model_ids: set[int] = set()
         self._batch_size = detection_batch_sample_count
         self._processed_count = 0
         self._buffer: list[ObservedTrainingSample] = []
@@ -124,6 +135,8 @@ class FeddriftClientStreamProcessor:
             + tuple(x.training_sample for x in indexed_observations),
             processed_sample_count=self._processed_count + len(indexed_observations),
         )
+        if self._true_concept_assignment:
+            self._processor._validate_true_concept_observations(indexed_observations)
         fired = False
         for observation in indexed_observations:
             held_model_count = self._processor.held_model_count
@@ -150,9 +163,15 @@ class FeddriftClientStreamProcessor:
                 predicted_class_id=predicted_class_id,
                 observed_class_id=observed_class_id,
                 prediction_is_correct=predicted_class_id == observed_class_id,
+                training_model_id=(
+                    observation.observed_concept_id if self._true_concept_assignment else None
+                ),
             )
             self._processed_count += 1
             self._buffer.append(sample)
+            if self._true_concept_assignment:
+                self._indexed_buffer.append(observation)
+                self._processor._observe_true_concept(observation)
             if len(self._buffer) >= self._batch_size:
                 transition = self.flush_detection_buffer()
                 prediction = replace(prediction, detection_batch_transition=transition)
@@ -166,6 +185,16 @@ class FeddriftClientStreamProcessor:
     def flush_detection_buffer(self) -> FeddriftDetectionBatchTransition | None:
         """残りを一度処理し、既存予測記録へは結果を付加しない。"""
         if not self._buffer:
+            return None
+        if self._true_concept_assignment:
+            self._processor._assign_true_concept_samples(tuple(self._indexed_buffer))
+            self._current_timestep_assigned_model_ids.update(
+                x.observed_concept_id
+                for x in self._indexed_buffer
+                if x.observed_concept_id is not None
+            )
+            self._indexed_buffer.clear()
+            self._buffer.clear()
             return None
         transition = self._processor.process_detection_batch(
             training_samples=tuple(self._buffer), processed_sample_count=self._processed_count

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-OPTION_SCHEMA_VERSION = 13
+OPTION_SCHEMA_VERSION = 14
 
 FED_SDA = "FedSDA"
 FED_DRIFT = "FedDrift"
@@ -484,6 +484,17 @@ OPTIONS = (
         "fedsda_distance_threshold", "FedSDA距離閾値 γ", "clustering_parameter",
         ("non-negative number",), "モデル適合・再利用および距離ベース統合の閾値",
         (FED_SDA,), (FED_SDA,), cli_name="fedsda-distance-threshold",
+    ),
+    OptionSpec(
+        "feddrift_model_assignment_policy", "FedDriftのモデルへの帰属", "adaptation",
+        ("detection_batch_assignment", "true_concept_assignment"),
+        "新APIのFeddriftRunClientSettings.model_assignment_policy。既定は検出バッチの帰属。"
+        "真概念の帰属は初期Kモデルへ標本ごとに振り分け、直前のラベルの概念で予測する。"
+        "旧CLIでは切り替えず、新APIの構成feddrift-oracle-concept-assignmentで指定する。",
+        (FED_DRIFT,), (FED_DRIFT,),
+        requires_capabilities=("multiple_models",),
+        active_when=(ActivationRule("method", (FED_DRIFT,), "FedDriftだけで有効"),),
+        configuration_surface="config",
     ),
     OptionSpec(
         "feddrift_distance_threshold", "FedDrift距離閾値 δ_FedDrift",

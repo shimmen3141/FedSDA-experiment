@@ -84,6 +84,7 @@ MINIMUM_INTERVAL_MULTIPLES_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME = (
 )
 # 提案構成から、「新しいモデル」の仮説のwarm startの学習者だけを外す構成。
 WITHOUT_WARM_STARTED_LEARNER_CONFIGURATION_NAME = "fedsda-without-warm-started-learner"
+FEDDRIFT_ORACLE_CONCEPT_ASSIGNMENT_CONFIGURATION_NAME = "feddrift-oracle-concept-assignment"
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
@@ -106,6 +107,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     EVERY_SAMPLE_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME,
     MINIMUM_INTERVAL_MULTIPLES_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME,
     WITHOUT_WARM_STARTED_LEARNER_CONFIGURATION_NAME,
+    FEDDRIFT_ORACLE_CONCEPT_ASSIGNMENT_CONFIGURATION_NAME,
 )
 
 
@@ -233,9 +235,22 @@ def build_experiment_run_settings(
                 ),
             ),
         )
-    if configuration_name == "feddrift":
-        return build_default_feddrift_run_settings(
+    if configuration_name in ("feddrift", FEDDRIFT_ORACLE_CONCEPT_ASSIGNMENT_CONFIGURATION_NAME):
+        feddrift = build_default_feddrift_run_settings(
             experiment_run_conditions=experiment_run_conditions
+        )
+        if configuration_name == "feddrift":
+            return feddrift
+        participant = feddrift.run_participant_settings
+        return replace(
+            feddrift,
+            run_participant_settings=replace(
+                participant,
+                run_client_settings=replace(
+                    participant.run_client_settings,
+                    model_assignment_policy="true_concept_assignment",
+                ),
+            ),
         )
     proposed_run_settings = build_final_configuration_fedsda_run_settings(
         experiment_run_conditions=experiment_run_conditions

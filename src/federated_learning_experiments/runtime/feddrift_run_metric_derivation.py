@@ -132,7 +132,9 @@ def derive_feddrift_run_metrics(
         for sample in stream.observed_samples:
             sample.__post_init__()
         transitions = client.stream_processor.completed_detection_batch_transitions
-        if len(transitions) != run_result.synchronization_interval_count:
+        oracle_assignment = client._settings.model_assignment_policy == "true_concept_assignment"
+        expected_batch_count = 0 if oracle_assignment else run_result.synchronization_interval_count
+        if len(transitions) != expected_batch_count:
             raise ValueError("検出batch記録と同期件数が対応していません。")
         for round_index, transition in enumerate(transitions):
             if type(transition) is not FeddriftDetectionBatchTransition:
@@ -153,9 +155,21 @@ def derive_feddrift_run_metrics(
                 or prediction.observed_concept_id != trace.concept_ids_by_sample_index[index]
             ):
                 raise ValueError("予測の位置/観測/概念が対応していません。")
-            expected_transition = transitions[index // chunk] if (index + 1) % chunk == 0 else None
+            expected_transition = (
+                transitions[index // chunk]
+                if not oracle_assignment and (index + 1) % chunk == 0
+                else None
+            )
             if prediction.detection_batch_transition != expected_transition:
                 raise ValueError("予測に付加された検出結果がbatch記録と対応していません。")
+            if oracle_assignment and (
+                prediction.training_model_id != prediction.observed_concept_id
+                or prediction.prediction_model_id
+                != (predictions[index - 1].observed_concept_id if index else 0)
+            ):
+                raise ValueError(
+                    "Oracleの学習先または予測モデルが観測済みの概念と対応していません。"
+                )
     correctness = tuple(
         tuple(p.prediction_is_correct for p in c.stream_processor.sample_predictions)
         for c in participants.run_clients

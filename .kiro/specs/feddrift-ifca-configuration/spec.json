@@ -3,15 +3,58 @@
   "created_at": "2026-11-01T00:00:00Z",
   "updated_at": "2026-11-01",
   "language": "ja",
-  "phase": "specification",
+  "phase": "implementation",
   "approvals": {
-    "requirements": {"generated": true, "approved": false},
-    "design": {"generated": true, "approved": false},
-    "tasks": {"generated": true, "approved": false},
-    "naming": {"generated": true, "approved": false, "revision": null, "approved_revision": null, "approved_sha256_lf": null}
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー5回目（GPT-6 Luna medium）の指摘（testの条件の文面の食い違い）を反映"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー5回目（GPT-6 Luna medium）の指摘（testの条件の文面の食い違い）を反映"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー5回目（GPT-6 Luna medium）の指摘（testの条件の文面の食い違い）を反映"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": null,
+      "approved_revision": null,
+      "approved_sha256_lf": null,
+      "approved_by": "ユーザー委任、独立レビュー5回目（GPT-6 Luna medium）の指摘（testの条件の文面の食い違い）を反映"
+    }
   },
-  "ready_for_implementation": false,
+  "ready_for_implementation": true,
   "base_revision": null,
   "implementation_assignment": "実装はGPT-6.1-sol（codex exec）。Oracleのspecの実装の後。主担当（Claude）は仕様書群・確認・testの実行・レビューの起動・本規模のコマンドと集計",
-  "specification_review": {"status": "pending", "rounds": []}
+  "specification_review": {
+    "status": "passed_after_wording_fix",
+    "rounds": [
+      {
+        "round": 1,
+        "result": "FAIL（初期化、既存の規則への接続、test、集計）——反映"
+      },
+      {
+        "round": 2,
+        "result": "FAIL（初期化が論文と違う。Minor: 同値——既にあるので変えない）——2構成に分けた"
+      },
+      {
+        "round": 3,
+        "result": "FAIL（文書間の食い違い、論文に準じる範囲）——全文書を2構成で書き直した"
+      },
+      {
+        "round": 4,
+        "result": "FAIL（最初の割り当てが論文と違う）——最初の時刻は全clientをID 0に"
+      },
+      {
+        "round": 5,
+        "result": "FAIL（testの(b)の文面が最初の時刻の扱いと食い違う。4回目の反映の節には書いてあった）——Validationの(b)の文面を直した。処理・契約を変えない文面の修正なので再レビューは省く（2026-10-10の決定）。ほかは解消と判定"
+      }
+    ]
+  }
 }

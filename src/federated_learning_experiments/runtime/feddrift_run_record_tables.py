@@ -99,6 +99,13 @@ def build_feddrift_run_record_tables(
         record_tables[f"sample_prediction.{column}"] = asarray(
             values, dtype=bool_ if column == "prediction_is_correct" else int64
         ).reshape(client_count, processed)
+    if (
+        experiment_run.run_settings.run_participant_settings.run_client_settings.model_assignment_policy
+        == "true_concept_assignment"
+    ):
+        record_tables["sample_prediction.training_model_id"] = asarray(
+            [[record.training_model_id for record in rows] for rows in predictions], dtype=int64
+        ).reshape(client_count, processed)
     record_tables["sample_prediction.held_model_count_at_prediction"] = asarray(
         [
             client.stream_processor.held_model_count_record_store.snapshot_held_model_counts()

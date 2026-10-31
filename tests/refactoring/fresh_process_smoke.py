@@ -13,6 +13,7 @@ testへ置き換えて廃止する。
 """
 
 import sys
+from dataclasses import replace
 from pathlib import Path
 from random import Random
 from tempfile import TemporaryDirectory
@@ -1351,7 +1352,53 @@ def run_feddrift_detection_batch_smoke():
     print("PASS FedDrift measured whole run and common core/cost/model metrics and artifacts")
 
 
+def _run_feddrift_oracle_smoke():
+    from federated_learning_experiments.runtime.feddrift_experiment_run import (
+        execute_feddrift_experiment_run,
+    )
+    from federated_learning_experiments.runtime.feddrift_run_record_tables import (
+        build_feddrift_run_record_tables,
+    )
+    from federated_learning_experiments.sweep.experiment_configurations import (
+        build_experiment_run_settings,
+    )
+
+    oracle_settings = build_experiment_run_settings(
+        configuration_name="feddrift-oracle-concept-assignment",
+        experiment_run_conditions=ExperimentRunConditions(
+            dataset_name="sine2",
+            random_seed=71,
+            client_count=2,
+            per_client_sample_count=12,
+            server_aggregation_interval_per_client_samples=3,
+        ),
+    )
+    oracle_settings = replace(
+        oracle_settings,
+        execution_settings=replace(
+            oracle_settings.execution_settings,
+            concept_schedule_settings=RandomConceptScheduleSettings(
+                concept_schedule_strategy="random_changes_after_minimum_index_gap",
+                minimum_sample_index_gap_before_change_trial=1,
+                per_eligible_sample_concept_change_probability=0.5,
+            ),
+        ),
+    )
+    oracle = execute_feddrift_experiment_run(run_settings=oracle_settings)
+    oracle_tables = build_feddrift_run_record_tables(experiment_run=oracle)
+    assert oracle.run_metrics.final_global_model_count == 2
+    assert oracle_tables["model_registration.model_id"].tolist() == [0, 1]
+    assert (
+        oracle_tables["sample_prediction.training_model_id"].tolist()
+        == oracle_tables["sample_prediction.observed_concept_id"].tolist()
+    )
+    assert oracle_tables["detection_batch.client_id"].size == 0
+    assert oracle_tables["model_clustering.model_id"].size == 0
+    print("PASS FedDrift Oracle whole run: fixed concept models and per-sample assignment")
+
+
 def main():
+    _run_feddrift_oracle_smoke()
     from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import (
         BoundedLossMoments,
     )

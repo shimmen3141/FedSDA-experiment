@@ -19,7 +19,7 @@
 ## Validation
 - 新しいtest`tests/refactoring/test_feddrift_ifca_window_configuration.py`。
 - 部品のtest（要求2.2）: 2構成の初期値（`feddrift-ifca-window`の $K$ 個が互いに異なり事前学習の初期モデルとも異なる、`-pretrained-cluster0`のID 0が事前学習の初期モデルと同じでID 1〜$K-1$が前者と同じ、同じseedで同じ、runの乱数の状態が変わらない）。
-- 小さい全体run（要求2.3）: 2構成それぞれで、SINE2とMNIST4、間隔50、seed 0、10 client、各client 2500標本に固定し、(a) 少なくとも1つのclientでコンセプトが変わる、(b) 各時刻の各clientの選択が記録した $K$ 個の平均損失の最小（同値はIDの小さい方）、(c) 選ばれたモデルだけが、その時刻の標本で学習される（学習の直前のownerの状態のモデルごとの学習の標本の標本番号がその時刻の範囲に入り、選ばれていないモデルの集合は空）、(d) 各clientの保有モデルIDが毎時刻 $\{0,\dots,K-1\}$、サーバの時刻ごとのモデル数（`snapshot_synchronized_timestep_model_counts`）が $K$、登録の記録が最初の $K$ 個だけ、統合の記録が0件、を確かめる。条件を満たさなければ標本数を5000に増やして固定し、Implementation Notesに書く。ID 1〜$K-1$が実際に選ばれるかはIFCAの結果であって要求ではないので、testでは求めず、選ばれた回数を記録して報告する。
+- 小さい全体run（要求2.3）: 2構成それぞれで、SINE2とMNIST4、間隔50、seed 0、10 client、各client 2500標本に固定し、(a) 少なくとも1つのclientでコンセプトが変わる、(b) 最初の時刻は全clientの選択がID 0で、2つ目の時刻からの各clientの選択が記録した $K$ 個の平均損失の最小（同値はIDの小さい方）、(c) 選ばれたモデルだけが、その時刻の標本で学習される（学習の直前のownerの状態のモデルごとの学習の標本の標本番号がその時刻の範囲に入り、選ばれていないモデルの集合は空）、(d) 各clientの保有モデルIDが毎時刻 $\{0,\dots,K-1\}$、サーバの時刻ごとのモデル数（`snapshot_synchronized_timestep_model_counts`）が $K$、登録の記録が最初の $K$ 個だけ、統合の記録が0件、を確かめる。条件を満たさなければ標本数を5000に増やして固定し、Implementation Notesに書く。ID 1〜$K-1$が実際に選ばれるかはIFCAの結果であって要求ではないので、testでは求めず、選ばれた回数を記録して報告する。
 - 構成・掃引・識別子・依存境界のtest、FedDriftとOracleのtest、基準版1〜16のgoldenの照合（Windows）、Ruff・Pyright。全pytestは主担当が流す。
 
 ## 本規模の実行（要求3.2）
@@ -32,3 +32,4 @@
 - 1回目（GPT-6 Luna、effort medium）FAIL: 初期化の条件、既存の規則への接続、test、集計。反映。
 - 2回目FAIL: 初期化が論文のIFCA+Windowと違う（Major）、同値の扱い（Minor、要求1.3に既にあるので変えない）。初期化を2構成に分けた。
 - 3回目FAIL: 文書間の食い違い（要件は旧の初期化、設計は追記で2構成）、論文に準じる範囲の書き方。要件・設計・task・命名を2構成で書き直し、「論文のIFCA+Windowとの違い」の節を設けた。
+- 4回目FAIL（Major 1: 最初の割り当てが論文と違う）。反映（この節が上と食い違うときは、こちらを優先する）: FedDriftの論文の付録（`appendix-expt-results.tex`のIFCAの3つの変種の説明）では、時刻1・round 1で全clientを1つのクラスタに割り当てる（FMoWだけは各clientが乱数で初期化したクラスタから最良を選ぶ）。これに合わせ、最初の時刻（最初の検出バッチ）は、全clientの学習の行き先と予測のモデルをID 0にする（損失の比較をしない）。2つ目の時刻からは、上の「割り当て」のとおり損失が最小のモデルを選ぶ。testの(b)は2つ目の時刻からを照合し、最初の時刻は全clientがID 0であることを確かめる。なお、論文のIFCA（IFCA-W）はクラスタの選択をroundごとにやり直すが、手元のFedDriftの既定のround数は1（`local_training_round_count=1`）なので、時刻ごとの選択と同じになる。round数を変える構成は作らない。この2点を「論文のIFCA+Windowとの違い」の説明に含める（最初の割り当ては論文に準じる点、roundごとの選択はround数1で一致する点）。

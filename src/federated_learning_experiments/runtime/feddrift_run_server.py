@@ -120,16 +120,35 @@ class FeddriftRunServer:
         if any(not isfinite(value).all().item() for value in initial_parameter_snapshot.values()):
             raise ValueError("初期parameterは有限値が必要です。")
         statistics = _copy_model_and_class_loss_statistics(loss_statistics=initial_loss_statistics)
+        self._true_concept_assignment = (
+            run_clients[0]._settings.model_assignment_policy == "true_concept_assignment"
+        )
+        if any(
+            client._settings.model_assignment_policy
+            != run_clients[0]._settings.model_assignment_policy
+            for client in run_clients
+        ):
+            raise ValueError("全clientの割当方式を一致させてください。")
+        initial_model_count = (
+            len(run_clients[0].get_held_model_ids()) if self._true_concept_assignment else 1
+        )
+        if self._true_concept_assignment and any(
+            client.get_held_model_ids() != set(range(initial_model_count)) for client in run_clients
+        ):
+            raise ValueError("Oracleの全clientに0から連続する同じモデルIDが必要です。")
         self.global_model_repository = GlobalModelRepository(
             initial_model_id=0,
             initial_parameter_snapshot=initial_parameter_snapshot,
             initial_loss_statistics=statistics,
+            initial_model_count=initial_model_count,
         )
         self.communication_volume_record_store = CommunicationVolumeRecordStore()
         self.cross_evaluation_record_store = CrossEvaluationRecordStore()
         self.model_clustering_record_store = ModelClusteringRecordStore()
         self._synchronized_timestep_model_counts: list[FeddriftSynchronizedTimestepModelCounts] = []
-        self._model_weights = {0: server_settings.initial_model_aggregation_weight}
+        self._model_weights = dict.fromkeys(
+            range(initial_model_count), server_settings.initial_model_aggregation_weight
+        )
         self._isolation_until: dict[int, int] = {}
         self._aggregation_parameter_multiply_accumulate_count = 0
         self._consolidation_parameter_multiply_accumulate_count = 0
@@ -298,6 +317,12 @@ class FeddriftRunServer:
         self._aggregate_and_distribute_models(active_ids=active_ids, update_model_weights=True)
 
     def _current_timestep_training_model_ids(self) -> frozenset[int] | None:
+        if self._true_concept_assignment:
+            return frozenset(
+                mid
+                for client in self.run_clients
+                for mid in client.stream_processor._current_timestep_assigned_model_ids
+            )
         if self._settings.training_model_eligibility == "held_models_with_training_samples":
             return None
         return frozenset(
@@ -447,6 +472,9 @@ class FeddriftRunServer:
                 ),
             )
         )
+        if self._true_concept_assignment:
+            for client in self.run_clients:
+                client.stream_processor._current_timestep_assigned_model_ids.clear()
 
     def _validate_clients(self, *, validate_training_inputs: bool = True) -> None:
         if type(self.run_clients) is not tuple or not self.run_clients:
@@ -710,6 +738,8 @@ class FeddriftRunServer:
         self.communication_volume_record_store.record_messages(
             transfer_direction="upload", message_count=len(self.run_clients)
         )
+        if self._true_concept_assignment:
+            return
         mature = tuple(mid for mid in ids if timestep_index >= self._isolation_until.get(mid, 0))
         if len(mature) > 1:
             statistics = self._cross_evaluate(timestep_index, mature)

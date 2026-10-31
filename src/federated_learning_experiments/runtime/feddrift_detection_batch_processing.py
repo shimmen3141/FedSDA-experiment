@@ -38,6 +38,9 @@ from federated_learning_experiments.learning.training.held_model_training_state_
     HeldModelTrainingStateRegistry,
     _validate_held_model_training_state_inputs,
 )
+from federated_learning_experiments.learning.training.indexed_observed_training_sample import (
+    IndexedObservedTrainingSample,
+)
 from federated_learning_experiments.learning.training.model_training_sample_records import (
     ObservedTrainingSample,
 )
@@ -178,6 +181,36 @@ class FeddriftDetectionBatchProcessor:
     @property
     def previous_minimum_mean_bounded_loss(self) -> float | None:
         return self._previous_loss
+
+    def _validate_true_concept_observations(
+        self, observations: tuple[IndexedObservedTrainingSample, ...]
+    ) -> None:
+        held_ids = {
+            state.model_id for state in self._registry.snapshot_ordered_held_model_training_states()
+        }
+        if any(
+            type(x.observed_concept_id) is not int or x.observed_concept_id not in held_ids
+            for x in observations
+        ):
+            raise ValueError("Oracleには保有モデルと対応する真の概念IDが必要です。")
+
+    def _observe_true_concept(self, observation: IndexedObservedTrainingSample) -> None:
+        # 呼出元が全blockを検査済み。ラベルを見た後だけ、次の予測モデルを替える。
+        assert observation.observed_concept_id is not None
+        self._assignment.assign_model_for_training(model_id=observation.observed_concept_id)
+
+    def _assign_true_concept_samples(
+        self, observations: tuple[IndexedObservedTrainingSample, ...]
+    ) -> None:
+        self._validate_true_concept_observations(observations)
+        for model_id in dict.fromkeys(x.observed_concept_id for x in observations):
+            assert model_id is not None
+            self._training_samples.append_model_training_samples(
+                model_id=model_id,
+                training_samples=tuple(
+                    x.training_sample for x in observations if x.observed_concept_id == model_id
+                ),
+            )
 
     @property
     def current_training_model_state(self) -> HeldModelTrainingState:

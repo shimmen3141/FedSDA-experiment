@@ -75,6 +75,8 @@ class FeddriftRunParticipantSettings:
         )
         if any(policies) and not all(policies):
             raise ValueError("FedDriftの旧方式と新方式の混在は未対応です。")
+        if client.model_assignment_policy == "true_concept_assignment" and not all(policies):
+            raise ValueError("Oracleは現在のFedDriftの学習・集約規則と組み合わせてください。")
         if any(policies) and server.new_model_isolation_timestep_count != 1:
             raise ValueError("新しいFedDriftの扱いでは隔離期間は1だけです。")
         if (
@@ -193,6 +195,12 @@ class FeddriftRunParticipantFactory:
                 initial_loss_statistics=initial.loss_statistics,
                 run_client_settings=settings.run_client_settings,
                 python_random_generator=run_random_sources.python_random_generator,
+                initial_model_count=(
+                    definition.concept_count
+                    if settings.run_client_settings.model_assignment_policy
+                    == "true_concept_assignment"
+                    else 1
+                ),
             )
             for client_id in range(experiment_run_conditions.client_count)
         )

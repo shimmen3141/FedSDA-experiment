@@ -394,8 +394,14 @@ def test_every_fedsda_configuration_inherits_the_new_defaults():
         checked += 1
         participant = settings.run_participant_settings
         learners = participant.run_client_settings.training_data_assignment_settings.new_model_hypothesis_learners
+        # warm startの学習者を外す比較の構成だけは、初期化し直した学習者だけを使う（spec fedsda-without-warm-started-learner-configuration）。
+        expected_learners = (
+            "reinitialized_learner"
+            if configuration_name == "fedsda-without-warm-started-learner"
+            else WARM
+        )
         assert (learners, participant.initial_model_loss_statistics_estimation) == (
-            WARM,
+            expected_learners,
             CROSS_VALIDATION,
         ), configuration_name
     assert checked > 2

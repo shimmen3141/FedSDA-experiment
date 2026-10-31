@@ -14,7 +14,7 @@
 #### Acceptance Criteria
 1. The system shall 構成`feddrift-ifca-window`と`feddrift-ifca-window-pretrained-cluster0`を持つ。どちらも、クラスタの数 $K$ をデータのコンセプトの数（`dataset_definitions`の`concept_count`）とし、runの最初に $K$ 個のグローバルモデルを持つ（$K$ を正しく与えることはIFCAに有利な条件で、文書と論文に書く）。
 2. The system shall モデルの初期値を構成ごとに次のとおりにする。`feddrift-ifca-window`: $K$ 個とも、事前学習をせず、runのseedとモデルのIDから決まる分けた乱数の状態で初期化する（IFCAの元の論文とFedDriftの論文のクラスタごとの乱数の初期化に当たる）。`feddrift-ifca-window-pretrained-cluster0`: ID 0だけを全手法に共通の事前学習した初期モデルの写しにし、ID 1〜$K-1$は前者と同じ乱数の初期化にする。初期化でrunの乱数を消費しない。
-3. When 各時刻の終わりに検出バッチ（$I$ 標本）がそろう, the system shall そのclientの $K$ 個のモデルそれぞれの、そのバッチでの平均損失（FedDriftの検出と同じ損失）を求め、最小のモデルを、そのバッチの学習の行き先と、次の時刻の予測のモデルにする（同値はIDの小さい方）。最初の検出バッチがそろうまでは、ID 0のモデルで予測する。FedDriftの変化の検出・新しいモデルの作成・統合は行わない。
+3. When 各時刻の終わりに検出バッチ（$I$ 標本）がそろう, the system shall そのclientの $K$ 個のモデルそれぞれの、そのバッチでの平均損失（FedDriftの検出と同じ損失）を求め、最小のモデルを、そのバッチの学習の行き先と、次の時刻の予測のモデルにする（同値はIDの小さい方）。最初の時刻は、全clientの学習の行き先と予測のモデルをID 0にし（FedDriftの論文の付録のIFCAの初期化）、2つ目の時刻から損失が最小のモデルを選ぶ。FedDriftの変化の検出・新しいモデルの作成・統合は行わない。
 4. The system shall 学習の標本を、今の時刻にそのモデルへ帰属した標本だけにする（窓1時刻）。学習のround数、学習の対象の規則、件数の条件、集約の重み、通信の数え方、学習率は、FedDriftの構成`feddrift`と同じ規則にする（具体的な接続はdesign.mdに定める）。
 5. The system shall 既存の全部の構成の設定とrunの識別子を変えない。
 

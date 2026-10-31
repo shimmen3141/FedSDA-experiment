@@ -50,6 +50,7 @@ flowchart LR
     new_model_creation_policy["<b>新規モデル作成方針</b><br/>immediate | validated | forward_validated | forward_requalified | forward_requalified_current_first | forward_persistent | shadow_tournament"]
     new_model_training["<b>新規モデル初期学習</b><br/>none | fixed | early_stopping"]
     new_model_initialization["<b>新規モデル初期値</b><br/>current | best_candidate | average"]
+    feddrift_model_assignment_policy["<b>FedDriftのモデルへの帰属</b><br/>detection_batch_assignment | true_concept_assignment"]
   end
   subgraph group_adaptation_parameter[adaptation_parameter]
     new_model_epochs["<b>新規モデル学習上限 E_init</b><br/>non-negative integer"]
@@ -105,6 +106,7 @@ flowchart LR
   detector -->|"HDDM系のとき"| hddm_drift_confidence
   clustering_policy -->|"クラスタリングを実行するとき"| clustering_consolidation
   clustering_consolidation -->|"非劣性制約付きマージのとき"| merge_noninferiority_margin
+  method -->|"FedDriftだけで有効"| feddrift_model_assignment_policy
   server_flow -.->|"parameter_share, noninferiority_merge: NoCachedが必要"| clustering_consolidation
   server_flow -.->|"restarting_soft: NoCachedが必要"| routing
   detector -.->|"restarting_soft: ADWIN系またはESR系検出器が必要"| routing
@@ -164,6 +166,7 @@ flowchart LR
 | `clustering_confidence` | config | 実装済み | 理論上のみ | 対象外 | 対象外 | confidence系・クラス条件付き機能判定と非劣性制約付きマージの信頼水準 |
 | `cluster_linkage` | cli: `--cluster-linkage` | 実装済み | 対象外 | 対象外 | 対象外 | モデル対判定からクラスタを構成する方法 |
 | `fedsda_distance_threshold` | cli: `--fedsda-distance-threshold` | 実装済み | 対象外 | 対象外 | 対象外 | モデル適合・再利用および距離ベース統合の閾値 |
+| `feddrift_model_assignment_policy` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのFeddriftRunClientSettings.model_assignment_policy。既定は検出バッチの帰属。真概念の帰属は初期Kモデルへ標本ごとに振り分け、直前のラベルの概念で予測する。旧CLIでは切り替えず、新APIの構成feddrift-oracle-concept-assignmentで指定する。 |
 | `feddrift_distance_threshold` | cli: `--feddrift-distance-thresholds` | 対象外 | 実装済み | 対象外 | 対象外 | FedDriftのドリフト判定とモデル統合で共有する閾値 |
 | `aggregation_interval` | cli: `--aggregation-intervals` | 実装済み | 対象外 | 実装済み | 実装済み | FedSDAとObliviousの通信ラウンド間隔 |
 | `feddrift_detection_batch_size` | cli: `--feddrift-detection-batch-sizes` | 対象外 | 実装済み | 対象外 | 対象外 | FedDriftの処理・検出・通信を兼ねるバッチサイズ |

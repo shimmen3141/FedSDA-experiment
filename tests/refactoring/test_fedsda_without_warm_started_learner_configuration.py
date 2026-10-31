@@ -51,7 +51,7 @@ def test_configuration_changes_only_new_model_hypothesis_learners():
         ),
     )
     assert configurations.WITHOUT_WARM_STARTED_LEARNER_CONFIGURATION_NAME == CONFIGURATION
-    assert configurations.EXPERIMENT_CONFIGURATION_NAMES[-1] == CONFIGURATION
+    assert CONFIGURATION in configurations.EXPERIMENT_CONFIGURATION_NAMES
     assert golden.CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN[CONFIGURATION] == (
         "tests/refactoring/test_fedsda_without_warm_started_learner_configuration.py"
     )

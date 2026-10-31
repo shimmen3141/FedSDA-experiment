@@ -1,6 +1,6 @@
 """FedDrift clientの組立と進行に必要な条件。"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import isfinite
 
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
@@ -23,9 +23,13 @@ class FeddriftRunClientSettings:
     model_comparison_criterion: str
     new_model_parameter_source: str
     detection_reference_after_drift: str
+    model_assignment_policy: str = field(
+        default="detection_batch_assignment", metadata={"omit_default_from_saved_settings": True}
+    )
 
     def __post_init__(self) -> None:
         for name, choices in (
+            ("model_assignment_policy", ("detection_batch_assignment", "true_concept_assignment")),
             ("model_comparison_criterion", ("bounded_loss", "classification_error_rate")),
             (
                 "new_model_parameter_source",

@@ -50,6 +50,12 @@ def _convert_settings(
             raise ValueError(
                 f"settings at {settings_path} must not have a field named {_SETTINGS_TYPE_KEY!r}"
             )
+        # 追加した選択肢の既定値は、既存の保存設定・run識別子を維持する。
+        if (
+            settings_field.metadata.get("omit_default_from_saved_settings")
+            and getattr(settings, settings_field.name) == settings_field.default
+        ):
+            continue
         plain_mapping[settings_field.name] = _convert_value(
             value=getattr(settings, settings_field.name),
             value_path=f"{settings_path}.{settings_field.name}",
@@ -61,7 +67,9 @@ def _convert_settings(
 def convert_settings_to_plain_mapping(
     settings: object, *, non_finite_float_as_none: bool = False
 ) -> dict[str, object]:
-    """dataclassの設定を、型の名前と、全部のfieldの値を持つ、入れ子の辞書へ変換する。
+    """dataclassの設定を、型の名前とfieldの値を持つ、入れ子の辞書へ変換する。
+
+    既存の識別子を保つため、omit_default_from_saved_settingsを宣言したfieldの既定値は省く。
 
     dataclassは`{"settings_type": 型の名前, field名: 値, ...}`（fieldの宣言の順）、tuple・listはlist、
     `str`・`int`・`bool`・`None`と、有限の`float`は、そのまま。ほかの値は拒否する。

@@ -3892,6 +3892,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "runtime/feddrift_run_client_settings.py":
         return imported_module_name in (
             "dataclasses.dataclass",
+            "dataclasses.field",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
             "math.isfinite",
@@ -3947,6 +3948,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/feddrift_detection_batch_processing.py":
         return imported_module_name in (
+            "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
             "dataclasses.dataclass",
             "math.isfinite",
             "random.Random",

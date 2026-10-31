@@ -60,6 +60,7 @@ class GlobalModelRepository:
         initial_model_id: int,
         initial_parameter_snapshot: dict[str, Tensor],
         initial_loss_statistics: ModelAndClassLossStatistics,
+        initial_model_count: int = 1,
     ) -> None:
         _validate_nonnegative_identifier(
             identifier=initial_model_id, identifier_name="initial_model_id"
@@ -68,6 +69,8 @@ class GlobalModelRepository:
             parameter_snapshot=initial_parameter_snapshot
         )
         _validate_loss_statistics(loss_statistics=initial_loss_statistics)
+        if type(initial_model_count) is not int or initial_model_count < 1:
+            raise ValueError("初期モデル数は正のbuiltin intが必要です。")
         self._parameter_snapshots_by_model_id: dict[int, dict[str, Tensor]] = {
             initial_model_id: copied_parameter_snapshot
         }
@@ -80,6 +83,15 @@ class GlobalModelRepository:
                 model_id=initial_model_id, registered_round_index=None, registering_client_id=None
             )
         }
+        for model_id in range(initial_model_id + 1, initial_model_id + initial_model_count):
+            self._parameter_snapshots_by_model_id[model_id] = _copy_validated_parameter_snapshot(
+                parameter_snapshot=initial_parameter_snapshot
+            )
+            self._loss_statistics_by_model_id[model_id] = initial_loss_statistics
+            self._registration_records_by_model_id[model_id] = GlobalModelRegistrationRecord(
+                model_id=model_id, registered_round_index=None, registering_client_id=None
+            )
+        self._next_global_model_id = initial_model_id + initial_model_count
 
     @property
     def next_global_model_id(self) -> int:
