@@ -18,7 +18,7 @@
 
 - 研究ツール（`tools/research_provisional_candidate_expert/`）の変種として作り、製品の経路と既定は変えない。変種は`product-default`系（組E）の上で、実行中だけ設定の値を差し替える。変種の名前は`product-default-time-scale-60`・`-240`、`product-default-esr-alpha-0.01`・`-0.0001`、`product-default-fifo-capacity-15`・`-60`。
 - 差し替えが効いていることを、runの中で実際に使われた値（Fixed-Shareの率、MDLの切替の確率、検出器のα、FIFOの容量）の記録で確かめる。既定の値を指定した場合（例: Tを120）に`product-default`と全項目で一致することを検査する。
-- 条件: 10データ（SINE2、CIRCLE2、SEA2、SEA4、MNIST2、MNIST4、fmnist2、fmnist4、rotmnist2、rotmnist4）×集約間隔50・500×seed 0〜9、10 client×5000標本。6変種×200 run＝1,200 run。研究室サーバ（uranium、64 workers）。間隔は、論文の頑健さの主張の両端の50と500にする（全間隔の2,400 runは時間がかかるため）。
+- 条件: 10データ（SINE2、CIRCLE2、SEA2、SEA4、MNIST2、MNIST4、fmnist2、fmnist4、rotmnist2、rotmnist4）×集約間隔50・500×seed 0〜9、10 client×5000標本。6変種×200 run＝1,200 run（同じ実行に入れる研究ツールの`product-default`の200 runを足して1,400 run。下の4回目の反映を参照）。研究室サーバ（uranium、64 workers）。間隔は、論文の頑健さの主張の両端の50と500にする（全間隔の2,400 runは時間がかかるため）。
 - 比べる相手: 同じ条件の基準版16の既定。研究ツールの`product-default`を同じ実行で流す（200 run）か、製品の既存の結果（`fedsda-every-sample-change-interval-search`の6データと新しい4データの結果）を使う。研究ツールの`product-default`と製品の結果が一致することは、IMPROVE-032・033で確かめている。
 
 ## まとめ方
@@ -41,3 +41,4 @@
   - 既定のFedHASP: この実験で同じ実行に研究ツールの`product-default`（10データ×間隔50・500×seed 0〜9、200 run）を入れ、それを使う。
   - 比較手法（判定に使うもの、事前に固定）: 6データのFedDriftは`results/feddrift-tuned-delta-v15`のうち`results/feddrift-delta-tuning-v14/selected-delta-tolerance-0.1pp.csv`で選んだδのrun。新しい4データのFedDriftは`results/new-datasets-baselines/feddrift`（公式の既定のδ）。調整したδの結果がこの集計より先に出ても、判定には使わず、参考として別に示す。FedAvgは`results/method-comparison-v15/20261029_204550_fedavg-seeds0-9`と`results/new-datasets-baselines`の`fedavg`・`fedavg-local-updates-per-aggregation`。比較手法の最良は、セルごとに、これらの10 seedの平均の最大。
   - 条件の照合: どの結果も、`run_summary.csv`の`dataset_name`・`server_aggregation_interval_per_client_samples`・`random_seed`・`client_count`・`per_client_sample_count`が一致する行だけを使い、セルごとに10 seedがそろわなければ集計を止める。
+- 5回目FAIL（Major 3）。(1) run数の書き方の食い違い: 採る（「条件」の行に、`product-default`を足して1,400 runと書いた）。(2) 「FIFOの容量が15と0」: 採らない（読み違い。表は15、60）。(3) 「感度が小さい」の許容幅が無い: 採らない。この計画は、許容幅の数値を後から選べないように、「小さい」という結論を出さないと決め、論文の主張（データごとの調整なしで比較手法を上回る）が固定値を変えても保たれるかを判定する（3回目の反映）。差の大きさは数値のまま報告する。許容幅を論文で使うかはユーザーが決める（2026-11-01の報告で伝える）。実装の範囲に影響しないので、ここで計画レビューを終え、実装に進む。
