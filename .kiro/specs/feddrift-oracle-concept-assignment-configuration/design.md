@@ -19,7 +19,7 @@
 - 構成・掃引・識別子・依存境界のtest、基準版1〜16のgoldenの照合（Windows）、Ruff・Pyright。
 
 ## 本規模の実行（要求3.2）
-- `--configurations feddrift-oracle-concept-assignment --datasets sea2 sea4 sine2 circle2 mnist2 mnist4 fmnist2 fmnist4 rotmnist2 rotmnist4 --seeds 0-9 --aggregation-intervals 50 100 200 500 --client-count 10 --per-client-sample-count 5000 --workers 64 --study method-comparison-oracle-v16 --label oracle-seeds0-9`（400 run）。
+- `--configurations feddrift-oracle-concept-assignment --datasets sea2 sea4 sine2 circle2 mnist2 mnist4 fmnist2 fmnist4 rotmnist2 rotmnist4 --seeds 0-9 --aggregation-intervals 50 100 200 500 --client-count 10 --per-client-sample-count 5000 --workers 64 --study method-comparison-oracle-v16 --label oracle-seeds0-9 --purpose "FedDriftの学習・集約の上で、学習の割り当てを真のコンセプトで行うOracleを10データで評価する"`（400 run）。
 
 ## 仕様レビュー1回目（GPT-6 Luna、effort medium）の反映（2026-11-01。上と食い違うときは、こちらを優先する）
 - 学習の対象と標本の集合（Major 1）: FedDriftは検出バッチ（$I$ 標本）を1つのモデルへ帰属させ、帰属の後の学習（学習の対象のモデル、モデルごとの件数の条件`batch_sample_count`、R回のround、標本数の重み）を行う。Oracleでは、この「検出バッチを1つのモデルへ帰属させる」処理だけを、「検出バッチを標本の真のコンセプトで分け、分けた部分をそれぞれのコンセプトのモデルへ帰属させる」処理に置き換える。帰属の後の学習は、FedDriftの規則をそのまま適用する（モデルごとの学習の標本の集合には、そのモデルへ帰属した標本が入る。件数の条件もモデルごとに今の規則で判定する。学習の対象のモデルは、その時刻にいずれかのclientで標本が帰属したモデル）。集約の重みも、今の規則どおりモデルごとの帰属した標本数。
