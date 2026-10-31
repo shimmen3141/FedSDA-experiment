@@ -20,3 +20,9 @@
 
 ## 本規模の実行（要求3.2）
 - `--configurations feddrift-oracle-concept-assignment --datasets sea2 sea4 sine2 circle2 mnist2 mnist4 fmnist2 fmnist4 rotmnist2 rotmnist4 --seeds 0-9 --aggregation-intervals 50 100 200 500 --client-count 10 --per-client-sample-count 5000 --workers 64 --study method-comparison-oracle-v16 --label oracle-seeds0-9`（400 run）。
+
+## 仕様レビュー1回目（GPT-6 Luna、effort medium）の反映（2026-11-01。上と食い違うときは、こちらを優先する）
+- 学習の対象と標本の集合（Major 1）: FedDriftは検出バッチ（$I$ 標本）を1つのモデルへ帰属させ、帰属の後の学習（学習の対象のモデル、モデルごとの件数の条件`batch_sample_count`、R回のround、標本数の重み）を行う。Oracleでは、この「検出バッチを1つのモデルへ帰属させる」処理だけを、「検出バッチを標本の真のコンセプトで分け、分けた部分をそれぞれのコンセプトのモデルへ帰属させる」処理に置き換える。帰属の後の学習は、FedDriftの規則をそのまま適用する（モデルごとの学習の標本の集合には、そのモデルへ帰属した標本が入る。件数の条件もモデルごとに今の規則で判定する。学習の対象のモデルは、その時刻にいずれかのclientで標本が帰属したモデル）。集約の重みも、今の規則どおりモデルごとの帰属した標本数。
+- 最初の予測（Major 2）: 全部のモデルは同じ初期モデルの写しから始まるので、ラベルを見る前の最初の標本の予測には、モデルのIDが最小のモデル（ID 0）を使うと定める。このとき、どのモデルで予測しても値は同じで、真のコンセプトの情報は使わない。2標本目からは、そのclientが直前にラベルを見た標本の真のコンセプトのモデルで予測する。
+- testの固定条件（Major 3）: 小さい全体runは、SINE2とMNIST4、間隔50、seed 0、10 client、各client 2500標本に固定する。testは次を記録から確かめる。(a) 少なくとも1つのclientでコンセプトが変わる。(b) 各標本の学習の行き先が、その標本の真のコンセプトのモデル。(c) 各標本の予測のモデルIDが上の規則（最初はID 0、以後は直前の標本の真のコンセプトのモデル）。(d) 現れた各コンセプトのモデルが、少なくとも1回学習される（計算回数か、モデルごとの学習の標本数で）。(e) 各clientが持つモデルの数と、サーバに登録されたモデルの数が、runの最初から最後まで $K$。作成と統合の記録が0件。条件を満たさなければ標本数を5000に増やして固定し、Implementation Notesに書く（ほかの条件は探さない）。
+- 本規模の集計（Minor）: 失敗したrunがあれば集計を止めて報告する。データ×間隔の40セルごとに、10 seedの平均±標準偏差の累積の精度、FedHASP（基準版16）・FedDrift・FedAvg（集約ごとの形）との差（勝ち/負け）、通信、MAC、実行時間、変化の直後の $I$ 標本とそれ以外の精度（`docs/research/feddrift-post-change-accuracy-20261101.md`と同じ定義）。比べる相手の結果は、論文の表1と同じもの（`docs/research/feddrift-post-change-accuracy-20261101.md`に書いたパス。新しい4データのFedDriftは、調整したδの結果が出ていればそれ）。
