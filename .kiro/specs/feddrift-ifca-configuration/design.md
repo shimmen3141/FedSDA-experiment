@@ -22,3 +22,9 @@
 
 ## 本規模の実行（要求3.2）
 - `--configurations feddrift-ifca-window --datasets sea2 sea4 sine2 circle2 mnist2 mnist4 fmnist2 fmnist4 rotmnist2 rotmnist4 --seeds 0-9 --aggregation-intervals 50 100 200 500 --client-count 10 --per-client-sample-count 5000 --workers 64 --study method-comparison-ifca-v16 --label ifca-window-seeds0-9 --purpose "FedDriftの学習・集約の上で、IFCA+Window（クラスタ数は真のコンセプト数）を10データで評価する"`（400 run）。集計はOracleのspecと同じ項目。
+
+## 仕様レビュー1回目（GPT-6 Luna、effort medium）の反映（2026-11-01。上と食い違うときは、こちらを優先する）
+- 初期化（Major 1）: この構成は、FedDriftの論文のIFCA+Windowそのものの再現ではなく、本稿の全手法に共通の事前学習の条件に合わせた派生版と位置づける。ID 0だけが事前学習の初期モデル、ID 1〜$K-1$は乱数の初期化。論文のIFCA（全部のクラスタを乱数で初期化、FMoWでも事前学習の代わりに乱数）との違いと、その理由（全手法が同じ事前学習の初期モデルから始まる条件を保ち、かつクラスタを分けるため。ID 0に事前学習の利点が偏る）を、`differences-from-feddrift.md`と論文に書く。全部を乱数で初期化する版は、この構成では作らない（必要ならユーザーの判断で別に足す）。
+- 学習の対象と既存の規則への接続（Major 2）: Oracleのspec（design.mdの「仕様レビュー2回目の反映」）と同じ接続を使う。各clientがその時刻に選んだモデルは1つなので、学習の対象は、今の既定`training_model_eligibility="models_assigned_in_current_timestep"`のとおり、各clientの選んだモデルIDの和集合。各clientは、学習の対象のうち自分が学習の標本を持つモデルを、今の`train_feddrift_held_models_for_round`の規則（そのclientのモデルごとの学習の標本の件数が`batch_sample_count`以上のとき参加、R回のroundのそれぞれで、同じ標本の集合を使って更新）で学習する。窓1時刻なので、各時刻の学習の前に、各clientの全モデルの学習の標本の集合を空にしてから、その時刻のバッチを選んだモデルへ追加する。したがって、そのclientで学習に参加するのは選んだモデルだけで、件数はその時刻の標本数（$I$）。集約の重みは、今の`_aggregate_and_distribute_models`の規則（clientごと・モデルごとの学習の標本の件数＝その時刻の件数）。
+- test（Minor 3）: 小さい全体runで、(a) 少なくとも1つのclientでコンセプトが変わる、(b) 各時刻の各clientの選択が記録した $K$ 個の平均損失の最小（同値はIDの小さい方）、(c) 選ばれたモデルだけが、その時刻の標本で学習される（ownerの状態か計算回数で）、(d) 各clientの保有モデルIDが毎時刻 $\{0,\dots,K-1\}$、サーバの時刻ごとのモデル数が $K$、登録の記録が最初の $K$ 個だけ、統合の記録が0件、を確かめる。ID 1〜$K-1$が実際に選ばれるかはIFCAの結果であって要求ではないので、testでは求めず、選ばれた回数を記録して報告する。
+- 本規模の集計（Minor 4）: 失敗したrunがあれば集計を止めて報告する。データ×間隔の40セルごとに、10 seedの平均±標準偏差の累積の精度、FedHASP（基準版16）・FedDrift・FedAvg（集約ごとの形）・Oracleとの差（勝ち/負け）、通信、MAC、実行時間、変化の直後の $I$ 標本とそれ以外の精度（`docs/research/feddrift-post-change-accuracy-20261101.md`と同じ定義）、IDごとに選ばれた回数。比べる相手の結果は論文の表1と同じもの。
