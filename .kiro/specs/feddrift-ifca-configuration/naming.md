@@ -4,3 +4,4 @@
 |---|---|---|---|
 | `FEDDRIFT_IFCA_WINDOW_CONFIGURATION_NAME`（値`feddrift-ifca-window`） | `sweep/experiment_configurations`の定数 | FedDriftの学習・集約の上で、$K$ 個のクラスタのモデルから損失が最小のものを時刻ごとに選び、今の時刻の標本だけで学習するIFCA+Window | Oracle（`feddrift-oracle-concept-assignment`）は真のコンセプトで割り当てる。FedDrift（`feddrift`）はモデルを作成・統合する |
 | 割り当ての方式の設定の新しい値（例: `minimum_loss_cluster_assignment`）と、学習の窓の設定の項目（実装担当が既存の名前に合わせて決め、ここへ追記する） | FedDriftの設定 | 損失が最小のクラスタのモデルへの割り当てと、学習の標本を今の時刻に限る窓 | — |
+| `FEDDRIFT_IFCA_WINDOW_PRETRAINED_CLUSTER0_CONFIGURATION_NAME`（値`feddrift-ifca-window-pretrained-cluster0`） | `sweep/experiment_configurations`の定数 | IFCA+Windowの派生版。ID 0だけを共通の事前学習の初期モデルにし、ほかを乱数で初期化する | `feddrift-ifca-window`は全部を乱数で初期化する（論文に準じる） |

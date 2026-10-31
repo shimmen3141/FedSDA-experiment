@@ -28,3 +28,12 @@
 - 学習の対象と既存の規則への接続（Major 2）: Oracleのspec（design.mdの「仕様レビュー2回目の反映」）と同じ接続を使う。各clientがその時刻に選んだモデルは1つなので、学習の対象は、今の既定`training_model_eligibility="models_assigned_in_current_timestep"`のとおり、各clientの選んだモデルIDの和集合。各clientは、学習の対象のうち自分が学習の標本を持つモデルを、今の`train_feddrift_held_models_for_round`の規則（そのclientのモデルごとの学習の標本の件数が`batch_sample_count`以上のとき参加、R回のroundのそれぞれで、同じ標本の集合を使って更新）で学習する。窓1時刻なので、各時刻の学習の前に、各clientの全モデルの学習の標本の集合を空にしてから、その時刻のバッチを選んだモデルへ追加する。したがって、そのclientで学習に参加するのは選んだモデルだけで、件数はその時刻の標本数（$I$）。集約の重みは、今の`_aggregate_and_distribute_models`の規則（clientごと・モデルごとの学習の標本の件数＝その時刻の件数）。
 - test（Minor 3）: 小さい全体runで、(a) 少なくとも1つのclientでコンセプトが変わる、(b) 各時刻の各clientの選択が記録した $K$ 個の平均損失の最小（同値はIDの小さい方）、(c) 選ばれたモデルだけが、その時刻の標本で学習される（ownerの状態か計算回数で）、(d) 各clientの保有モデルIDが毎時刻 $\{0,\dots,K-1\}$、サーバの時刻ごとのモデル数が $K$、登録の記録が最初の $K$ 個だけ、統合の記録が0件、を確かめる。ID 1〜$K-1$が実際に選ばれるかはIFCAの結果であって要求ではないので、testでは求めず、選ばれた回数を記録して報告する。
 - 本規模の集計（Minor 4）: 失敗したrunがあれば集計を止めて報告する。データ×間隔の40セルごとに、10 seedの平均±標準偏差の累積の精度、FedHASP（基準版16）・FedDrift・FedAvg（集約ごとの形）・Oracleとの差（勝ち/負け）、通信、MAC、実行時間、変化の直後の $I$ 標本とそれ以外の精度（`docs/research/feddrift-post-change-accuracy-20261101.md`と同じ定義）、IDごとに選ばれた回数。比べる相手の結果は論文の表1と同じもの。
+
+## 仕様レビュー2回目の反映（2026-11-01。上と食い違うときは、こちらを優先する）
+- 初期化（Major、2回目も同じ指摘）: 2つの構成に分け、報告でも区別する。
+  - `feddrift-ifca-window`: 論文に準じる版。$K$ 個のモデルを全部、事前学習をせずに乱数で初期化する（runのseedとモデルのIDから決めた分けた乱数の状態。runの乱数を消費しない）。共通の事前学習の初期モデルは使わない。
+  - `feddrift-ifca-window-pretrained-cluster0`: 共通の事前学習の条件に合わせた派生版。ID 0だけが事前学習の初期モデルの写し、ID 1〜$K-1$は上と同じ乱数の初期化。
+  - 論文の比較表には前者を「IFCA+Window」として載せ、後者は初期化の影響を示す参考として載せるか付録に置く（ユーザーが決める）。どちらも`differences-from-feddrift.md`に書く。初期化の設定の項目は1つ（例: `cluster_model_initialization`、値は全部を乱数／ID 0だけ事前学習）にし、ほかの設定は同じ。
+  - 最初の検出バッチがそろうまでの予測は、どちらもID 0のモデルで行う。
+  - 本規模の実行は2構成で800 run（`--configurations feddrift-ifca-window feddrift-ifca-window-pretrained-cluster0`、ほかは上のコマンドと同じ）。
+- 同値の扱い（Minor）: 要求1.3に「同値はIDの小さい方」と既に書いてあるので、変えない。
