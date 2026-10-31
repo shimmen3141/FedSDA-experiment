@@ -8,7 +8,7 @@
   - 要求3.1の文書。実装レビュー（独立CLI）と、関係するtestの結果をImplementation Notesに記録する。
   - _Requirements: 3.1_
   - _Depends:_ 1
-- [ ] 3. 本規模の追加の実行と集計
+- [x] 3. 本規模の追加の実行と集計
   - commit・pushの後、主担当が内部確認をしてコマンドを渡す（6データは追加分だけ、新しい4データは構成要素の比較の全構成と一緒。要求3.2）。結果が届いたら、同じstudyの`fedsda`と対で、精度（平均±SD、勝ち/負け）、通信、MAC、警報の回数、新しいモデルの選択の回数、MNIST・fmnistの概念ごとの精度（概念0以外が88%未満のrun、NEW-006の指標）を集計し、NEW-006と実験の台帳に記録する。
   - _Requirements: 3.2_
   - _Depends:_ 2
@@ -18,3 +18,5 @@
 - 主担当の確認: 新しいtest、構成・掃引・識別子・依存境界・設定の検査のtest、基準版1〜16のgoldenの照合（9ファイル、Windows、12並列）が4,091 passed / 8 skipped / 失敗0（815秒、JUnit `../../venv/refactoring-tests/without-warm-targeted.xml`）。Ruff成功。Pyright（設定の範囲）はSolの実行で0 errors。全pytestは設計どおり行わない（変更は構成の追加だけ）。
 - 実装レビュー（GPT-6 Luna、effort medium、対象`2708b3bb`）: FAIL（Major 1、Minor 1）。Major（学習者1つでln 2を足さないことを、実際に学習者を評価する経路では確かめていない）は採らない: 要求2.2と設計で、この点は純粋な計算`select_new_model_learner`の部品のtestで確かめると決めており（全体runの記録から符号長を再計算できないため）、実験の結果にも影響しないのでMajorに当たらない（2026-10-27のユーザー決定の基準）。全体runでは`warm_started_learner`が使われないことを確かめている。Minor（tasks.mdのcheckboxが未完了のまま）は反映した。
 - Task 3（6データの分、主担当）: `results/fedsda-component-ablation-v16/20261030_052220_without-warm-started-learner-seeds0-9`（240 run、`095dc66a`、失敗0）を、同じstudyの`fedsda`と比べた。精度の差は−0.22〜+0.05pp（平均−0.03pp）、通信の比0.98〜1.02、MACの比0.93〜1.04、概念が取り込まれたrunは0→1。NEW-006と実験の台帳、[基準版16の構成要素の比較](../../../docs/research/fedsda-component-ablation-v16-20261030.md)に記録した。新しい4データの分は未実行（Task 3は未完了）。
+- Task 3（新しい4データの分、主担当、2026-11-01）: `results/fedsda-component-ablation-new-datasets-v16/20261031_062435_warm-start-and-single-model-seeds0-9`（`fedsda-without-warm-started-learner`の160 run、`71595383`、失敗0）を、値が同じ版15の既定と同じseedの対で比べた。精度の差は−0.78〜+0.12pp（平均−0.11pp）、通信の比0.98〜1.00、MACの比0.84〜1.01、切替の回数はfmnistで1 runあたり約5〜11回減る。概念ごとの精度は、fmnistの精度が88%を下回るのが普通なので88%の基準を使わず、概念0以外で最も低い概念の精度を対で比べた（3pp以上の低下はfmnist4で7/40、ほかは0）。NEW-006、実験の台帳、[基準版16の構成要素の比較](../../../docs/research/fedsda-component-ablation-v16-20261030.md)に記録した。Task 3を完了とする。
+

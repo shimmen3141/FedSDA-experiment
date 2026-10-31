@@ -72,3 +72,17 @@
 - FedSDAは、16セルすべてで3構成より高く、どのセルでも10 seedすべてで上回る。差はFedDriftに対して+2.03〜+18.73pp（平均+6.18）、FedAvg（標本ごと）に対して+2.82〜+11.69pp、FedAvg（集約ごと）に対して+2.69〜+14.30pp。FedDriftとの差は集約間隔が長いほど大きい（rotmnist4で50→500: +2.64→+18.73pp）。
 - 資源（FedSDAとの比）: FedDriftの通信は1.59〜3.72倍、MACは0.63〜2.08倍。FedAvgの通信は0.90〜0.94倍、MACは0.34〜0.49倍。
 
+## 新しい4データの、予測を現在のモデルだけで行う構成とwarm startを外す構成（2026-11-01）
+
+- 結果: `results/fedsda-component-ablation-new-datasets-v16/20261031_062435_warm-start-and-single-model-seeds0-9`（2構成×160 run、commit `71595383`、研究室サーバ）。全320 run完了。比べる相手は上と同じ版15の160 run。上の6構成の結果は、`results/fedsda-component-ablation-new-datasets-v16/20261030_181023_other-components-seeds0-9`にも置かれ、`results/fedsda-component-ablation-v16/`の同名の結果とCSVが同じ。
+- 集計の一時script: Claudeのscratchpadの`new4_warm_single.py`・`new4_warm_concepts.py`（Git管理外）。
+
+| 外したもの（構成） | 精度の差（16セルの範囲、平均） | 全seedで低下 | 通信の比 | MACの比 | 6データの平均 |
+|---|---|---|---|---|---|
+| 予測を現在のモデルだけで行う（`fedsda-single-model-prediction`） | −3.21〜−1.27、平均−2.44 | 16 | 1.00 | 0.99 | −1.15 |
+| warm startの学習者（`fedsda-without-warm-started-learner`） | −0.78〜+0.12、平均−0.11 | 0 | 0.98〜1.00 | 0.84〜1.01 | −0.03 |
+
+- 予測を現在のモデルだけにすると、16セルすべてで10 seedすべてが下がり、低下は6データの約2倍。新しい4データでも、要素の中で最も大きい。
+- warm startを外すと、fmnist4で4間隔とも下がる（−0.20〜−0.78pp。seedごとでは最大−3.37pp）。fmnist2は−0.16〜+0.07pp、rotmnistは−0.04〜+0.12pp。概念0以外で最も低い概念の精度を同じseedの既定と比べると、3pp以上下がったrunはfmnist4で40 run中7（上がったのは1）、fmnist2とrotmnist2では0、rotmnist4では上がったのが1。warm startを外すと、切替の回数（`training_model_switch_detection_metrics.detection_count`）がfmnistで1 runあたり約5〜11回減る（新しいモデルを作る回数が減る）。一部のクラスだけが変わる概念が多いfmnistで、warm startが概念の取り込みを防ぐというNEW-006の見立てと合う。全体が変わるrotmnistでは効かない。
+- 6データの読み（固い側の細部は精度の平均ではほとんど効かない）は変わらないが、warm startは、一部のクラスだけが変わる概念が多いデータで、取り込みの防止として効く（fmnist4）。
+

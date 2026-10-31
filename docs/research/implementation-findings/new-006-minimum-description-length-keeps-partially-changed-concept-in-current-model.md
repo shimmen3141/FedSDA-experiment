@@ -242,3 +242,8 @@ SEA4の概念は「特徴0＋特徴1が閾値以下ならラベル1」の閾値�
 ## 基準版16でwarm startの学習者を外した比較（2026-10-30、研究室サーバ、6データ×4間隔×seed 0〜9）
 
 構成`fedsda-without-warm-started-learner`（spec `fedsda-without-warm-started-learner-configuration`）の240 run（`results/fedsda-component-ablation-v16/20261030_052220_without-warm-started-learner-seeds0-9`）を、同じstudyの`fedsda`（基準版16）と比べた。精度の差は24セルで−0.22〜+0.05pp（平均−0.03pp）、10 seedすべてで下がるセルは無い。最も下がったのはMNIST4・間隔500（−0.22pp、10 seed中9で下がる）。概念が取り込まれたrun（概念0以外の精度が88%未満）は、MNIST2・MNIST4の80 runで`fedsda`が0、外した構成が1（MNIST4・500・seed 1、概念1が84.7%）。版11で入れたときの差（MNIST4で+0.15〜+0.79pp、取り込み9→ほぼ0）ほどの効果は見えない。版11以降の変更で取り込みが起きにくくなったとみる（未確認）。新しい4データ（fmnistではwarm startが新しいモデルの約6割で選ばれる）の比較は未実行。詳細は[基準版16の構成要素の比較](../fedsda-component-ablation-v16-20261030.md)。
+
+## warm startの学習者を外した構成の、新しい4データの本規模（2026-11-01、uranium）
+
+`results/fedsda-component-ablation-new-datasets-v16/20261031_062435_warm-start-and-single-model-seeds0-9`の`fedsda-without-warm-started-learner`（160 run、`71595383`）を、値が同じ版15の既定（`fedsda-every-sample-change-interval-search/20261029_172159_new-datasets-seeds0-9`）と同じseedの対で比べた。精度の差は−0.78〜+0.12pp（平均−0.11pp）。fmnist4で4間隔とも下がり（−0.20〜−0.78pp、seedごとでは最大−3.37pp）、概念0以外で最も低い概念の精度が3pp以上下がったrunは40 run中7（上がったのは1）。fmnist2とrotmnistはほぼ変わらない。通信の比0.98〜1.00、MACの比0.84〜1.01。一部のクラスだけが変わる概念が多いfmnist4で、初期化し直した学習者だけでは概念が取り込まれるという、この記録の見立てと合う。6データの結果（平均−0.03pp、取り込まれたrun 0→1）と合わせ、warm startの学習者の効果は、一部のクラスだけが変わる概念の取り込みの防止として現れる。
+
