@@ -79,6 +79,28 @@ def build_feddrift_run_record_tables(
     client_count = len(run_clients)
     processed = run_result.processed_sample_count_per_client
     predictions = [client.stream_processor.sample_predictions for client in run_clients]
+    if run_clients[0]._settings.model_assignment_policy == "minimum_loss_cluster_assignment":
+        selections = [
+            (client.client_id, index, row)
+            for client in run_clients
+            for index, row in enumerate(client.detection_batch_processor._cluster_selections)
+        ]
+        for column, values in (
+            ("client_id", [c for c, _, _ in selections]),
+            ("timestep_index", [t for _, t, _ in selections]),
+            ("first_sample_index", [r[0] for _, _, r in selections]),
+            ("last_sample_index", [r[1] for _, _, r in selections]),
+            ("selected_model_id", [r[2] for _, _, r in selections]),
+        ):
+            record_tables[f"cluster_selection.{column}"] = _integer_column(values)
+        model_ids = run_server.global_model_repository.global_model_ids
+        record_tables["cluster_selection.model_ids"] = asarray(
+            [model_ids for _ in selections], dtype=int64
+        ).reshape(len(selections), len(model_ids))
+        record_tables["cluster_selection.model_mean_bounded_losses"] = asarray(
+            [[dict(row[3]).get(mid, nan) for mid in model_ids] for _, _, row in selections],
+            dtype=float64,
+        ).reshape(len(selections), len(model_ids))
     for column in (
         "sample_index",
         "prediction_model_id",

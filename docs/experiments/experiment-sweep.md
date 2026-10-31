@@ -164,6 +164,8 @@ NPZ・run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変
 | 名前 | 内容 | 旧実装（`tools/run_main_ablation_suite.sh`）での名前 |
 |---|---|---|
 | `feddrift-oracle-concept-assignment` | FedDriftの学習・集約を使い、真概念ごとに標本を帰属。初期Kモデルを維持し、予測は直前のラベルの概念（最初はID 0）。検出・新規作成・統合は行わない | 対応なし（[Oracleの評価の違い](differences-from-feddrift.md#真のコンセプトで割り当てるoracle構成)） |
+| `feddrift-ifca-window` | 真の概念数Kのモデルを全て乱数で初期化。最初はID 0、以後はclientごと・時刻ごとの最小損失で選び、今の時刻だけで学習。Kモデルを維持し統合しない | IFCA+Windowの移植（[論文との違いと記録](differences-from-feddrift.md#ifcawindowの2構成)） |
+| `feddrift-ifca-window-pretrained-cluster0` | 上のIFCA+WindowのID 0だけを共通の事前学習モデルにする。ID 1以降の乱数初期値は全乱数版と同じ | 初期化の影響を示す参考構成（[論文との違い](differences-from-feddrift.md#ifcawindowの2構成)） |
 | `fedsda` | 提案構成。同期時点と局所更新の結合予測を混ぜる。FIFO容量30・T120。候補を検証せずに採用し、候補の学習では共有部を固定する（基準版7） | `reference`（現在は予測方式・T・候補の採否などに意図した差がある） |
 | `fedsda-every-sample-change-interval-search` | 基準版16から既定の`fedsda`と同じ設定。`change_interval_search=every_sample_with_reverse_prequential_code`で、新しい順の1本の流れの途中和から、最小変化区間以上の全部のkを1件刻みで測る。これまでのコマンドと結果の記録のために残し、識別子は実行済みの結果と同じ（`fedsda`の識別子とは異なる） | 対応なし（[既定を替えるspec](../../.kiro/specs/fedsda-every-sample-change-interval-search-default/design.md)） |
 | `fedsda-minimum-interval-multiples-change-interval-search` | 提案構成の`change_interval_search`だけを`minimum_interval_multiples_with_forward_prequential_code`へ戻す（基準版15までの既定）。kを最小変化区間の倍数に限り、kごとに末尾k件を古い方から一から学習して測る | 対応なし（[spec](../../.kiro/specs/fedsda-every-sample-change-interval-search-default/design.md)） |

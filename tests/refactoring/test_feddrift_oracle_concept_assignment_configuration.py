@@ -164,7 +164,7 @@ def test_configuration_changes_only_assignment_policy():
         ),
     )
     assert configurations.FEDDRIFT_ORACLE_CONCEPT_ASSIGNMENT_CONFIGURATION_NAME == CONFIGURATION
-    assert configurations.EXPERIMENT_CONFIGURATION_NAMES[-1] == CONFIGURATION
+    assert CONFIGURATION in configurations.EXPERIMENT_CONFIGURATION_NAMES
     assert golden.CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN[CONFIGURATION] == (
         "tests/refactoring/test_feddrift_oracle_concept_assignment_configuration.py"
     )

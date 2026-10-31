@@ -75,8 +75,13 @@ class FeddriftRunParticipantSettings:
         )
         if any(policies) and not all(policies):
             raise ValueError("FedDriftの旧方式と新方式の混在は未対応です。")
-        if client.model_assignment_policy == "true_concept_assignment" and not all(policies):
+        if client.model_assignment_policy != "detection_batch_assignment" and not all(policies):
             raise ValueError("Oracleは現在のFedDriftの学習・集約規則と組み合わせてください。")
+        if (
+            client.model_assignment_policy == "minimum_loss_cluster_assignment"
+            and server.local_training_round_count != 1
+        ):
+            raise ValueError("IFCA+Windowの選択は1時刻1roundだけに対応します。")
         if any(policies) and server.new_model_isolation_timestep_count != 1:
             raise ValueError("新しいFedDriftの扱いでは隔離期間は1だけです。")
         if (
@@ -198,9 +203,10 @@ class FeddriftRunParticipantFactory:
                 initial_model_count=(
                     definition.concept_count
                     if settings.run_client_settings.model_assignment_policy
-                    == "true_concept_assignment"
+                    != "detection_batch_assignment"
                     else 1
                 ),
+                run_random_seed=experiment_run_conditions.random_seed,
             )
             for client_id in range(experiment_run_conditions.client_count)
         )

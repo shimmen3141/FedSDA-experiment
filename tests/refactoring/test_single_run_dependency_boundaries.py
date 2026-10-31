@@ -3888,6 +3888,9 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.Tensor",
             "torch.float32",
             "torch.tensor",
+            "torch.random",
+            "torch.manual_seed",
+            "torch.nn.Linear",
         )
     if source_module_path == "runtime/feddrift_run_client_settings.py":
         return imported_module_name in (

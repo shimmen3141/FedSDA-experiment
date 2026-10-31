@@ -85,6 +85,10 @@ MINIMUM_INTERVAL_MULTIPLES_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME = (
 # 提案構成から、「新しいモデル」の仮説のwarm startの学習者だけを外す構成。
 WITHOUT_WARM_STARTED_LEARNER_CONFIGURATION_NAME = "fedsda-without-warm-started-learner"
 FEDDRIFT_ORACLE_CONCEPT_ASSIGNMENT_CONFIGURATION_NAME = "feddrift-oracle-concept-assignment"
+FEDDRIFT_IFCA_WINDOW_CONFIGURATION_NAME = "feddrift-ifca-window"
+FEDDRIFT_IFCA_WINDOW_PRETRAINED_CLUSTER0_CONFIGURATION_NAME = (
+    "feddrift-ifca-window-pretrained-cluster0"
+)
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
@@ -108,6 +112,8 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     MINIMUM_INTERVAL_MULTIPLES_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME,
     WITHOUT_WARM_STARTED_LEARNER_CONFIGURATION_NAME,
     FEDDRIFT_ORACLE_CONCEPT_ASSIGNMENT_CONFIGURATION_NAME,
+    FEDDRIFT_IFCA_WINDOW_CONFIGURATION_NAME,
+    FEDDRIFT_IFCA_WINDOW_PRETRAINED_CLUSTER0_CONFIGURATION_NAME,
 )
 
 
@@ -235,7 +241,12 @@ def build_experiment_run_settings(
                 ),
             ),
         )
-    if configuration_name in ("feddrift", FEDDRIFT_ORACLE_CONCEPT_ASSIGNMENT_CONFIGURATION_NAME):
+    if configuration_name in (
+        "feddrift",
+        FEDDRIFT_ORACLE_CONCEPT_ASSIGNMENT_CONFIGURATION_NAME,
+        FEDDRIFT_IFCA_WINDOW_CONFIGURATION_NAME,
+        FEDDRIFT_IFCA_WINDOW_PRETRAINED_CLUSTER0_CONFIGURATION_NAME,
+    ):
         feddrift = build_default_feddrift_run_settings(
             experiment_run_conditions=experiment_run_conditions
         )
@@ -248,7 +259,26 @@ def build_experiment_run_settings(
                 participant,
                 run_client_settings=replace(
                     participant.run_client_settings,
-                    model_assignment_policy="true_concept_assignment",
+                    model_assignment_policy=(
+                        "true_concept_assignment"
+                        if configuration_name
+                        == FEDDRIFT_ORACLE_CONCEPT_ASSIGNMENT_CONFIGURATION_NAME
+                        else "minimum_loss_cluster_assignment"
+                    ),
+                    training_sample_window=(
+                        "all_timesteps"
+                        if configuration_name
+                        == FEDDRIFT_ORACLE_CONCEPT_ASSIGNMENT_CONFIGURATION_NAME
+                        else "current_timestep"
+                    ),
+                    cluster_model_initialization=(
+                        "all_pretrained"
+                        if configuration_name
+                        == FEDDRIFT_ORACLE_CONCEPT_ASSIGNMENT_CONFIGURATION_NAME
+                        else "all_random"
+                        if configuration_name == FEDDRIFT_IFCA_WINDOW_CONFIGURATION_NAME
+                        else "pretrained_cluster0"
+                    ),
                 ),
             ),
         )

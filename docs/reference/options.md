@@ -50,7 +50,7 @@ flowchart LR
     new_model_creation_policy["<b>新規モデル作成方針</b><br/>immediate | validated | forward_validated | forward_requalified | forward_requalified_current_first | forward_persistent | shadow_tournament"]
     new_model_training["<b>新規モデル初期学習</b><br/>none | fixed | early_stopping"]
     new_model_initialization["<b>新規モデル初期値</b><br/>current | best_candidate | average"]
-    feddrift_model_assignment_policy["<b>FedDriftのモデルへの帰属</b><br/>detection_batch_assignment | true_concept_assignment"]
+    feddrift_model_assignment_policy["<b>FedDriftのモデルへの帰属</b><br/>detection_batch_assignment | true_concept_assignment | minimum_loss_cluster_assignment"]
   end
   subgraph group_adaptation_parameter[adaptation_parameter]
     new_model_epochs["<b>新規モデル学習上限 E_init</b><br/>non-negative integer"]
@@ -75,6 +75,10 @@ flowchart LR
     clustering_confidence["<b>クラスタリング信頼水準</b><br/>0 < confidence < 1"]
     fedsda_distance_threshold["<b>FedSDA距離閾値 γ</b><br/>non-negative number"]
     feddrift_distance_threshold["<b>FedDrift距離閾値 δ_FedDrift</b><br/>non-negative number"]
+  end
+  subgraph group_training[training]
+    feddrift_training_sample_window["<b>FedDriftの学習標本の窓</b><br/>all_timesteps | current_timestep"]
+    feddrift_cluster_model_initialization["<b>FedDriftのクラスタモデルの初期化</b><br/>all_pretrained | all_random | pretrained_cluster0"]
   end
   subgraph group_federation_parameter[federation_parameter]
     aggregation_interval["<b>集約間隔 A</b><br/>positive integer"]
@@ -107,6 +111,12 @@ flowchart LR
   clustering_policy -->|"クラスタリングを実行するとき"| clustering_consolidation
   clustering_consolidation -->|"非劣性制約付きマージのとき"| merge_noninferiority_margin
   method -->|"FedDriftだけで有効"| feddrift_model_assignment_policy
+  method -->|"FedDriftだけで有効"| feddrift_training_sample_window
+  method -->|"FedDriftだけで有効"| feddrift_cluster_model_initialization
+  feddrift_training_sample_window -.->|"minimum_loss_cluster_assignment: 1時刻の窓が必要"| feddrift_model_assignment_policy
+  feddrift_cluster_model_initialization -.->|"minimum_loss_cluster_assignment: クラスタごとの初期化が必要"| feddrift_model_assignment_policy
+  feddrift_model_assignment_policy -.->|"current_timestep: IFCAの帰属が必要"| feddrift_training_sample_window
+  feddrift_model_assignment_policy -.->|"all_random, pretrained_cluster0: IFCAの帰属が必要"| feddrift_cluster_model_initialization
   server_flow -.->|"parameter_share, noninferiority_merge: NoCachedが必要"| clustering_consolidation
   server_flow -.->|"restarting_soft: NoCachedが必要"| routing
   detector -.->|"restarting_soft: ADWIN系またはESR系検出器が必要"| routing
@@ -166,7 +176,9 @@ flowchart LR
 | `clustering_confidence` | config | 実装済み | 理論上のみ | 対象外 | 対象外 | confidence系・クラス条件付き機能判定と非劣性制約付きマージの信頼水準 |
 | `cluster_linkage` | cli: `--cluster-linkage` | 実装済み | 対象外 | 対象外 | 対象外 | モデル対判定からクラスタを構成する方法 |
 | `fedsda_distance_threshold` | cli: `--fedsda-distance-threshold` | 実装済み | 対象外 | 対象外 | 対象外 | モデル適合・再利用および距離ベース統合の閾値 |
-| `feddrift_model_assignment_policy` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのFeddriftRunClientSettings.model_assignment_policy。既定は検出バッチの帰属。真概念の帰属は初期Kモデルへ標本ごとに振り分け、直前のラベルの概念で予測する。旧CLIでは切り替えず、新APIの構成feddrift-oracle-concept-assignmentで指定する。 |
+| `feddrift_model_assignment_policy` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのFeddriftRunClientSettings.model_assignment_policy。既定は検出バッチの帰属。真概念の帰属は初期Kモデルへ標本ごとに振り分け、直前のラベルの概念で予測する。最小損失の帰属は最初の時刻はID 0、以後はバッチの平均有界損失が最小のモデルを選ぶ。旧CLIでは切り替えず、新APIのOracle・IFCA構成で指定する。 |
+| `feddrift_training_sample_window` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのFeddriftRunClientSettings.training_sample_window。既定は全時刻。IFCA+Windowは、全モデルの標本を空にして今の時刻のバッチだけを選択モデルに追加する。 |
+| `feddrift_cluster_model_initialization` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのFeddriftRunClientSettings.cluster_model_initialization。既定は全モデルを事前学習から複写。IFCAの全乱数初期化、またはID 0だけ共通の事前学習モデルを使う初期化。 |
 | `feddrift_distance_threshold` | cli: `--feddrift-distance-thresholds` | 対象外 | 実装済み | 対象外 | 対象外 | FedDriftのドリフト判定とモデル統合で共有する閾値 |
 | `aggregation_interval` | cli: `--aggregation-intervals` | 実装済み | 対象外 | 実装済み | 実装済み | FedSDAとObliviousの通信ラウンド間隔 |
 | `feddrift_detection_batch_size` | cli: `--feddrift-detection-batch-sizes` | 対象外 | 実装済み | 対象外 | 対象外 | FedDriftの処理・検出・通信を兼ねるバッチサイズ |
@@ -186,6 +198,9 @@ flowchart LR
 
 | オプション値 | 実装済みmode | 追加前提 | 備考 |
 |---|---|---|---|
+| `feddrift_model_assignment_policy` = `minimum_loss_cluster_assignment` | `FedDrift` | 1時刻の窓が必要<br/>クラスタごとの初期化が必要 | IFCA+Windowの2構成は1時刻1roundで選択する新API専用の設定 |
+| `feddrift_training_sample_window` = `current_timestep` | `FedDrift` | IFCAの帰属が必要 |  |
+| `feddrift_cluster_model_initialization` = `all_random`, `pretrained_cluster0` | `FedDrift` | IFCAの帰属が必要 |  |
 | `clustering_consolidation` = `parameter_share`, `noninferiority_merge` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_NoCached_ESR`<br/>`FedSDA_NoCached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting`<br/>`FedSDA_NoCached_HDDMA`<br/>`FedSDA_NoCached_ClassHDDMA`<br/>`FedSDA_NoCached_HDDMW` | NoCachedが必要 | 追加のクラスタリング後処理は現在NoCachedフローでのみ実装 |
 | `detector` = `ADWIN` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_Cached_ADWIN`<br/>`FedSDA_NoCached_ResidualAdapter_ADWIN_RestartingSoftRouting`<br/>`FedSDA_without_server` | なし | without_serverで選べる検出器は現在ADWINのみ |
 | `detector` = `ClassADWIN` | `FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_Cached_ClassADWIN`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting` | なし |  |

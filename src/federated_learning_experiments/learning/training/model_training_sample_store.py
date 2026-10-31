@@ -11,6 +11,10 @@ class ModelTrainingSampleStore:
     def __init__(self) -> None:
         self._training_samples_by_model_id: dict[int, list[ObservedTrainingSample]] = {}
 
+    def clear_model_training_samples(self) -> None:
+        """全モデルの標本を空にする。取得済みsnapshotの構造は変更しない。"""
+        self._training_samples_by_model_id = {}
+
     def append_model_training_samples(
         self, *, model_id: int, training_samples: tuple[ObservedTrainingSample, ...]
     ) -> None:

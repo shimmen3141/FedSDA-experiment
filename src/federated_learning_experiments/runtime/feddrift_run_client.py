@@ -4,7 +4,8 @@ from copy import deepcopy
 from dataclasses import dataclass
 from random import Random
 
-from torch import Tensor, float32, tensor
+from torch import Tensor, float32, manual_seed, random, tensor
+from torch.nn import Linear
 
 from federated_learning_experiments.data.observed_streams import ObservedSample
 from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore
@@ -248,6 +249,7 @@ def assemble_feddrift_run_client(
     run_client_settings: FeddriftRunClientSettings,
     python_random_generator: Random,
     initial_model_count: int = 1,
+    run_random_seed: int = 0,
 ) -> FeddriftRunClient:
     """入力検査後だけ分類器/optimizerを同時に写し、同じownerへ接続する。"""
     if type(client_id) is not int or client_id < 0:
@@ -255,6 +257,8 @@ def assemble_feddrift_run_client(
     if type(run_client_settings) is not FeddriftRunClientSettings:
         raise TypeError("client設定はexact FeddriftRunClientSettingsが必要です。")
     run_client_settings.__post_init__()
+    if type(run_random_seed) is not int or run_random_seed < 0:
+        raise ValueError("runのseedは非負builtin intが必要です。")
     if type(initial_model_count) is not int or initial_model_count < 1:
         raise ValueError("初期モデル数は正のbuiltin intが必要です。")
     if (
@@ -287,17 +291,27 @@ def assemble_feddrift_run_client(
         for class_id, _ in statistics.class_loss_moments_by_class_id
     ):
         raise ValueError("初期統計のクラスIDが分類器の範囲を超えています。")
-    classifier, optimizer_state = deepcopy((initial_classifier, initial_parameter_optimizer_state))
     registry = HeldModelTrainingStateRegistry()
-    registry.register_held_model_training_state(
-        model_id=0,
-        classifier=classifier,
-        concept_specific_parameter_optimizer_state=optimizer_state,
-    )
-    for model_id in range(1, initial_model_count):
+    for model_id in range(initial_model_count):
         copied_classifier, copied_optimizer = deepcopy(
             (initial_classifier, initial_parameter_optimizer_state)
         )
+        initialization = run_client_settings.cluster_model_initialization
+        if initialization == "all_random" or (
+            initialization == "pretrained_cluster0" and model_id != 0
+        ):
+            # CPU分類器だけを初期化する。runのtorch/Python/NumPy乱数を消費しない。
+            with random.fork_rng(devices=[]):
+                manual_seed((run_random_seed * 1_000_003 + model_id + 1) % (2**63))
+                for module in copied_classifier.modules():
+                    if isinstance(module, Linear):
+                        module.reset_parameters()
+            for parameter in copied_classifier.parameters():
+                parameter.grad = None
+            copied_optimizer = ParameterOptimizerState(
+                parameters=tuple(copied_classifier.parameters()),
+                optimizer_settings=run_client_settings.new_model_optimizer_settings,
+            )
         registry.register_held_model_training_state(
             model_id=model_id,
             classifier=copied_classifier,
@@ -348,5 +362,6 @@ def assemble_feddrift_run_client(
             detection_batch_processor=processor,
             detection_batch_sample_count=run_client_settings.detection_batch_sample_count,
             model_assignment_policy=run_client_settings.model_assignment_policy,
+            training_sample_window=run_client_settings.training_sample_window,
         ),
     )

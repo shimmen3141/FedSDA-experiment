@@ -123,6 +123,9 @@ class FeddriftRunServer:
         self._true_concept_assignment = (
             run_clients[0]._settings.model_assignment_policy == "true_concept_assignment"
         )
+        self._fixed_model_pool = (
+            run_clients[0]._settings.model_assignment_policy != "detection_batch_assignment"
+        )
         if any(
             client._settings.model_assignment_policy
             != run_clients[0]._settings.model_assignment_policy
@@ -130,9 +133,9 @@ class FeddriftRunServer:
         ):
             raise ValueError("全clientの割当方式を一致させてください。")
         initial_model_count = (
-            len(run_clients[0].get_held_model_ids()) if self._true_concept_assignment else 1
+            len(run_clients[0].get_held_model_ids()) if self._fixed_model_pool else 1
         )
-        if self._true_concept_assignment and any(
+        if self._fixed_model_pool and any(
             client.get_held_model_ids() != set(range(initial_model_count)) for client in run_clients
         ):
             raise ValueError("Oracleの全clientに0から連続する同じモデルIDが必要です。")
@@ -142,6 +145,11 @@ class FeddriftRunServer:
             initial_loss_statistics=statistics,
             initial_model_count=initial_model_count,
         )
+        if self._fixed_model_pool:
+            for mid, parameters in _client_parameters(run_clients[0]).items():
+                self.global_model_repository.set_global_model_parameters(
+                    model_id=mid, parameter_snapshot=parameters
+                )
         self.communication_volume_record_store = CommunicationVolumeRecordStore()
         self.cross_evaluation_record_store = CrossEvaluationRecordStore()
         self.model_clustering_record_store = ModelClusteringRecordStore()
@@ -738,7 +746,7 @@ class FeddriftRunServer:
         self.communication_volume_record_store.record_messages(
             transfer_direction="upload", message_count=len(self.run_clients)
         )
-        if self._true_concept_assignment:
+        if self._fixed_model_pool:
             return
         mature = tuple(mid for mid in ids if timestep_index >= self._isolation_until.get(mid, 0))
         if len(mature) > 1:

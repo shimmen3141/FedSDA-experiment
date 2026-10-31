@@ -133,7 +133,34 @@ def derive_feddrift_run_metrics(
             sample.__post_init__()
         transitions = client.stream_processor.completed_detection_batch_transitions
         oracle_assignment = client._settings.model_assignment_policy == "true_concept_assignment"
-        expected_batch_count = 0 if oracle_assignment else run_result.synchronization_interval_count
+        detection_assignment = (
+            client._settings.model_assignment_policy == "detection_batch_assignment"
+        )
+        cluster_assignment = (
+            client._settings.model_assignment_policy == "minimum_loss_cluster_assignment"
+        )
+        selections = client.detection_batch_processor._cluster_selections
+        if cluster_assignment:
+            model_ids = tuple(sorted(client.get_held_model_ids()))
+            if len(selections) != run_result.synchronization_interval_count:
+                raise ValueError("クラスタの選択記録と同期件数が対応していません。")
+            for timestep, (first, last, selected, losses) in enumerate(selections):
+                if (first, last) != (timestep * chunk, (timestep + 1) * chunk - 1):
+                    raise ValueError("クラスタ選択の標本範囲が対応していません。")
+                if type(selected) is not int or selected not in model_ids:
+                    raise ValueError("選択されたモデルが保有IDと対応していません。")
+                if timestep == 0:
+                    if selected != 0 or losses != ():
+                        raise ValueError("最初の時刻は比較せずID 0へ割り当ててください。")
+                elif (
+                    tuple(mid for mid, _ in losses) != model_ids
+                    or any(type(value) is not float or not 0 <= value <= 1 for _, value in losses)
+                    or selected != min(losses, key=lambda item: (item[1], item[0]))[0]
+                ):
+                    raise ValueError("クラスタ選択が平均有界損失の最小値と対応していません。")
+        expected_batch_count = (
+            run_result.synchronization_interval_count if detection_assignment else 0
+        )
         if len(transitions) != expected_batch_count:
             raise ValueError("検出batch記録と同期件数が対応していません。")
         for round_index, transition in enumerate(transitions):
@@ -157,11 +184,15 @@ def derive_feddrift_run_metrics(
                 raise ValueError("予測の位置/観測/概念が対応していません。")
             expected_transition = (
                 transitions[index // chunk]
-                if not oracle_assignment and (index + 1) % chunk == 0
+                if detection_assignment and (index + 1) % chunk == 0
                 else None
             )
             if prediction.detection_batch_transition != expected_transition:
                 raise ValueError("予測に付加された検出結果がbatch記録と対応していません。")
+            if cluster_assignment and prediction.prediction_model_id != (
+                selections[index // chunk - 1][2] if index >= chunk else 0
+            ):
+                raise ValueError("予測モデルと直前の時刻のクラスタ選択が対応していません。")
             if oracle_assignment and (
                 prediction.training_model_id != prediction.observed_concept_id
                 or prediction.prediction_model_id

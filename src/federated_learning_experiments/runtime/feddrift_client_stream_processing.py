@@ -73,15 +73,26 @@ class FeddriftClientStreamProcessor:
         detection_batch_processor: FeddriftDetectionBatchProcessor,
         detection_batch_sample_count: int,
         model_assignment_policy: str = "detection_batch_assignment",
+        training_sample_window: str = "all_timesteps",
     ) -> None:
         if type(detection_batch_processor) is not FeddriftDetectionBatchProcessor:
             raise TypeError("バッチ処理はexact FeddriftDetectionBatchProcessorが必要です。")
         if type(detection_batch_sample_count) is not int or detection_batch_sample_count < 1:
             raise ValueError("検出件数は正のbuiltin intが必要です。")
         self._processor = detection_batch_processor
-        if model_assignment_policy not in ("detection_batch_assignment", "true_concept_assignment"):
+        if model_assignment_policy not in (
+            "detection_batch_assignment",
+            "true_concept_assignment",
+            "minimum_loss_cluster_assignment",
+        ):
             raise ValueError("未対応の割当方式です。")
         self._true_concept_assignment = model_assignment_policy == "true_concept_assignment"
+        self._minimum_loss_cluster_assignment = (
+            model_assignment_policy == "minimum_loss_cluster_assignment"
+        )
+        if training_sample_window not in ("all_timesteps", "current_timestep"):
+            raise ValueError("未対応の学習窓です。")
+        self._current_timestep_window = training_sample_window == "current_timestep"
         self._indexed_buffer: list[IndexedObservedTrainingSample] = []
         self._current_timestep_assigned_model_ids: set[int] = set()
         self._batch_size = detection_batch_sample_count
@@ -185,6 +196,14 @@ class FeddriftClientStreamProcessor:
     def flush_detection_buffer(self) -> FeddriftDetectionBatchTransition | None:
         """残りを一度処理し、既存予測記録へは結果を付加しない。"""
         if not self._buffer:
+            return None
+        if self._minimum_loss_cluster_assignment:
+            self._processor._assign_minimum_loss_cluster_samples(
+                training_samples=tuple(self._buffer),
+                processed_sample_count=self._processed_count,
+                current_timestep_window=self._current_timestep_window,
+            )
+            self._buffer.clear()
             return None
         if self._true_concept_assignment:
             self._processor._assign_true_concept_samples(tuple(self._indexed_buffer))

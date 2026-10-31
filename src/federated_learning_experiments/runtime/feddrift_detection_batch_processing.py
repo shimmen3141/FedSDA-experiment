@@ -177,6 +177,47 @@ class FeddriftDetectionBatchProcessor:
         self._criterion = model_comparison_criterion
         self._parameter_source = new_model_parameter_source
         self._reference_after_drift = detection_reference_after_drift
+        self._cluster_selections: list[tuple[int, int, int, tuple[tuple[int, float], ...]]] = []
+
+    def _assign_minimum_loss_cluster_samples(
+        self,
+        *,
+        training_samples: tuple[ObservedTrainingSample, ...],
+        processed_sample_count: int,
+        current_timestep_window: bool,
+    ) -> None:
+        states = self._validate_batch(
+            training_samples=training_samples, processed_sample_count=processed_sample_count
+        )
+        losses: tuple[tuple[int, float], ...] = ()
+        selected = 0
+        if self._cluster_selections:
+            assessment = assess_feddrift_detection_batch(
+                held_models=tuple(
+                    (s.model_id, s.classifier) for s in sorted(states, key=lambda s: s.model_id)
+                ),
+                input_features=cat([s.input_features for s in training_samples]),
+                observed_class_labels=cat([s.observed_class_labels for s in training_samples]),
+                previous_minimum_mean_bounded_loss=None,
+                loss_increase_threshold=self._threshold,
+            )
+            losses = assessment.model_mean_bounded_losses
+            selected = assessment.minimum_loss_model_id
+        # 比較が成功してから、同じ標本ownerの窓と割当を更新する。
+        if current_timestep_window:
+            self._training_samples.clear_model_training_samples()
+        self._training_samples.append_model_training_samples(
+            model_id=selected, training_samples=training_samples
+        )
+        self._assignment.assign_model_for_training(model_id=selected)
+        self._cluster_selections.append(
+            (
+                processed_sample_count - len(training_samples),
+                processed_sample_count - 1,
+                selected,
+                losses,
+            )
+        )
 
     @property
     def previous_minimum_mean_bounded_loss(self) -> float | None:

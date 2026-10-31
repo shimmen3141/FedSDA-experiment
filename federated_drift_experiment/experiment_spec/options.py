@@ -487,12 +487,31 @@ OPTIONS = (
     ),
     OptionSpec(
         "feddrift_model_assignment_policy", "FedDriftのモデルへの帰属", "adaptation",
-        ("detection_batch_assignment", "true_concept_assignment"),
+        ("detection_batch_assignment", "true_concept_assignment", "minimum_loss_cluster_assignment"),
         "新APIのFeddriftRunClientSettings.model_assignment_policy。既定は検出バッチの帰属。"
         "真概念の帰属は初期Kモデルへ標本ごとに振り分け、直前のラベルの概念で予測する。"
-        "旧CLIでは切り替えず、新APIの構成feddrift-oracle-concept-assignmentで指定する。",
+        "最小損失の帰属は最初の時刻はID 0、以後はバッチの平均有界損失が最小のモデルを選ぶ。"
+        "旧CLIでは切り替えず、新APIのOracle・IFCA構成で指定する。",
         (FED_DRIFT,), (FED_DRIFT,),
         requires_capabilities=("multiple_models",),
+        active_when=(ActivationRule("method", (FED_DRIFT,), "FedDriftだけで有効"),),
+        configuration_surface="config",
+    ),
+    OptionSpec(
+        "feddrift_training_sample_window", "FedDriftの学習標本の窓", "training",
+        ("all_timesteps", "current_timestep"),
+        "新APIのFeddriftRunClientSettings.training_sample_window。既定は全時刻。"
+        "IFCA+Windowは、全モデルの標本を空にして今の時刻のバッチだけを選択モデルに追加する。",
+        (FED_DRIFT,), (FED_DRIFT,),
+        active_when=(ActivationRule("method", (FED_DRIFT,), "FedDriftだけで有効"),),
+        configuration_surface="config",
+    ),
+    OptionSpec(
+        "feddrift_cluster_model_initialization", "FedDriftのクラスタモデルの初期化", "training",
+        ("all_pretrained", "all_random", "pretrained_cluster0"),
+        "新APIのFeddriftRunClientSettings.cluster_model_initialization。既定は全モデルを事前学習から複写。"
+        "IFCAの全乱数初期化、またはID 0だけ共通の事前学習モデルを使う初期化。",
+        (FED_DRIFT,), (FED_DRIFT,),
         active_when=(ActivationRule("method", (FED_DRIFT,), "FedDriftだけで有効"),),
         configuration_surface="config",
     ),
@@ -540,6 +559,22 @@ OPTIONS = (
 )
 
 CHOICE_CONSTRAINTS = (
+    ChoiceConstraint(
+        "feddrift_model_assignment_policy", ("minimum_loss_cluster_assignment",), (FED_DRIFT,),
+        requires_selections=(
+            ActivationRule("feddrift_training_sample_window", ("current_timestep",), "1時刻の窓が必要"),
+            ActivationRule("feddrift_cluster_model_initialization", ("all_random", "pretrained_cluster0"), "クラスタごとの初期化が必要"),
+        ),
+        note="IFCA+Windowの2構成は1時刻1roundで選択する新API専用の設定",
+    ),
+    ChoiceConstraint(
+        "feddrift_training_sample_window", ("current_timestep",), (FED_DRIFT,),
+        requires_selections=(ActivationRule("feddrift_model_assignment_policy", ("minimum_loss_cluster_assignment",), "IFCAの帰属が必要"),),
+    ),
+    ChoiceConstraint(
+        "feddrift_cluster_model_initialization", ("all_random", "pretrained_cluster0"), (FED_DRIFT,),
+        requires_selections=(ActivationRule("feddrift_model_assignment_policy", ("minimum_loss_cluster_assignment",), "IFCAの帰属が必要"),),
+    ),
     ChoiceConstraint(
         "clustering_consolidation",
         ("parameter_share", "noninferiority_merge"),
