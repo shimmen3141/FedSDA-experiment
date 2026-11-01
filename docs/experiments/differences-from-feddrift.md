@@ -65,3 +65,31 @@
 基準版1〜13は、有界損失・判定前の現在モデルからの複写・複写したモデルの値を基準値にする扱い・学習標本を持つ全保有モデルの学習・前の集約時点の統合重みを明示する。評価clientの上限は3、通常の閾値は0.1（経路確認の`feddrift-drift-tail`だけ0.03という既存条件を維持）。旧goldenは変更しない。新旧の項目を混ぜたrun設定と、新方式のW≠1は拒否する。
 
 基準版14のgoldenの生成・配置、FedSDA・FedAvgが版13と同じ値になることの最終確認は主担当が行う。生成前のコードと、生成・確認済みのgoldenは区別する。
+
+## WindowとAdaptive-FedAvgの2構成
+
+`feddrift-window`と`feddrift-adaptive-fedavg-window`は、全clientで共通の事前学習モデルの写し1個（ID 0）を使い、
+全標本をそのモデルへ帰属させる。真の概念IDは帰属には使わない。検出・モデルの作成・クラスタリング・統合はしない。
+学習前に標本の集合を空にし、その時刻のバッチだけで学習する（IFCAと同じ窓1時刻）。
+標本数で重みづけた平均で集約する。学習対象・件数の条件・バッチ32・更新予算・1時刻1round・
+配布時のoptimizerの作り直し・割当IDの報告1通/clientはFedDriftの規則（D04・D05・D08・D11）へ接続する。
+
+WindowはFedDriftと同じAdam（AMSGrad、weight decay 0.001）とデータ別の学習率を使う。
+合成データでは0.01、MNIST/Fashion-MNISTとそれらの回転データでは0.001。
+Adaptive-FedAvgは局所学習だけをSGD（momentum 0、weight decay 0）にする。事前学習の初期値と乱数系列は共通。
+サーバは各時刻の集約後、state_dictの順に全値（bufferを含む）を平らに連結したfloat64ベクトルから、
+公式`FedAvgEnsDataLoader.AdaState`の式で次の時刻の学習率を決める。初期学習率は0.01、
+3つの移動平均の係数は全て0.5。式の集約回数は1始まりで、時刻番号（0始まり）に1を足した値。
+非有限の推定値は例外で止める。学習率はモデルと一緒に送るスカラー1個で、通信量へ追加しない。
+
+公式の`win-1_iter`は、時刻ごとに複数roundあるうち`round_idx == comm_round - 5`の集約後の値で、
+その時刻のiteration番号を渡して1回だけ学習率を更新する。手元も更新頻度と回数の数え方は同じだが、
+1時刻1roundの唯一の集約後の値に置き換える。最後から5つ目を選ぶ意図は公式コードと論文には記載されていない。
+2構成とも単一モデルと窓1時刻は論文に準じるが、逐次評価（D12）、共通の事前学習モデル（D06）、
+局所学習のバッチ・更新予算・round数（D04・D05・D11）が異なる。
+Adaptive-FedAvgの初期学習率はデータ×間隔ごとに選ぶ（論文はデータごと）。
+候補は論文付録の0.1・0.01・0.001・0.0001に固定し、端が選ばれても広げない。
+
+保存形式は版5。Adaptive-FedAvgだけ`adaptive_learning_rate`表を持ち、列は`timestep_index`、
+`aggregation_count`、`variance_ratio`（分散の比）、`smoothed_ratio`（補正済みの比の移動平均）、
+`learning_rate_for_next_timestep`。Windowと既存構成の表と列は変えない。

@@ -262,7 +262,8 @@ def assemble_feddrift_run_client(
     if type(initial_model_count) is not int or initial_model_count < 1:
         raise ValueError("初期モデル数は正のbuiltin intが必要です。")
     if (
-        run_client_settings.model_assignment_policy == "detection_batch_assignment"
+        run_client_settings.model_assignment_policy
+        in ("detection_batch_assignment", "single_global_model_assignment")
         and initial_model_count != 1
     ):
         raise ValueError("検出バッチの帰属では初期モデルは1つです。")
@@ -311,6 +312,13 @@ def assemble_feddrift_run_client(
             copied_optimizer = ParameterOptimizerState(
                 parameters=tuple(copied_classifier.parameters()),
                 optimizer_settings=run_client_settings.new_model_optimizer_settings,
+            )
+        if run_client_settings.adaptive_learning_rate_settings is not None:
+            copied_optimizer = ParameterOptimizerState(
+                parameters=tuple(copied_classifier.parameters()),
+                optimizer_settings=SgdParameterOptimizerSettings(
+                    learning_rate=run_client_settings.adaptive_learning_rate_settings.initial_learning_rate
+                ),
             )
         registry.register_held_model_training_state(
             model_id=model_id,

@@ -11,6 +11,9 @@ from federated_learning_experiments.configuration.experiment_run_conditions impo
 from federated_learning_experiments.core.settings_serialization import (
     convert_settings_to_plain_mapping,
 )
+from federated_learning_experiments.methods.feddrift.adaptive_fedavg_learning_rate import (
+    AdaptiveFedavgLearningRateSettings,
+)
 from federated_learning_experiments.runtime.fedavg_run_settings import FedavgRunSettings
 from federated_learning_experiments.runtime.feddrift_run_settings import FeddriftRunSettings
 from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
@@ -50,6 +53,7 @@ class ExperimentSweepPlan:
     per_client_sample_count: int
     server_aggregation_intervals_per_client_samples: tuple[int, ...]
     feddrift_loss_increase_thresholds: tuple[float, ...] | None = None
+    adaptive_fedavg_initial_learning_rates: tuple[float, ...] | None = None
     # FedSDAの構成の、帰属の保留（FIFO）の容量（標本数）。Fixed-Shareの時間尺度は替えない。
     fedsda_pending_assignment_fifo_capacities: tuple[int, ...] | None = None
     # FedSDAの構成の、Fixed-Shareの時間尺度T（標本数）。混ぜる予測の重みの分け合いの割合も1/Tになる。
@@ -79,6 +83,18 @@ class ExperimentSweepPlan:
         for count_name in ("client_count", "per_client_sample_count"):
             if type(getattr(self, count_name)) is not int:
                 raise TypeError(f"{count_name} must be builtin int")
+        if self.adaptive_fedavg_initial_learning_rates is not None:
+            _validate_distinct_values(
+                values=self.adaptive_fedavg_initial_learning_rates,
+                value_type=float,
+                field_name="adaptive_fedavg_initial_learning_rates",
+            )
+            if "feddrift-adaptive-fedavg-window" not in self.configuration_names:
+                raise ValueError(
+                    "adaptive_fedavg_initial_learning_rates requires feddrift-adaptive-fedavg-window configuration"
+                )
+            for rate in self.adaptive_fedavg_initial_learning_rates:
+                AdaptiveFedavgLearningRateSettings(initial_learning_rate=rate)
         if self.feddrift_loss_increase_thresholds is not None:
             _validate_distinct_values(
                 values=self.feddrift_loss_increase_thresholds,
@@ -238,7 +254,32 @@ def build_planned_experiment_runs(
                             ),
                         ),
                     )
-                    if type(run_settings) is FeddriftRunSettings:
+                    if (
+                        type(run_settings) is FeddriftRunSettings
+                        and configuration_name == "feddrift-adaptive-fedavg-window"
+                    ):
+                        participant = run_settings.run_participant_settings
+                        settings_variants = tuple(
+                            replace(
+                                run_settings,
+                                run_participant_settings=replace(
+                                    participant,
+                                    run_client_settings=replace(
+                                        participant.run_client_settings,
+                                        adaptive_learning_rate_settings=AdaptiveFedavgLearningRateSettings(
+                                            initial_learning_rate=rate
+                                        ),
+                                    ),
+                                ),
+                            )
+                            for rate in (
+                                sweep_plan.adaptive_fedavg_initial_learning_rates or (0.01,)
+                            )
+                        )
+                    elif (
+                        type(run_settings) is FeddriftRunSettings
+                        and configuration_name != "feddrift-window"
+                    ):
                         participant = run_settings.run_participant_settings
                         settings_variants = tuple(
                             replace(

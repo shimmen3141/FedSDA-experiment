@@ -42,7 +42,7 @@
 - 新しいtest`tests/refactoring/test_feddrift_window_and_adaptive_fedavg_configuration.py`。
 - 部品のtest（要求4.2）: 公式の`AdaState`（`__init__`と`update`、`current_lr`）をtestの中にそのまま写した参照の実装と、移植の部品を、(i) 固定のseedの乱数の列（$P=7$、$T=30$）、(ii) 途中で $\theta$ が大きく跳ぶ列（変化を模す）、(iii) 一定の $\theta$ の列（$\hat s$ が0になる場合を含む）、(iv) $\eta_0$ を0.1と0.001、で照合し、各 $t$ の $\eta$ が相対誤差 $10^{-12}$ 以内で一致することを確かめる。
 - 構成のtest（要求4.1）: 2構成の一覧、Windowの設定が`feddrift`から割り当ての方式と学習の窓だけ違うこと、Adaptive-FedAvgの設定がWindowから学習率の調整の設定だけ違うこと、組立て、`CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN`、依存境界の登録。掃引のオプションの検査（構成を含まないときの例外、非正・非有限の拒否、runの識別子が $\eta_0$ で変わること、既定の $\eta_0$ が保存設定から省かれること）。
-- 小さい全体run（要求4.3）: 2構成それぞれで、SINE2とMNIST4、間隔50、seed 0、10 client、各client 2500標本に固定し、(a) 少なくとも1つのclientでコンセプトが変わる、(b) Adaptive-FedAvgでは、各時刻の各clientの学習の直前のoptimizerがSGD（momentum 0、weight decay 0）で、学習率が、最初の時刻は $\eta_0$、以後は前の時刻にサーバが記録した $\eta$ に等しい。Windowでは、optimizerが`feddrift`の既定のAdamで学習率が0.001のまま、(c) Adaptive-FedAvgでは、記録した $\eta$ の列が、そのrunで観測した各時刻の集約後のパラメータを参照の実装に入れた値と一致する、(d) 学習の直前のモデルの学習の標本が、その時刻の標本だけ、(e) 各clientの保有モデルIDが毎時刻 $\{0\}$、サーバの時刻ごとのモデル数が1、登録の記録が最初の1個だけ、統合の記録が0件、を確かめる。条件(a)を満たさなければ標本数を5000に増やして固定し、Implementation Notesに書く。Adaptive-FedAvgの $\eta$ の最小・最大と、変化の後に $\eta$ が上がった時刻の数を報告する（要求ではない）。
+- 小さい全体run（要求4.3）: 2構成それぞれで、SINE2とMNIST4、間隔50、seed 0、10 client、各client 2500標本に固定し、(a) 少なくとも1つのclientでコンセプトが変わる、(b) Adaptive-FedAvgでは、各時刻の各clientの学習の直前のoptimizerがSGD（momentum 0、weight decay 0）で、学習率が、最初の時刻は $\eta_0$、以後は前の時刻にサーバが記録した $\eta$ に等しい。Windowでは、optimizerが`feddrift`の既定のAdamで、学習率がそのデータの`feddrift`の既定のまま、(c) Adaptive-FedAvgでは、記録した $\eta$ の列が、そのrunで観測した各時刻の集約後のパラメータを参照の実装に入れた値と一致する、(d) 学習の直前のモデルの学習の標本が、その時刻の標本だけ、(e) 各clientの保有モデルIDが毎時刻 $\{0\}$、サーバの時刻ごとのモデル数が1、登録の記録が最初の1個だけ、統合の記録が0件、を確かめる。条件(a)を満たさなければ標本数を5000に増やして固定し、Implementation Notesに書く。Adaptive-FedAvgの $\eta$ の最小・最大と、変化の後に $\eta$ が上がった時刻の数を報告する（要求ではない）。
 - 構成・掃引・識別子・依存境界のtest、FedDrift・Oracle・IFCAのtest、基準版1〜16のgoldenの照合（Windows）、Ruff・Pyright。全pytestは主担当が流す。
 
 ## 調整（要求5.2）
@@ -59,3 +59,4 @@
 
 ## 仕様レビューの経緯
 - 1回目（GPT-6 Luna、effort medium）FAIL。式・時刻の対応・2構成の定義・既存の構造への接続は整合と判定。Major 2: (1) 公式の`win-1_iter`の更新の時点（最後から5つ目のround）と、手元のround数1の対応の説明が足りない——「論文・公式の実装との違い」の(d)に、更新の頻度と $t$ の数え方は同じで、使う集約の時点だけを置き換えることを書いた。(2) 本規模のseed数と比べる相手の結果が特定されていない——seed 0〜9の理由と、比べる相手の結果のフォルダを書いた。Minor 2: 記録の列と式の $t$ の対応、格子の端を広げない理由と結果の書き方——反映。処理・契約を変えない文面と計画の記述の修正なので、再レビューは省く（2026-10-10の決定）。
+- 実装の後（2026-11-01）: 要求2.1・Validationの(b)にWindowの学習率を「0.001」と書いていたが、`feddrift`の既定の学習率はデータごとに違う（SINE2は0.01、MNIST4は0.001）。実装担当は「`feddrift`の既定のまま」の要求に従い、既存の値を保った。文面を直した。処理を変えない文面の修正。

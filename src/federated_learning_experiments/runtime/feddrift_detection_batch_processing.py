@@ -179,6 +179,20 @@ class FeddriftDetectionBatchProcessor:
         self._reference_after_drift = detection_reference_after_drift
         self._cluster_selections: list[tuple[int, int, int, tuple[tuple[int, float], ...]]] = []
 
+    def _assign_single_global_model_samples(
+        self, *, training_samples: tuple[ObservedTrainingSample, ...], processed_sample_count: int
+    ) -> None:
+        states = self._validate_batch(
+            training_samples=training_samples, processed_sample_count=processed_sample_count
+        )
+        if len(states) != 1 or states[0].model_id != 0:
+            raise ValueError("単一のモデルID 0が必要です。")
+        self._training_samples.clear_model_training_samples()
+        self._training_samples.append_model_training_samples(
+            model_id=0, training_samples=training_samples
+        )
+        self._assignment.assign_model_for_training(model_id=0)
+
     def _assign_minimum_loss_cluster_samples(
         self,
         *,

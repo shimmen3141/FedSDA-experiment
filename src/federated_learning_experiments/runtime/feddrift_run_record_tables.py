@@ -76,6 +76,24 @@ def build_feddrift_run_record_tables(
     run_clients = participants.run_clients
     run_server = participants.run_server
     record_tables: dict[str, ndarray] = {}
+    adaptive_state = run_server._adaptive_learning_rate_state
+    if adaptive_state is not None:
+        records = adaptive_state.snapshot_records()
+        if len(records) != run_result.synchronization_interval_count:
+            raise ValueError("学習率の記録と同期件数が対応していません。")
+        for column in (
+            "timestep_index",
+            "aggregation_count",
+            "variance_ratio",
+            "smoothed_ratio",
+            "learning_rate_for_next_timestep",
+        ):
+            values = [getattr(record, column) for record in records]
+            record_tables[f"adaptive_learning_rate.{column}"] = (
+                _integer_column(values)
+                if column in ("timestep_index", "aggregation_count")
+                else _float_column(values)
+            )
     client_count = len(run_clients)
     processed = run_result.processed_sample_count_per_client
     predictions = [client.stream_processor.sample_predictions for client in run_clients]

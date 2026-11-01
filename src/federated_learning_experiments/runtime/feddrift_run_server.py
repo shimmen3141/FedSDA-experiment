@@ -1,7 +1,9 @@
 """FedDriftの時刻準備とR回の学習同期。"""
 
+from copy import deepcopy
 from random import Random
 
+import numpy as np
 from torch import Tensor, cat, isfinite
 
 from federated_learning_experiments.evaluation.communication_volume_record_store import (
@@ -45,6 +47,12 @@ from federated_learning_experiments.learning.training.independent_model_paramete
 )
 from federated_learning_experiments.learning.training.model_training_sample_records import (
     ObservedTrainingSample,
+)
+from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
+    SgdParameterOptimizerSettings,
+)
+from federated_learning_experiments.methods.feddrift.adaptive_fedavg_learning_rate import (
+    AdaptiveFedavgLearningRateState,
 )
 from federated_learning_experiments.methods.feddrift.cached_model_cluster_consolidation import (
     average_feddrift_cached_cluster_parameters,
@@ -150,6 +158,16 @@ class FeddriftRunServer:
                 self.global_model_repository.set_global_model_parameters(
                     model_id=mid, parameter_snapshot=parameters
                 )
+        adaptive_settings = run_clients[0]._settings.adaptive_learning_rate_settings
+        if any(
+            c._settings.adaptive_learning_rate_settings != adaptive_settings for c in run_clients
+        ):
+            raise ValueError("全clientの学習率の調整の設定を一致させてください。")
+        self._adaptive_learning_rate_state = (
+            AdaptiveFedavgLearningRateState(settings=adaptive_settings)
+            if adaptive_settings is not None
+            else None
+        )
         self.communication_volume_record_store = CommunicationVolumeRecordStore()
         self.cross_evaluation_record_store = CrossEvaluationRecordStore()
         self.model_clustering_record_store = ModelClusteringRecordStore()
@@ -408,6 +426,21 @@ class FeddriftRunServer:
             current = client.owners.current_training_model_assignment.current_training_model_id
             if current >= 0 and current not in planned_parameters:
                 raise ValueError("配布後の現在モデルが存在しません。")
+        adaptive_state = self._adaptive_learning_rate_state
+        distribution_optimizer_settings = self._settings.rebuilt_model_optimizer_settings
+        if adaptive_state is not None and update_model_weights:
+            adaptive_state = deepcopy(adaptive_state)
+            record = adaptive_state.update(
+                aggregated_parameters=np.concatenate(
+                    [
+                        value.detach().cpu().numpy().astype(np.float64).reshape(-1)
+                        for value in planned_parameters[0].values()
+                    ]
+                )
+            )
+            distribution_optimizer_settings = SgdParameterOptimizerSettings(
+                learning_rate=record.learning_rate_for_next_timestep
+            )
         for parameters in uploads:
             self._record_parameter_transfer("upload", parameters, 1)
         for mid, parameters in planned_parameters.items():
@@ -436,10 +469,11 @@ class FeddriftRunServer:
                 model_id_mapping={},
                 model_parameters_by_model_id=planned_parameters,
                 server_loss_statistics=tuple(planned_statistics.items()),
-                rebuilt_model_optimizer_settings=self._settings.rebuilt_model_optimizer_settings,
+                rebuilt_model_optimizer_settings=distribution_optimizer_settings,
                 preserved_model_ids=preserved_ids,
             )
 
+        self._adaptive_learning_rate_state = adaptive_state
         self._aggregation_parameter_multiply_accumulate_count += sum(
             value.numel() for parameters in uploads for value in parameters.values()
         )

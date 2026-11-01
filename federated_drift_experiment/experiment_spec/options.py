@@ -487,11 +487,12 @@ OPTIONS = (
     ),
     OptionSpec(
         "feddrift_model_assignment_policy", "FedDriftのモデルへの帰属", "adaptation",
-        ("detection_batch_assignment", "true_concept_assignment", "minimum_loss_cluster_assignment"),
+        ("detection_batch_assignment", "true_concept_assignment", "minimum_loss_cluster_assignment", "single_global_model_assignment"),
         "新APIのFeddriftRunClientSettings.model_assignment_policy。既定は検出バッチの帰属。"
         "真概念の帰属は初期Kモデルへ標本ごとに振り分け、直前のラベルの概念で予測する。"
         "最小損失の帰属は最初の時刻はID 0、以後はバッチの平均有界損失が最小のモデルを選ぶ。"
-        "旧CLIでは切り替えず、新APIのOracle・IFCA構成で指定する。",
+        "単一モデルの帰属は全標本をID 0へ割り当てる。"
+        "旧CLIでは切り替えず、新APIのOracle・IFCA・Window構成で指定する。",
         (FED_DRIFT,), (FED_DRIFT,),
         requires_capabilities=("multiple_models",),
         active_when=(ActivationRule("method", (FED_DRIFT,), "FedDriftだけで有効"),),
@@ -501,7 +502,7 @@ OPTIONS = (
         "feddrift_training_sample_window", "FedDriftの学習標本の窓", "training",
         ("all_timesteps", "current_timestep"),
         "新APIのFeddriftRunClientSettings.training_sample_window。既定は全時刻。"
-        "IFCA+Windowは、全モデルの標本を空にして今の時刻のバッチだけを選択モデルに追加する。",
+        "IFCA+Windowと単一モデルのWindowは、全モデルの標本を空にして今の時刻のバッチだけを選択モデルに追加する。",
         (FED_DRIFT,), (FED_DRIFT,),
         active_when=(ActivationRule("method", (FED_DRIFT,), "FedDriftだけで有効"),),
         configuration_surface="config",
@@ -514,6 +515,21 @@ OPTIONS = (
         (FED_DRIFT,), (FED_DRIFT,),
         active_when=(ActivationRule("method", (FED_DRIFT,), "FedDriftだけで有効"),),
         configuration_surface="config",
+    ),
+    OptionSpec(
+        "feddrift_adaptive_learning_rate", "FedDriftの学習率の調整", "training",
+        ("fixed", "adaptive_fedavg"), "新APIのadaptive_learning_rate_settings。既定None（fixed）。adaptive_fedavgはSGDと公式AdaStateを使う。",
+        (FED_DRIFT,), (FED_DRIFT,), active_when=(ActivationRule("method", (FED_DRIFT,), "FedDriftだけで有効"),), configuration_surface="config",
+    ),
+    OptionSpec(
+        "adaptive_fedavg_initial_learning_rate", "Adaptive-FedAvgの初期学習率", "training",
+        ("positive number",), "新APIのadaptive_learning_rate_settings.initial_learning_rate。既定0.01、有限で正。",
+        (FED_DRIFT,), (FED_DRIFT,), active_when=(ActivationRule("feddrift_adaptive_learning_rate", ("adaptive_fedavg",), "学習率の調整のときだけ"),), configuration_surface="config",
+    ),
+    OptionSpec(
+        "adaptive_fedavg_beta", "Adaptive-FedAvgの移動平均の係数", "training",
+        ("0.5",), "beta1・beta2・beta3はいずれも公式と同じ0.5に固定。",
+        (FED_DRIFT,), (FED_DRIFT,), active_when=(ActivationRule("feddrift_adaptive_learning_rate", ("adaptive_fedavg",), "学習率の調整のときだけ"),), configuration_surface="config",
     ),
     OptionSpec(
         "feddrift_distance_threshold", "FedDrift距離閾値 δ_FedDrift",
@@ -559,6 +575,11 @@ OPTIONS = (
 )
 
 CHOICE_CONSTRAINTS = (
+    ChoiceConstraint("feddrift_model_assignment_policy", ("single_global_model_assignment",), (FED_DRIFT,), requires_selections=(
+        ActivationRule("feddrift_training_sample_window", ("current_timestep",), "単一モデルには1時刻の窓が必要"),
+        ActivationRule("feddrift_cluster_model_initialization", ("all_pretrained",), "共通の事前学習モデルが必要"),
+    )),
+    ChoiceConstraint("feddrift_adaptive_learning_rate", ("adaptive_fedavg",), (FED_DRIFT,), requires_selections=(ActivationRule("feddrift_model_assignment_policy", ("single_global_model_assignment",), "単一モデル専用"),)),
     ChoiceConstraint(
         "feddrift_model_assignment_policy", ("minimum_loss_cluster_assignment",), (FED_DRIFT,),
         requires_selections=(
@@ -569,7 +590,7 @@ CHOICE_CONSTRAINTS = (
     ),
     ChoiceConstraint(
         "feddrift_training_sample_window", ("current_timestep",), (FED_DRIFT,),
-        requires_selections=(ActivationRule("feddrift_model_assignment_policy", ("minimum_loss_cluster_assignment",), "IFCAの帰属が必要"),),
+        requires_selections=(ActivationRule("feddrift_model_assignment_policy", ("minimum_loss_cluster_assignment", "single_global_model_assignment"), "IFCAまたは単一モデルの帰属が必要"),),
     ),
     ChoiceConstraint(
         "feddrift_cluster_model_initialization", ("all_random", "pretrained_cluster0"), (FED_DRIFT,),

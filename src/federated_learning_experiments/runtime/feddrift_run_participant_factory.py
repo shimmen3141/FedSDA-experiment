@@ -78,7 +78,8 @@ class FeddriftRunParticipantSettings:
         if client.model_assignment_policy != "detection_batch_assignment" and not all(policies):
             raise ValueError("Oracleは現在のFedDriftの学習・集約規則と組み合わせてください。")
         if (
-            client.model_assignment_policy == "minimum_loss_cluster_assignment"
+            client.model_assignment_policy
+            in ("minimum_loss_cluster_assignment", "single_global_model_assignment")
             and server.local_training_round_count != 1
         ):
             raise ValueError("IFCA+Windowの選択は1時刻1roundだけに対応します。")
@@ -203,7 +204,7 @@ class FeddriftRunParticipantFactory:
                 initial_model_count=(
                     definition.concept_count
                     if settings.run_client_settings.model_assignment_policy
-                    != "detection_batch_assignment"
+                    in ("true_concept_assignment", "minimum_loss_cluster_assignment")
                     else 1
                 ),
                 run_random_seed=experiment_run_conditions.random_seed,

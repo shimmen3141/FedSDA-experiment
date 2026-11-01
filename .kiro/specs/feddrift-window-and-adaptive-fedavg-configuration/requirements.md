@@ -20,7 +20,7 @@
 
 ### Requirement 2: Windowの学習
 #### Acceptance Criteria
-1. The system shall `feddrift-window`の局所の学習のoptimizerと学習率を、FedDriftの構成`feddrift`の既定（Adam、AMSGrad、学習率0.001、weight decay 0.001）のままにする（FedDriftの論文の付録で、Adaptive-FedAvg以外の手法は同じ学習率を使う）。
+1. The system shall `feddrift-window`の局所の学習のoptimizerと学習率を、FedDriftの構成`feddrift`の既定（Adam、AMSGrad、weight decay 0.001、学習率はデータごとの既定。SINE2は0.01、MNIST4は0.001など）のままにする（FedDriftの論文の付録で、Adaptive-FedAvg以外の手法は同じ学習率を使う）。
 
 ### Requirement 3: Adaptive-FedAvgの学習率
 #### Acceptance Criteria

@@ -159,6 +159,14 @@ def _build_argument_parser() -> ArgumentParser:
         help="サーバの集約の間隔（clientあたりの標本数）",
     )
     argument_parser.add_argument(
+        "--adaptive-fedavg-initial-learning-rates",
+        nargs="+",
+        type=float,
+        default=None,
+        metavar="RATE",
+        help="Adaptive-FedAvgの初期学習率（正で有限、省略時0.01）",
+    )
+    argument_parser.add_argument(
         "--feddrift-loss-increase-thresholds",
         nargs="+",
         type=float,
@@ -239,6 +247,11 @@ def _build_sweep_plan(parsed_arguments: Namespace) -> ExperimentSweepPlan:
         per_client_sample_count=parsed_arguments.per_client_sample_count,
         server_aggregation_intervals_per_client_samples=tuple(
             parsed_arguments.aggregation_intervals
+        ),
+        adaptive_fedavg_initial_learning_rates=(
+            tuple(parsed_arguments.adaptive_fedavg_initial_learning_rates)
+            if parsed_arguments.adaptive_fedavg_initial_learning_rates is not None
+            else None
         ),
         feddrift_loss_increase_thresholds=(
             tuple(parsed_arguments.feddrift_loss_increase_thresholds)

@@ -7,6 +7,9 @@ from federated_learning_experiments.learning.training.parameter_optimizer_settin
     AdamParameterOptimizerSettings,
     SgdParameterOptimizerSettings,
 )
+from federated_learning_experiments.methods.feddrift.adaptive_fedavg_learning_rate import (
+    AdaptiveFedavgLearningRateSettings,
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -33,7 +36,17 @@ class FeddriftRunClientSettings:
         default="all_pretrained", metadata={"omit_default_from_saved_settings": True}
     )
 
+    adaptive_learning_rate_settings: AdaptiveFedavgLearningRateSettings | None = field(
+        default=None, metadata={"omit_default_from_saved_settings": True}
+    )
+
     def __post_init__(self) -> None:
+        if self.adaptive_learning_rate_settings is not None:
+            if type(self.adaptive_learning_rate_settings) is not AdaptiveFedavgLearningRateSettings:
+                raise TypeError("exact AdaptiveFedavgLearningRateSettingsが必要です。")
+            self.adaptive_learning_rate_settings.__post_init__()
+            if self.model_assignment_policy != "single_global_model_assignment":
+                raise ValueError("学習率の調整は単一モデルの構成専用です。")
         for name, choices in (
             (
                 "model_assignment_policy",
@@ -41,6 +54,7 @@ class FeddriftRunClientSettings:
                     "detection_batch_assignment",
                     "true_concept_assignment",
                     "minimum_loss_cluster_assignment",
+                    "single_global_model_assignment",
                 ),
             ),
             ("training_sample_window", ("all_timesteps", "current_timestep")),
@@ -69,6 +83,12 @@ class FeddriftRunClientSettings:
                 or self.cluster_model_initialization == "all_pretrained"
             ):
                 raise ValueError("IFCA+Windowには1時刻の窓とクラスタごとの初期化が必要です。")
+        elif self.model_assignment_policy == "single_global_model_assignment":
+            if (
+                self.training_sample_window != "current_timestep"
+                or self.cluster_model_initialization != "all_pretrained"
+            ):
+                raise ValueError("単一モデルには1時刻の窓と事前学習の初期化が必要です。")
         elif (
             self.training_sample_window != "all_timesteps"
             or self.cluster_model_initialization != "all_pretrained"

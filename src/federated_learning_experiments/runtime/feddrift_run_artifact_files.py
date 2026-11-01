@@ -33,8 +33,9 @@ from federated_learning_experiments.runtime.feddrift_run_record_tables import (
 # 版3: Oracleの標本ごとの学習先sample_prediction.training_model_idを追加した。
 # 列は真概念で割り当てる構成だけが持つ。既存構成の表は変更しない。
 # 版4: IFCA構成だけのcluster_selection表を追加。既存構成の表は変更しない。
-RUN_ARTIFACT_FORMAT_VERSION = 4
-_READABLE_RUN_ARTIFACT_FORMAT_VERSIONS = (1, 2, 3, 4)
+# 版5: Adaptive-FedAvg構成だけのadaptive_learning_rate表を追加。
+RUN_ARTIFACT_FORMAT_VERSION = 5
+_READABLE_RUN_ARTIFACT_FORMAT_VERSIONS = (1, 2, 3, 4, 5)
 _SUMMARY_FILE_SUFFIX = ".json"
 _RECORD_TABLE_FILE_SUFFIX = ".npz"
 

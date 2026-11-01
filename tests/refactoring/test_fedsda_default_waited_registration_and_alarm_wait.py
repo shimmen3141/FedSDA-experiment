@@ -60,7 +60,8 @@ def test_sweep_command_arguments_are_only_extended_by_the_artifact_organization(
     """既定の変更で、実験のコマンドの引数は変えない（要求1.4）。後のspec（experiment-artifact-organization）で、
     `--study`・`--purpose`が、fedsda-pending-assignment-fifo-capacity-axisで`--fedsda-pending-assignment-fifo-capacities`が、
     fedsda-fixed-share-time-scale-axisで`--fedsda-fixed-share-time-scales`が、
-    experiment-sweep-resumptionで`--new-output`が増えた
+    experiment-sweep-resumptionで`--new-output`が、
+    feddrift-window-and-adaptive-fedavg-configurationで`--adaptive-fedavg-initial-learning-rates`が増えた
     （held-model-training-sample-recencyで足した`--fedsda-training-sample-selections`は、2026-10-15に外した）。"""
     argument_parser = _build_argument_parser()
     assert sorted(
@@ -68,6 +69,7 @@ def test_sweep_command_arguments_are_only_extended_by_the_artifact_organization(
         for action in argument_parser._actions
         for option_string in action.option_strings
     ) == [
+        "--adaptive-fedavg-initial-learning-rates",
         "--aggregation-intervals",
         "--client-count",
         "--configurations",

@@ -15,6 +15,7 @@ class ParameterSpec:
     paper_symbol: str
     cli_name: str | None
     methods: tuple[str, ...]
+    configuration_surface: str = "config"
 
     @property
     def csv_name(self):
@@ -25,6 +26,22 @@ class ParameterSpec:
 
 
 PARAMETERS = (
+    ParameterSpec(
+        id="adaptive_fedavg_initial_learning_rate",
+        code_name="adaptive_learning_rate_settings.initial_learning_rate",
+        paper_symbol="η_0",
+        cli_name="adaptive-fedavg-initial-learning-rates",
+        methods=("FedDrift",),
+        configuration_surface="typed_settings",
+    ),
+    ParameterSpec(
+        id="adaptive_fedavg_beta",
+        code_name="adaptive_learning_rate_settings.beta1/beta2/beta3",
+        paper_symbol="β_1=β_2=β_3",
+        cli_name=None,
+        methods=("FedDrift",),
+        configuration_surface="typed_settings",
+    ),
     ParameterSpec(
         id="aggregation_interval",
         code_name="AGGREGATION_INTERVAL",

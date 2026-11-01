@@ -84,8 +84,12 @@ class FeddriftClientStreamProcessor:
             "detection_batch_assignment",
             "true_concept_assignment",
             "minimum_loss_cluster_assignment",
+            "single_global_model_assignment",
         ):
             raise ValueError("未対応の割当方式です。")
+        self._single_global_model_assignment = (
+            model_assignment_policy == "single_global_model_assignment"
+        )
         self._true_concept_assignment = model_assignment_policy == "true_concept_assignment"
         self._minimum_loss_cluster_assignment = (
             model_assignment_policy == "minimum_loss_cluster_assignment"
@@ -196,6 +200,12 @@ class FeddriftClientStreamProcessor:
     def flush_detection_buffer(self) -> FeddriftDetectionBatchTransition | None:
         """残りを一度処理し、既存予測記録へは結果を付加しない。"""
         if not self._buffer:
+            return None
+        if self._single_global_model_assignment:
+            self._processor._assign_single_global_model_samples(
+                training_samples=tuple(self._buffer), processed_sample_count=self._processed_count
+            )
+            self._buffer.clear()
             return None
         if self._minimum_loss_cluster_assignment:
             self._processor._assign_minimum_loss_cluster_samples(

@@ -1,3 +1,8 @@
+from dataclasses import fields
+
+from federated_learning_experiments.methods.feddrift.adaptive_fedavg_learning_rate import (
+    AdaptiveFedavgLearningRateSettings,
+)
 from federated_drift_experiment.experiment_spec.parameters import (
     PARAMETERS,
     PARAMETER_SCHEMA_VERSION,
@@ -14,7 +19,21 @@ def test_parameter_schema_has_unique_stable_identifiers():
     exposed_cli_names = [item.cli_name for item in PARAMETERS if item.cli_name]
     assert len(set(exposed_cli_names)) == len(exposed_cli_names)
     assert all(item.csv_name == item.id for item in PARAMETERS)
-    assert all(hasattr(config, item.code_name) for item in PARAMETERS)
+    assert all(
+        hasattr(config, item.code_name)
+        for item in PARAMETERS if item.configuration_surface == "config"
+    )
+    typed_names = {field.name for field in fields(AdaptiveFedavgLearningRateSettings)}
+    typed_parameters = [
+        item for item in PARAMETERS if item.configuration_surface == "typed_settings"
+    ]
+    assert {item.id for item in typed_parameters} == {
+        "adaptive_fedavg_initial_learning_rate", "adaptive_fedavg_beta",
+    }
+    for item in typed_parameters:
+        assert item.code_name.startswith("adaptive_learning_rate_settings.")
+        assert set(item.code_name.split(".", 1)[1].split("/")) <= typed_names
+    assert all(item.configuration_surface in ("config", "typed_settings") for item in PARAMETERS)
 
 
 def test_parameter_schema_maps_code_csv_paper_and_cli_names():
