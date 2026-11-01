@@ -50,5 +50,5 @@
 ### 本規模の結果（2026-11-02、主担当）
 - `results/method-comparison-oracle-v16/20261101_194246_oracle-seeds0-9`（uranium、commit `cc921198`、基準版16）。400 run完了・失敗0。集計は主担当のscratchpadの`oracle_compare.py`（Git管理外）。比べる相手は論文の表1と同じ結果（新しい4データのFedDriftは、調整したδの本評価が届くまで既定のδで仮に比べた）。
 - Oracle−FedDrift: 40セルすべてでOracleが上（+1.46〜+37.38pp、平均+6.25）。
-- FedHASP−Oracle: −2.78〜+1.30pp、平均−0.72。FedHASPが上のセルは13/40（MNIST2の間隔50〜200、MNIST4の全間隔、fmnist2の間隔50・100、fmnist4の間隔50〜200。うち10 seed中8以上で上が12セル）。Oracleが大きく上はSEA2・SEA4（2.1〜2.8pp）、CIRCLE2・rotmnist4の間隔500（2.1〜2.2pp）。
+- FedHASP−Oracle: −2.78〜+1.30pp、平均−0.72。FedHASPが上のセルは13/40（SINE2の間隔200（+0.04、10 seed中5）、MNIST2の間隔50〜200、MNIST4の全間隔、fmnist2の間隔50・100、fmnist4の間隔50〜200。うち10 seed中8以上で上が12セル）。Oracleが大きく上はSEA2・SEA4（2.1〜2.8pp）、CIRCLE2・rotmnist4の間隔500（2.1〜2.2pp）。
 - 通信のOracle/FedHASPは0.74〜2.96（SINE2・CIRCLE2は1未満、4コンセプトの画像データは約2.8〜3.0）。clientのMACのOracle/FedHASPは0.49〜1.46。
