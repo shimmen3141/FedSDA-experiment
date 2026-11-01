@@ -28,7 +28,7 @@
 
 ## 本規模の条件
 
-- 10データ（SINE2、CIRCLE2、SEA2、SEA4、MNIST2、MNIST4、fmnist2、fmnist4、rotmnist2、rotmnist4）×集約間隔50・500×seed 0〜9、10 client×5000標本。3変種で600 run。研究室サーバ（uranium、64 workers）。`product-default`も同じ実行で流す。
+- 10データ（SINE2、CIRCLE2、SEA2、SEA4、MNIST2、MNIST4、fmnist2、fmnist4、rotmnist2、rotmnist4）×集約間隔50・500×seed 0〜9、10 client×5000標本。3変種（`product-default`、`product-default-oracle-change-alarm`、`product-default-oracle-concept-assignment`）で600 run。研究ツールにある4つ目の変種`product-default-oracle-delayed-change-alarm-50`（警報を真の変化の50標本目へ遅らせるもの）は流さない。研究室サーバ（uranium、64 workers）。`product-default`も同じ実行で流す。作業3の分析は、この3変種がそろうことを確かめ、ほかの変種の結果が混じっていれば止める。
 
 ## 主担当の集計（FedDriftを土台にしたOracleとの比較、作業5）
 
@@ -42,4 +42,4 @@
 
 ## レビューの経緯（記録）
 
-- 計画レビュー（GPT-6 Luna、effort medium）1回目FAIL（3変種の分析、検査、「上限」の表現）、2回目FAIL（分析の作業項目、区間5の保証、データの経路、説明の限定）、3回目FAIL（作業の記述の食い違い、帰属先の規則の記述、FedDriftとの比較の担当、分析の検査）。3回目の後に、この文書を1本の正本に書き直した（追記の重ね書きをやめた）。
+- 計画レビュー（GPT-6 Luna、effort medium）1回目FAIL（3変種の分析、検査、「上限」の表現）、2回目FAIL（分析の作業項目、区間5の保証、データの経路、説明の限定）、3回目FAIL（作業の記述の食い違い、帰属先の規則の記述、FedDriftとの比較の担当、分析の検査）。3回目の後に、この文書を1本の正本に書き直した（追記の重ね書きをやめた）。4回目FAIL（Major 2: 流す変種と実行数の書き方——4つ目の変種を流さないことと分析での確認を書いた。「上限」と呼ばないこと——計画に既に書いてあり、レビューも妥当と判定。変更なし）。処理・計画の中身を変えない文面の修正なので、再レビューは省いて計画を確定する（2026-10-10の決定）。
