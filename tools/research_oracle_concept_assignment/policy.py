@@ -3,6 +3,7 @@
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, replace
 from itertools import combinations
+from math import isfinite
 from unittest.mock import patch
 
 ORACLE_VARIANT = "product-default-oracle-concept-assignment"
@@ -22,6 +23,30 @@ ALARM_SAMPLE_COUNT_AFTER_CHANGE = {
     ORACLE_DELAYED_CHANGE_ALARM_VARIANT: 50,
 }
 VARIANTS = ("product-default", *ORACLE_VARIANTS)
+
+
+def _validate_pending_change_interval(*, pending_sample_observations, change_sample_index):
+    if len(pending_sample_observations) < 5:
+        raise ValueError("Oracleの帰属の保留は5件以上必要です")
+    if change_sample_index is None or tuple(
+        sample.sample_index for sample in pending_sample_observations[-5:]
+    ) != tuple(range(change_sample_index, change_sample_index + 5)):
+        raise ValueError("Oracleの保留の末尾5件が真の変化の5件と一致しません")
+
+
+def _validate_new_model_interval_dictionaries(*, lengths, names):
+    from federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection import (
+        REINITIALIZED_LEARNER_NAME,
+        WARM_STARTED_LEARNER_NAME,
+    )
+
+    if set(lengths) != set(names) or 5 not in lengths:
+        raise ValueError("Oracleの符号長・学習者の辞書は同じキーと区間5が必要です")
+    # 学習者名は文字列なので、有限性の代わりに製品で宣言された名前を確認する。
+    if not isinstance(lengths[5], (int, float)) or not isfinite(lengths[5]):
+        raise ValueError("Oracleの区間5の符号長は有限でなければなりません")
+    if names[5] not in (REINITIALIZED_LEARNER_NAME, WARM_STARTED_LEARNER_NAME):
+        raise ValueError("Oracleの区間5の学習者名が不正です")
 
 
 def _unique_majority(counts):
@@ -89,12 +114,8 @@ def oracle_concept_assignment_policy(*, variant, diagnostics):
         yield
         return
 
-    from federated_learning_experiments.runtime import (
-        alarm_interval_minimum_description_length_selection as selection,
-        fedsda_run_client,
-        model_clustering_and_consolidation as consolidation,
-        observed_sample_processing as processing,
-        server_round_synchronization,
+    from federated_learning_experiments.learning.training.model_training_and_assignment_counts import (
+        ModelTrainingAndAssignmentCountsStore,
     )
     from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
         OverallAndTrueClassLossMonitor,
@@ -102,8 +123,18 @@ def oracle_concept_assignment_policy(*, variant, diagnostics):
     from federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection import (
         MinimumDescriptionLengthAssignmentSelection,
     )
-    from federated_learning_experiments.learning.training.model_training_and_assignment_counts import (
-        ModelTrainingAndAssignmentCountsStore,
+    from federated_learning_experiments.runtime import (
+        alarm_interval_minimum_description_length_selection as selection,
+    )
+    from federated_learning_experiments.runtime import (
+        fedsda_run_client,
+        server_round_synchronization,
+    )
+    from federated_learning_experiments.runtime import (
+        model_clustering_and_consolidation as consolidation,
+    )
+    from federated_learning_experiments.runtime import (
+        observed_sample_processing as processing,
     )
 
     diagnostics.update(
@@ -116,6 +147,8 @@ def oracle_concept_assignment_policy(*, variant, diagnostics):
         processed_sample_count=0,
         mixed_assignment_count=0,
         consolidations=[],
+        interval_validation_count=0,
+        learner_code_length_evaluations=[],
     )
     change_alarms = {}
     assignment_stores = {}
@@ -182,6 +215,10 @@ def oracle_concept_assignment_policy(*, variant, diagnostics):
 
         def select(**selection_arguments):
             nonlocal selected_interval
+            _validate_pending_change_interval(
+                pending_sample_observations=selection_arguments["pending_sample_observations"],
+                change_sample_index=alarm.change_sample_index,
+            )
             selected_interval = selection_arguments["pending_sample_observations"][-5:]
             concept_id = observation.observed_concept_id
             store = arguments["model_training_and_assignment_counts_store"]
@@ -199,6 +236,15 @@ def oracle_concept_assignment_policy(*, variant, diagnostics):
             )
 
             def compare(**comparison_arguments):
+                _validate_new_model_interval_dictionaries(
+                    lengths=comparison_arguments[
+                        "new_model_code_lengths_by_change_interval_sample_count"
+                    ],
+                    names=comparison_arguments[
+                        "new_model_learner_names_by_change_interval_sample_count"
+                    ],
+                )
+                diagnostics["interval_validation_count"] += 1
                 compare_original(**comparison_arguments)
                 hypothesis = (
                     "new_model"
@@ -242,9 +288,24 @@ def oracle_concept_assignment_policy(*, variant, diagnostics):
                 )
                 return result
 
+            select_learner_original = selection.select_new_model_learner
+            learner_lengths_recorded = False
+
+            def select_learner(**learner_arguments):
+                nonlocal learner_lengths_recorded
+                values = learner_arguments["prequential_code_lengths_by_learner_name"]
+                # 製品の列挙は最小区間5から始まる。診断はその1件だけ保存し、
+                # ほかの区間でも元の計算をそのまま呼ぶ。
+                if not learner_lengths_recorded:
+                    diagnostics["learner_code_length_evaluations"].append(
+                        dict(**event, code_lengths=dict(values))
+                    )
+                    learner_lengths_recorded = True
+                return select_learner_original(**learner_arguments)
+
             with patch.object(
                 selection, "select_assignment_by_minimum_description_length", compare
-            ):
+            ), patch.object(selection, "select_new_model_learner", select_learner):
                 return select_original(**selection_arguments)
 
         with ExitStack() as stack:

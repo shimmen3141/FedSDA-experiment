@@ -1,6 +1,7 @@
 """同じ条件の対を集計し、変種ごとの集計（例: analysis_oracle_concept_assignment.{md,json}）へ保存する。"""
 
 import argparse
+import csv
 import json
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -8,6 +9,7 @@ from pathlib import Path
 import numpy as np
 
 from tools.experiments.accuracy_periods import main as accuracy_periods_main
+from tools.research_feddrift_delta_comparison import _t_critical_95
 from tools.research_loss_monitor_rebaseline_metrics import _collect, _table, run_metrics
 from tools.research_oracle_concept_assignment.policy import (
     ALARM_SAMPLE_COUNT_AFTER_CHANGE,
@@ -29,6 +31,252 @@ _ANALYSIS_NAMES = {
         "analysis_accuracy_periods_oracle_delayed_change_alarm_50",
     ),
 }
+
+_THREE_VARIANTS = ("product-default", ORACLE_CHANGE_ALARM_VARIANT, ORACLE_VARIANT)
+_PAIRS = (
+    (ORACLE_VARIANT, "product-default"),
+    (ORACLE_CHANGE_ALARM_VARIANT, "product-default"),
+    (ORACLE_VARIANT, ORACLE_CHANGE_ALARM_VARIANT),
+)
+
+
+def _post_change_accuracies(concepts, correct, interval):
+    """変化した標本を含むI標本の和集合。初期の概念の開始は変化に含めない。"""
+    mask = np.zeros(concepts.shape, dtype=bool)
+    for client, row in enumerate(concepts):
+        for start in np.flatnonzero(row[1:] != row[:-1]) + 1:
+            mask[client, start : start + interval] = True
+    valid = correct >= 0
+    return {
+        name: float(correct[selected & valid].mean()) if (selected & valid).any() else None
+        for name, selected in (("post_change_accuracy", mask), ("other_accuracy", ~mask))
+    }
+
+
+def _read_three_variant_run(path, directory, variant, key):
+    summary = json.loads(path.with_suffix(".json").read_text(encoding="utf-8"))
+    conditions = summary["run_settings"]["execution_settings"]["experiment_run_conditions"]
+    identity = tuple(
+        conditions[name]
+        for name in (
+            "dataset_name",
+            "server_aggregation_interval_per_client_samples",
+            "random_seed",
+            "client_count",
+            "per_client_sample_count",
+        )
+    )
+    if identity[:3] != key:
+        raise ValueError(f"runの入力と対応のキーが一致しません: {path}")
+    record = json.loads(
+        (directory / "oracle_concept_assignment_diagnostics" / f"{path.stem}.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    if record["variant"] != variant:
+        raise ValueError(f"別の変種の記録が混入しています: {path}")
+    metrics = _read_run(path, directory / "oracle_concept_assignment_diagnostics")
+    with np.load(path, allow_pickle=False) as raw:
+        concepts = raw["sample_prediction.observed_concept_id"].copy()
+        labels = raw["sample_prediction.observed_class_id"].copy()
+        correct = raw["sample_prediction.combined_prediction_is_correct"]
+        if (
+            concepts.shape != identity[3:]
+            or correct.shape != concepts.shape
+            or labels.shape != concepts.shape
+        ):
+            raise ValueError(f"入力のclient数・標本数とrawの形が一致しません: {path}")
+        metrics.update(_post_change_accuracies(concepts, correct, key[1]))
+    standard = metrics["standard_metrics"]
+    communication = standard["communication_volume"]
+    computation = standard["computation_cost_summary"]
+    metrics.update(
+        new_model_adoptions=metrics["adaptation_outcomes"].get(
+            "alarm_interval_candidate_adopted_as_new_model", 0
+        ),
+        uploaded_bytes=communication["uploaded_byte_count"],
+        downloaded_bytes=communication["downloaded_byte_count"],
+        client_forward_mac=computation["client_forward_multiply_accumulate_count"],
+        client_backward_mac=computation["client_estimated_backward_multiply_accumulate_count"],
+        server_mac=computation["server_multiply_accumulate_count"],
+    )
+    return identity, concepts, labels, metrics
+
+
+def _summarize_three_variant_rows(rows, *, include_overall=True):
+    cells = defaultdict(list)
+    for row in rows:
+        cells[(row["dataset"], row["interval"])].append(row)
+    summaries = []
+    metrics = (
+        "accuracy_a",
+        "post_change_accuracy",
+        "other_accuracy",
+        "new_model_adoptions",
+        "uploaded_bytes",
+        "downloaded_bytes",
+        "client_forward_mac",
+        "client_backward_mac",
+        "server_mac",
+        "elapsed_seconds",
+    )
+    for (dataset, interval), items in sorted(cells.items()):
+        for variant in _THREE_VARIANTS:
+            for metric in metrics:
+                values = [row[variant][metric] for row in items]
+                scale = 100 if "accuracy" in metric else 1
+                available = all(value is not None for value in values)
+                mean = float(np.mean(values)) * scale if available else None
+                sd = (
+                    float(np.std(values, ddof=1)) * scale if available and len(values) > 1 else None
+                )
+                summaries.append(
+                    dict(
+                        dataset=dataset,
+                        interval=interval,
+                        kind="variant",
+                        name=variant,
+                        metric=metric,
+                        seed_count=len(items),
+                        mean=mean,
+                        sd=sd,
+                        ci_low=None,
+                        ci_high=None,
+                        wins=None,
+                        losses=None,
+                        ties=None,
+                    )
+                )
+        for left, right in _PAIRS:
+            differences = np.asarray(
+                [100 * (row[left]["accuracy_a"] - row[right]["accuracy_a"]) for row in items]
+            )
+            mean = float(differences.mean())
+            sd = float(differences.std(ddof=1)) if len(items) > 1 else None
+            half = (
+                float(_t_critical_95(len(items) - 1) * sd / np.sqrt(len(items)))
+                if sd is not None
+                else None
+            )
+            summaries.append(
+                dict(
+                    dataset=dataset,
+                    interval=interval,
+                    kind="paired_difference",
+                    name=f"{left} - {right}",
+                    metric="accuracy_difference_pp",
+                    seed_count=len(items),
+                    mean=mean,
+                    sd=sd,
+                    ci_low=mean - half if half is not None else None,
+                    ci_high=mean + half if half is not None else None,
+                    wins=int((differences > 0).sum()),
+                    losses=int((differences < 0).sum()),
+                    ties=int((differences == 0).sum()),
+                )
+            )
+    if include_overall:
+        # 同じseedのセル平均を先に作る。セル間を独立な反復とみなさず、
+        # 対応seed間のSD・t区間・勝敗を算出する。平均はセルの等重みと一致する。
+        overall_rows = []
+        for seed in sorted({row["seed"] for row in rows}):
+            items = [row for row in rows if row["seed"] == seed]
+            overall = dict(dataset="all", interval="all", seed=seed)
+            for variant in _THREE_VARIANTS:
+                overall[variant] = {}
+                for metric in metrics:
+                    values = [row[variant][metric] for row in items]
+                    overall[variant][metric] = (
+                        float(np.mean(values))
+                        if all(value is not None for value in values)
+                        else None
+                    )
+            overall_rows.append(overall)
+        summaries.extend(_summarize_three_variant_rows(overall_rows, include_overall=False))
+    return summaries
+
+
+def analyze_three_variants(root, *, expected_cells=20, expected_seeds=10):
+    """基準版16の3変種を対応付け、セル別の記述統計と対応差を保存する。"""
+    root = Path(root)
+    if expected_cells < 1 or expected_seeds < 1:
+        raise ValueError("セル数・seed数は正の整数にしてください")
+    # 指定外の変種は、既知の4番目だけでなく、記録やrawを持つディレクトリも拒否する。
+    for directory in root.iterdir():
+        if (
+            directory.is_dir()
+            and directory.name not in _THREE_VARIANTS
+            and (
+                any(directory.rglob("*.npz"))
+                or any(directory.rglob("oracle_concept_assignment_variant.json"))
+            )
+        ):
+            raise ValueError(f"指定外の変種が混入しています: {directory}")
+    paths = {variant: _collect([root / variant]) for variant in _THREE_VARIANTS}
+    reference_keys = set(paths["product-default"])
+    if not reference_keys or any(set(value) != reference_keys for value in paths.values()):
+        raise ValueError("3変種の対応するrunが欠けています")
+    cells = {(key[0], key[1]) for key in reference_keys}
+    seeds = {key[2] for key in reference_keys}
+    if (
+        len(cells) != expected_cells
+        or len(seeds) != expected_seeds
+        or reference_keys
+        != {(dataset, interval, seed) for dataset, interval in cells for seed in seeds}
+    ):
+        raise ValueError("セル数・seed数またはセルごとのseedの組が一致しません")
+    rows = []
+    for key in sorted(reference_keys):
+        row = dict(dataset=key[0], interval=key[1], seed=key[2])
+        reference = None
+        for variant in _THREE_VARIANTS:
+            identity, concepts, labels, metrics = _read_three_variant_run(
+                Path(paths[variant][key]), root / variant, variant, key
+            )
+            if reference is not None and (
+                identity != reference[0]
+                or not np.array_equal(concepts, reference[1])
+                or not np.array_equal(labels, reference[2])
+            ):
+                raise ValueError(f"対応するrunの入力が一致しません: {key}")
+            reference = identity, concepts, labels
+            row[variant] = metrics
+        rows.append(row)
+    summaries = _summarize_three_variant_rows(rows)
+    output = root / "analysis_three_variants"
+    with output.with_suffix(".csv").open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(summaries[0]))
+        writer.writeheader()
+        writer.writerows(summaries)
+    lines = [
+        "# FedHASP基準版16のOracle診断（3変種）",
+        "",
+        "精度は%、対応差はpp。SDはseed間の標本標準偏差（ddof=1）、95% CIは対応差のt区間。",
+        "直後は真の変化の標本から集約間隔I標本の和集合。初期概念の開始は含めない。",
+        "全体(all)は各seed内でセルを等重みで平均し、そのseed間のSD・対応差のCI・勝敗を算出。対象なしはN/A。",
+        "通信はbyte/run、MACは製品の計数（概念参照・Python診断は含まない）、経過秒は診断・保存を含む。",
+        "Oracleは決めた規則の診断であり精度の上限ではない。費用は性能比較の対象にしない。",
+        "",
+        "|データ|間隔|変種/対応差|指標|seed数|平均±SD|95% CI|勝/負/同|",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+
+    def fmt(value):
+        return "N/A" if value is None else f"{value:.6f}"
+
+    for row in summaries:
+        outcomes = (
+            "N/A" if row["wins"] is None else f"{row['wins']}/{row['losses']}/{row['ties']}"
+        )
+        lines.append(
+            f"|{row['dataset']}|{row['interval']}|{row['name']}|{row['metric']}|"
+            f"{row['seed_count']}|{fmt(row['mean'])} ± {fmt(row['sd'])}|"
+            f"[{fmt(row['ci_low'])}, {fmt(row['ci_high'])}]|"
+            f"{outcomes}|"
+        )
+    report = "\n".join(lines) + "\n"
+    output.with_suffix(".md").write_text(report, encoding="utf-8")
+    return report
 
 
 def _read_run(path, diagnostics_directory, *, alarm_sample_count=5):
@@ -147,7 +395,7 @@ def analyze(root, *, expected_pairs=16, variant=ORACLE_VARIANT):
         cells[(row["dataset"], row["interval"])].append(row)
     for (dataset, interval), items in sorted(cells.items()):
 
-        def mean(arm, key):
+        def mean(arm, key, items=items):
             return float(np.mean([row[arm][key] for row in items]))
 
         values = [mean(arm, f"accuracy_{column}") * 100 for column in "abc" for arm in roots]
@@ -209,7 +457,7 @@ def analyze(root, *, expected_pairs=16, variant=ORACLE_VARIANT):
     for (dataset, interval), items in sorted(cells.items()):
         for arm in roots:
 
-            def total(key):
+            def total(key, arm=arm, items=items):
                 return sum(row[arm][key] for row in items)
 
             selections = Counter()
@@ -269,7 +517,14 @@ def main(command_arguments=None):
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--expected-pairs", type=int, default=16)
     parser.add_argument("--variant", choices=ORACLE_VARIANTS, default=ORACLE_VARIANT)
+    parser.add_argument("--three-variants", action="store_true")
+    parser.add_argument("--expected-cells", type=int, default=20)
+    parser.add_argument("--expected-seeds", type=int, default=10)
     arguments = parser.parse_args(command_arguments)
+    if arguments.three_variants:
+        print(analyze_three_variants(arguments.root, expected_cells=arguments.expected_cells,
+                                     expected_seeds=arguments.expected_seeds))
+        return 0
     print(
         analyze(
             arguments.root,

@@ -1,4 +1,9 @@
-"""基準版13の既定と、真の概念で帰属・統合を決める診断の掃引入口。"""
+"""FedHASP基準版16の固い割り当てを真の概念に合わせる診断の掃引入口。
+
+MNIST・回転MNISTはFDE_MNIST_DATA_DIR、Fashion-MNISTは
+FDE_FASHION_MNIST_DATA_DIR（未指定ならdata/fashion-mnist）から読む。
+Oracleは決めた規則の診断であり、精度の上限ではない。
+"""
 
 import argparse
 import json
@@ -21,16 +26,18 @@ sys.path.insert(0, str(_REPOSITORY_ROOT / "src"))
 from federated_learning_experiments.sweep import (  # noqa: E402
     experiment_sweep_execution,
 )
-from tools.research_oracle_concept_assignment.policy import (
-    VARIANTS as _VARIANTS,
-    oracle_concept_assignment_policy,
-)
-from tools.research_loss_monitor_rebaseline import (
+from tools.research_loss_monitor_rebaseline import (  # noqa: E402
     _provenance,
     _read_json,
-    _write_json,
     _sweep_arguments,
+    _write_json,
     compare_run_artifacts,
+)
+from tools.research_oracle_concept_assignment.policy import (  # noqa: E402
+    VARIANTS as _VARIANTS,
+)
+from tools.research_oracle_concept_assignment.policy import (  # noqa: E402
+    oracle_concept_assignment_policy,
 )
 
 _VARIANT_ENVIRONMENT_VARIABLE = "FDE_ORACLE_CONCEPT_ASSIGNMENT_VARIANT"
@@ -141,7 +148,7 @@ def _run_parser():
     parser.add_argument("--variants", nargs="+", choices=_VARIANTS, required=True)
     parser.add_argument("--workers", type=int, required=True)
     parser.add_argument("--pending-assignment-fifo-capacity", type=int)
-    parser.add_argument("--purpose", default="IMPROVE-030の概念を分けたときの天井の診断")
+    parser.add_argument("--purpose", default="FedHASP基準版16の固い割り当てを真の概念に合わせた診断")
     parser.add_argument("--print-plan", action="store_true")
     return parser
 
