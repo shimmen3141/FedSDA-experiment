@@ -1,0 +1,44 @@
+{
+  "feature_name": "feddrift-window-and-adaptive-fedavg-configuration",
+  "created_at": "2026-11-01T00:00:00Z",
+  "updated_at": "2026-11-01",
+  "language": "ja",
+  "phase": "implementation",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー1回目（GPT-6 Luna medium）の指摘（文面と計画の記述）を反映"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー1回目（GPT-6 Luna medium）の指摘（文面と計画の記述）を反映"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー1回目（GPT-6 Luna medium）の指摘（文面と計画の記述）を反映"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": null,
+      "approved_revision": null,
+      "approved_sha256_lf": null,
+      "approved_by": "ユーザー委任、独立レビュー1回目（GPT-6 Luna medium）の指摘（文面と計画の記述）を反映"
+    }
+  },
+  "ready_for_implementation": true,
+  "base_revision": "cc921198",
+  "implementation_assignment": "実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・testの実行・レビューの起動・本規模のコマンドと集計",
+  "specification_review": {
+    "status": "passed_after_wording_fix",
+    "rounds": [
+      {
+        "round": 1,
+        "result": "FAIL（Major 2: 公式の更新の時点との対応の説明、本規模のseedと比べる相手の特定。Minor 2）——文面を反映。再レビューは省く（2026-10-10の決定）"
+      }
+    ]
+  }
+}
