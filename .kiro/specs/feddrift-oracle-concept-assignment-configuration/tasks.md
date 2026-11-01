@@ -8,7 +8,7 @@
   - 要求3.1の文書。実装レビュー（独立CLI）と、関係するtestの結果をImplementation Notesに記録する。runtimeを変えるので、全pytestも主担当が流す。
   - _Requirements: 3.1_
   - _Depends:_ 1
-- [ ] 3. 本規模の実行と集計
+- [x] 3. 本規模の実行と集計
   - commit・pushの後、主担当が内部確認をしてコマンドを渡す。結果をFedHASP・FedDrift・FedAvgと対で集計し、実験の台帳に記録する。
   - _Requirements: 3.2_
   - _Depends:_ 2
@@ -46,3 +46,9 @@
 - 差分の照合: 実装担当の報告の変更ファイル24件が作業ツリーにそろうことを確かめた（作業中に主担当がIFCAのspecの文書をcommitしたとき、commitの前の検査が未commitの変更を退避・復元したが、欠けは無い）。
 - 実装レビュー（GPT-6 Luna、effort medium、対象は`77b95583`の上の未commitの差分）: PASS（Critical・Major無し）。
 - 全pytest（Windows、12並列、1608秒、JUnit `../../venv/refactoring-tests/oracle-full-pytest.xml`）: 13,256 passed、8 skipped、2 failed、12 errors。errorsの12件は、リポジトリの直下から流したため`results/implementation-audits/fedavg-20261021/test-results.txt`をtestとして集めようとしたUnicodeDecodeErrorで、コードの不具合ではない。failedの2件はtestの期待値の更新漏れで、主担当が直した: (1) `test_fedsda_configuration_variants.py`の構成の一覧と、実旧と照合しない構成の集合に`feddrift-oracle-concept-assignment`を足した。(2) `test_fedsda_warm_started_learner_and_cross_validated_initial_statistics.py`の「全FedSDAの構成がwarm startの学習者を使う」で、`fedsda-without-warm-started-learner`だけは初期化し直した学習者を期待するようにした（この失敗は`2708b3bb`から残っていた。そのspecでは全pytestを流していなかった）。直した2ファイルの再実行は100 passed、12 skipped（JUnit `../../venv/refactoring-tests/oracle-fix-two-tests.xml`）。Ruff成功。
+
+### 本規模の結果（2026-11-02、主担当）
+- `results/method-comparison-oracle-v16/20261101_194246_oracle-seeds0-9`（uranium、commit `cc921198`、基準版16）。400 run完了・失敗0。集計は主担当のscratchpadの`oracle_compare.py`（Git管理外）。比べる相手は論文の表1と同じ結果（新しい4データのFedDriftは、調整したδの本評価が届くまで既定のδで仮に比べた）。
+- Oracle−FedDrift: 40セルすべてでOracleが上（+1.46〜+37.38pp、平均+6.25）。
+- FedHASP−Oracle: −2.78〜+1.30pp、平均−0.72。FedHASPが上のセルは13/40（MNIST2の間隔50〜200、MNIST4の全間隔、fmnist2の間隔50・100、fmnist4の間隔50〜200。うち10 seed中8以上で上が12セル）。Oracleが大きく上はSEA2・SEA4（2.1〜2.8pp）、CIRCLE2・rotmnist4の間隔500（2.1〜2.2pp）。
+- 通信のOracle/FedHASPは0.74〜2.96（SINE2・CIRCLE2は1未満、4コンセプトの画像データは約2.8〜3.0）。clientのMACのOracle/FedHASPは0.49〜1.46。
