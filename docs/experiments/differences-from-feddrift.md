@@ -90,6 +90,34 @@ Adaptive-FedAvgは局所学習だけをSGD（momentum 0、weight decay 0）に�
 Adaptive-FedAvgの初期学習率はデータ×間隔ごとに選ぶ（論文はデータごと）。
 候補は論文付録の0.1・0.01・0.001・0.0001に固定し、端が選ばれても広げない。
 
-保存形式は版5。Adaptive-FedAvgだけ`adaptive_learning_rate`表を持ち、列は`timestep_index`、
+版5で、Adaptive-FedAvgだけが持つ`adaptive_learning_rate`表を追加した。列は`timestep_index`、
 `aggregation_count`、`variance_ratio`（分散の比）、`smoothed_ratio`（補正済みの比の移動平均）、
 `learning_rate_for_next_timestep`。Windowと既存構成の表と列は変えない。
+
+## DriftSurfの構成
+
+`feddrift-driftsurf`はサーバに`pred`・`stab`・`reac`の役割を置き、全clientが予測の役割の大域モデルを使う。
+`model_assignment_policy="driftsurf_global_role_assignment"`、`training_sample_window="role_timestep_window"`、
+`driftsurf_settings=DriftSurfSettings()`で指定する。既存構成の既定は順に`detection_batch_assignment`、`all_timesteps`、`None`のまま。
+δ（`accuracy_drop_threshold`）の既定は0.10、反応の長さは3時刻、窓は10時刻に固定する。
+全clientは各時刻の予測後・学習前に、公式が評価する役割だけをeval/no_gradで推論し、最大出力の添字が観測ラベルと一致する数と件数を報告する。
+手元の二値モデルの1列の確率pは、クラスごとのスコア(1-p,p)へ対応付ける。同値は小さい添字0とする。
+サーバで整数の和を割るため、同じクラス別出力を使う公式の全clientのデータを集めた正解率と同じになる。
+報告はclientごとに1通で、parameterのバイトには数えない。
+
+最初の時刻は遷移せず`pred`・`stab`を学習する。以後は公式`DriftSurfState.run_ds_algo`と同じδ・δ/2・最高正解率・反応の比較・昇格の規則を使う。
+各clientは直近10時刻の標本を時刻別に保存する。検出バッチから既存の学習storeへ追記せず、学習直前に全モデルの標本を空にし、役割の窓に含む時刻だけを昇順に連結する。
+集約の重みはこの窓の標本数であり、累積の学習件数や保存済みの重みではない。更新予算は窓の長さによらずFedDriftの規則（D04・D05・D11）を使う。
+昇格した時刻の公式の学習役割`pred,reac`は、同じ昇格モデルの識別子へ対応させ、一度だけ学習・集約する。
+FedDriftのclient別の検出・モデル作成・クラスタリング・統合は行わない。役割の作り直しで新IDを登録し、古いIDを除くため大域モデルは常に3個以下。
+
+公式からの変更は、反応終了時に昇格しなくても予測の役割を必ず`pred`へ戻す点である。
+公式では`reac`が残ると次時刻の学習役割`pred,stab`からテストモデルを決められない。
+また公式は固定seedから連続して組み立てる最初の2モデルの初期値が異なるが、手元は両方と作り直す役割を共通の事前学習モデルθ0の写しにする（D06、optimizerは新規）。
+そのほかの違いは逐次評価（D12）、局所学習の規則（D04・D05・D11）、1時刻が集約間隔の標本数である点（窓10時刻は間隔50で500標本、間隔500で5000標本）、δをデータ×間隔ごとに選ぶ点である。
+
+保存形式は版6。DriftSurfだけ`driftsurf`表を追加し、既存構成の表・列は変えない。
+列は`timestep_index`、`state_before`・`state_after`、`accuracy_pred`・`accuracy_stab`・`accuracy_reac`（未計測はNaN）、
+`accuracy_best`、`training_roles`（カンマ区切り）、`prediction_role`、`reactive_counter`（安定状態は−1）、`entered_reactive`、`promoted`、
+役割ごとの`*_model_id`（未登録は−1）・`*_window_timesteps`（カンマ区切り、空窓は空文字）。
+IDと窓は遷移後・学習時の対応で、`prediction_role`は次時刻の予測に使う役割を表す。

@@ -267,6 +267,11 @@ def assemble_feddrift_run_client(
         and initial_model_count != 1
     ):
         raise ValueError("検出バッチの帰属では初期モデルは1つです。")
+    if (
+        run_client_settings.model_assignment_policy == "driftsurf_global_role_assignment"
+        and initial_model_count != 2
+    ):
+        raise ValueError("DriftSurfの初期モデルはpred・stabの2つです。")
     if type(python_random_generator) is not Random:
         raise TypeError("乱数はexact Randomが必要です。")
     _validate_held_model_training_state_inputs(

@@ -58,6 +58,7 @@ from federated_learning_experiments.methods.feddrift.cached_model_cluster_consol
     average_feddrift_cached_cluster_parameters,
     consolidate_feddrift_cached_model_clusters,
 )
+from federated_learning_experiments.methods.feddrift.driftsurf_state import DriftSurfState
 from federated_learning_experiments.methods.feddrift.loss_distance_model_clustering import (
     _loss_increase_distances,
     cluster_feddrift_model_ids,
@@ -68,6 +69,9 @@ from federated_learning_experiments.methods.fedsda.model_registration.global_mod
 from federated_learning_experiments.runtime.client_model_cross_evaluation import (
     _validate_candidate_parameter_snapshot,
     evaluate_candidate_model_on_target_model_samples,
+)
+from federated_learning_experiments.runtime.driftsurf_timestep_preparation import (
+    prepare_driftsurf_timestep,
 )
 from federated_learning_experiments.runtime.feddrift_run_client import FeddriftRunClient
 from federated_learning_experiments.runtime.feddrift_server_settings import FeddriftServerSettings
@@ -158,6 +162,18 @@ class FeddriftRunServer:
                 self.global_model_repository.set_global_model_parameters(
                     model_id=mid, parameter_snapshot=parameters
                 )
+        ds_settings = run_clients[0]._settings.driftsurf_settings
+        if any(c._settings.driftsurf_settings != ds_settings for c in run_clients):
+            raise ValueError("全clientのDriftSurf設定を一致させてください。")
+        self._driftsurf_state = (
+            DriftSurfState(settings=ds_settings) if ds_settings is not None else None
+        )
+        self._driftsurf_model_ids: dict[str, int | None] = {"pred": 0, "stab": 1, "reac": None}
+        self._driftsurf_records: list[dict[str, object]] = []
+        self._driftsurf_training_model_ids: frozenset[int] = frozenset()
+        self._driftsurf_reset_model_ids: frozenset[int] = frozenset()
+        self._driftsurf_initial_parameters = deepcopy(initial_parameter_snapshot)
+        self._driftsurf_initial_statistics = statistics
         adaptive_settings = run_clients[0]._settings.adaptive_learning_rate_settings
         if any(
             c._settings.adaptive_learning_rate_settings != adaptive_settings for c in run_clients
@@ -343,6 +359,8 @@ class FeddriftRunServer:
         self._aggregate_and_distribute_models(active_ids=active_ids, update_model_weights=True)
 
     def _current_timestep_training_model_ids(self) -> frozenset[int] | None:
+        if self._driftsurf_state is not None:
+            return self._driftsurf_training_model_ids
         if self._true_concept_assignment:
             return frozenset(
                 mid
@@ -780,6 +798,9 @@ class FeddriftRunServer:
         self.communication_volume_record_store.record_messages(
             transfer_direction="upload", message_count=len(self.run_clients)
         )
+        if self._driftsurf_state is not None:
+            prepare_driftsurf_timestep(run_server=self, timestep_index=timestep_index)
+            return
         if self._fixed_model_pool:
             return
         mature = tuple(mid for mid in ids if timestep_index >= self._isolation_until.get(mid, 0))

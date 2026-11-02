@@ -74,6 +74,7 @@ def test_sweep_command_arguments_are_only_extended_by_the_artifact_organization(
         "--client-count",
         "--configurations",
         "--datasets",
+        "--driftsurf-accuracy-drop-thresholds",
         "--feddrift-loss-increase-thresholds",
         "--fedsda-fixed-share-time-scales",
         "--fedsda-pending-assignment-fifo-capacities",

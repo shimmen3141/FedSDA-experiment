@@ -3473,6 +3473,28 @@ def test_feddrift_round_training_rejects_outer_dependencies(source_module_path, 
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "methods/feddrift/driftsurf_state.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "dataclasses.field",
+            "math.isfinite",
+        )
+    if source_module_path == "learning/training/timestep_training_sample_store.py":
+        return imported_module_name in (
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+        )
+    if source_module_path == "runtime/driftsurf_timestep_preparation.py":
+        return imported_module_name in (
+            "__future__.annotations",
+            "copy.deepcopy",
+            "typing.TYPE_CHECKING",
+            "torch.cat",
+            "torch.no_grad",
+            "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingState",
+            "federated_learning_experiments.runtime.feddrift_run_server.FeddriftRunServer",
+            "federated_learning_experiments.runtime.feddrift_run_client.FeddriftRunClient",
+        )
     if source_module_path == "methods/feddrift/adaptive_fedavg_learning_rate.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -3746,6 +3768,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/feddrift_run_server.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.feddrift.driftsurf_state.DriftSurfState",
+            "federated_learning_experiments.runtime.driftsurf_timestep_preparation.prepare_driftsurf_timestep",
             "copy.deepcopy",
             "numpy",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
@@ -3908,6 +3932,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "runtime/feddrift_run_client_settings.py":
         return imported_module_name in (
             "federated_learning_experiments.methods.feddrift.adaptive_fedavg_learning_rate.AdaptiveFedavgLearningRateSettings",
+            "federated_learning_experiments.methods.feddrift.driftsurf_state.DriftSurfSettings",
             "dataclasses.dataclass",
             "dataclasses.field",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
@@ -3953,6 +3978,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/feddrift_client_stream_processing.py":
         return imported_module_name in (
+            "federated_learning_experiments.learning.training.timestep_training_sample_store.TimestepTrainingSampleStore",
             "federated_learning_experiments.evaluation.held_model_count_record_store.HeldModelCountRecordStore",
             "dataclasses.dataclass",
             "dataclasses.replace",
@@ -4553,6 +4579,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "sweep/experiment_sweep_plan.py":
         return imported_module_name in (
             "federated_learning_experiments.methods.feddrift.adaptive_fedavg_learning_rate.AdaptiveFedavgLearningRateSettings",
+            "federated_learning_experiments.methods.feddrift.driftsurf_state.DriftSurfSettings",
             "federated_learning_experiments.runtime.fedavg_run_settings.FedavgRunSettings",
             "dataclasses.dataclass",
             "dataclasses.replace",
@@ -4582,6 +4609,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "sweep/experiment_configurations.py":
         return imported_module_name in (
             "federated_learning_experiments.methods.feddrift.adaptive_fedavg_learning_rate.AdaptiveFedavgLearningRateSettings",
+            "federated_learning_experiments.methods.feddrift.driftsurf_state.DriftSurfSettings",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.REINITIALIZED_LEARNER_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.RAISE_ALARM_IMMEDIATELY_POLICY_NAME",
@@ -5975,6 +6003,9 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/feddrift_detection_batch_processing.py",
             "methods/feddrift/detection_batch_assessment.py",
             "methods/feddrift/adaptive_fedavg_learning_rate.py",
+            "methods/feddrift/driftsurf_state.py",
+            "learning/training/timestep_training_sample_store.py",
+            "runtime/driftsurf_timestep_preparation.py",
             "methods/fedsda/prediction_combination/all_sample_adahedge_weight_evidence_holder.py",
             "evaluation/true_concept_adahedge_diagnostic_evidence_collection.py",
             "runtime/training_assignment_all_sample_adahedge_weight_evidence_restart.py",

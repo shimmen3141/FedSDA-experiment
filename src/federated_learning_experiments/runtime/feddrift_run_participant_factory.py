@@ -205,6 +205,9 @@ class FeddriftRunParticipantFactory:
                     definition.concept_count
                     if settings.run_client_settings.model_assignment_policy
                     in ("true_concept_assignment", "minimum_loss_cluster_assignment")
+                    else 2
+                    if settings.run_client_settings.model_assignment_policy
+                    == "driftsurf_global_role_assignment"
                     else 1
                 ),
                 run_random_seed=experiment_run_conditions.random_seed,

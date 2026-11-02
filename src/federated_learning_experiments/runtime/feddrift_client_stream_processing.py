@@ -16,6 +16,9 @@ from federated_learning_experiments.learning.training.indexed_observed_training_
 from federated_learning_experiments.learning.training.model_training_sample_records import (
     ObservedTrainingSample,
 )
+from federated_learning_experiments.learning.training.timestep_training_sample_store import (
+    TimestepTrainingSampleStore,
+)
 from federated_learning_experiments.runtime.feddrift_detection_batch_processing import (
     FeddriftDetectionBatchProcessor,
     FeddriftDetectionBatchTransition,
@@ -85,8 +88,12 @@ class FeddriftClientStreamProcessor:
             "true_concept_assignment",
             "minimum_loss_cluster_assignment",
             "single_global_model_assignment",
+            "driftsurf_global_role_assignment",
         ):
             raise ValueError("未対応の割当方式です。")
+        self._driftsurf_assignment = model_assignment_policy == "driftsurf_global_role_assignment"
+        self._driftsurf_pending_samples: list[ObservedTrainingSample] = []
+        self._driftsurf_timestep_samples = TimestepTrainingSampleStore()
         self._single_global_model_assignment = (
             model_assignment_policy == "single_global_model_assignment"
         )
@@ -94,7 +101,11 @@ class FeddriftClientStreamProcessor:
         self._minimum_loss_cluster_assignment = (
             model_assignment_policy == "minimum_loss_cluster_assignment"
         )
-        if training_sample_window not in ("all_timesteps", "current_timestep"):
+        if training_sample_window not in (
+            "all_timesteps",
+            "current_timestep",
+            "role_timestep_window",
+        ):
             raise ValueError("未対応の学習窓です。")
         self._current_timestep_window = training_sample_window == "current_timestep"
         self._indexed_buffer: list[IndexedObservedTrainingSample] = []
@@ -184,6 +195,8 @@ class FeddriftClientStreamProcessor:
             )
             self._processed_count += 1
             self._buffer.append(sample)
+            if self._driftsurf_assignment:
+                self._driftsurf_pending_samples.append(sample)
             if self._true_concept_assignment:
                 self._indexed_buffer.append(observation)
                 self._processor._observe_true_concept(observation)
@@ -200,6 +213,10 @@ class FeddriftClientStreamProcessor:
     def flush_detection_buffer(self) -> FeddriftDetectionBatchTransition | None:
         """残りを一度処理し、既存予測記録へは結果を付加しない。"""
         if not self._buffer:
+            return None
+        if self._driftsurf_assignment:
+            # 役割の窓を決めるまで、モデルの学習storeへは追加しない。
+            self._buffer.clear()
             return None
         if self._single_global_model_assignment:
             self._processor._assign_single_global_model_samples(

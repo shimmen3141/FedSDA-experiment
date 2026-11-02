@@ -1,5 +1,7 @@
 from dataclasses import fields
 
+from federated_learning_experiments.methods.feddrift.driftsurf_state import DriftSurfSettings
+
 from federated_learning_experiments.methods.feddrift.adaptive_fedavg_learning_rate import (
     AdaptiveFedavgLearningRateSettings,
 )
@@ -23,16 +25,20 @@ def test_parameter_schema_has_unique_stable_identifiers():
         hasattr(config, item.code_name)
         for item in PARAMETERS if item.configuration_surface == "config"
     )
-    typed_names = {field.name for field in fields(AdaptiveFedavgLearningRateSettings)}
+    typed_names_by_settings = {
+        "adaptive_learning_rate_settings": {field.name for field in fields(AdaptiveFedavgLearningRateSettings)},
+        "driftsurf_settings": {field.name for field in fields(DriftSurfSettings)},
+    }
     typed_parameters = [
         item for item in PARAMETERS if item.configuration_surface == "typed_settings"
     ]
     assert {item.id for item in typed_parameters} == {
-        "adaptive_fedavg_initial_learning_rate", "adaptive_fedavg_beta",
+        "adaptive_fedavg_initial_learning_rate", "adaptive_fedavg_beta", "driftsurf_accuracy_drop_threshold",
     }
     for item in typed_parameters:
-        assert item.code_name.startswith("adaptive_learning_rate_settings.")
-        assert set(item.code_name.split(".", 1)[1].split("/")) <= typed_names
+        settings_name, field_names = item.code_name.split(".", 1)
+        assert settings_name in typed_names_by_settings
+        assert set(field_names.split("/")) <= typed_names_by_settings[settings_name]
     assert all(item.configuration_surface in ("config", "typed_settings") for item in PARAMETERS)
 
 

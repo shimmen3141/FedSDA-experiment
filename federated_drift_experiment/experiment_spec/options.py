@@ -487,12 +487,13 @@ OPTIONS = (
     ),
     OptionSpec(
         "feddrift_model_assignment_policy", "FedDriftのモデルへの帰属", "adaptation",
-        ("detection_batch_assignment", "true_concept_assignment", "minimum_loss_cluster_assignment", "single_global_model_assignment"),
+        ("detection_batch_assignment", "true_concept_assignment", "minimum_loss_cluster_assignment", "single_global_model_assignment", "driftsurf_global_role_assignment"),
         "新APIのFeddriftRunClientSettings.model_assignment_policy。既定は検出バッチの帰属。"
         "真概念の帰属は初期Kモデルへ標本ごとに振り分け、直前のラベルの概念で予測する。"
         "最小損失の帰属は最初の時刻はID 0、以後はバッチの平均有界損失が最小のモデルを選ぶ。"
         "単一モデルの帰属は全標本をID 0へ割り当てる。"
-        "旧CLIでは切り替えず、新APIのOracle・IFCA・Window構成で指定する。",
+        "DriftSurfの帰属はサーバが決めた予測の役割を全clientが使う。"
+        "旧CLIでは切り替えず、新APIのOracle・IFCA・Window・DriftSurf構成で指定する。",
         (FED_DRIFT,), (FED_DRIFT,),
         requires_capabilities=("multiple_models",),
         active_when=(ActivationRule("method", (FED_DRIFT,), "FedDriftだけで有効"),),
@@ -500,9 +501,10 @@ OPTIONS = (
     ),
     OptionSpec(
         "feddrift_training_sample_window", "FedDriftの学習標本の窓", "training",
-        ("all_timesteps", "current_timestep"),
+        ("all_timesteps", "current_timestep", "role_timestep_window"),
         "新APIのFeddriftRunClientSettings.training_sample_window。既定は全時刻。"
-        "IFCA+Windowと単一モデルのWindowは、全モデルの標本を空にして今の時刻のバッチだけを選択モデルに追加する。",
+        "IFCA+Windowと単一モデルのWindowは、全モデルの標本を空にして今の時刻のバッチだけを選択モデルに追加する。"
+        "役割の時刻窓は直近10時刻を保管し、全モデルの標本を空にして役割の窓の標本だけを追加する。",
         (FED_DRIFT,), (FED_DRIFT,),
         active_when=(ActivationRule("method", (FED_DRIFT,), "FedDriftだけで有効"),),
         configuration_surface="config",
@@ -515,6 +517,11 @@ OPTIONS = (
         (FED_DRIFT,), (FED_DRIFT,),
         active_when=(ActivationRule("method", (FED_DRIFT,), "FedDriftだけで有効"),),
         configuration_surface="config",
+    ),
+    OptionSpec(
+        "driftsurf_accuracy_drop_threshold", "DriftSurfの正解率低下の閾値δ", "adaptation",
+        ("positive number",), "新APIのdriftsurf_settings.accuracy_drop_threshold。既定0.10、有限で正。反応3時刻、窓10時刻に固定。",
+        (FED_DRIFT,), (FED_DRIFT,), active_when=(ActivationRule("feddrift_model_assignment_policy", ("driftsurf_global_role_assignment",), "DriftSurfの役割の帰属だけで有効"),), configuration_surface="config",
     ),
     OptionSpec(
         "feddrift_adaptive_learning_rate", "FedDriftの学習率の調整", "training",
@@ -579,6 +586,8 @@ CHOICE_CONSTRAINTS = (
         ActivationRule("feddrift_training_sample_window", ("current_timestep",), "単一モデルには1時刻の窓が必要"),
         ActivationRule("feddrift_cluster_model_initialization", ("all_pretrained",), "共通の事前学習モデルが必要"),
     )),
+    ChoiceConstraint("feddrift_model_assignment_policy", ("driftsurf_global_role_assignment",), (FED_DRIFT,), requires_selections=(ActivationRule("feddrift_training_sample_window", ("role_timestep_window",), "DriftSurfの役割の窓が必要"), ActivationRule("feddrift_cluster_model_initialization", ("all_pretrained",), "共通の事前学習初期値が必要"))),
+    ChoiceConstraint("feddrift_training_sample_window", ("role_timestep_window",), (FED_DRIFT,), requires_selections=(ActivationRule("feddrift_model_assignment_policy", ("driftsurf_global_role_assignment",), "DriftSurfだけで有効"),)),
     ChoiceConstraint("feddrift_adaptive_learning_rate", ("adaptive_fedavg",), (FED_DRIFT,), requires_selections=(ActivationRule("feddrift_model_assignment_policy", ("single_global_model_assignment",), "単一モデル専用"),)),
     ChoiceConstraint(
         "feddrift_model_assignment_policy", ("minimum_loss_cluster_assignment",), (FED_DRIFT,),
@@ -590,7 +599,7 @@ CHOICE_CONSTRAINTS = (
     ),
     ChoiceConstraint(
         "feddrift_training_sample_window", ("current_timestep",), (FED_DRIFT,),
-        requires_selections=(ActivationRule("feddrift_model_assignment_policy", ("minimum_loss_cluster_assignment", "single_global_model_assignment"), "IFCAまたは単一モデルの帰属が必要"),),
+        requires_selections=(ActivationRule("feddrift_model_assignment_policy", ("minimum_loss_cluster_assignment", "single_global_model_assignment", "driftsurf_global_role_assignment"), "IFCAまたは単一モデルの帰属が必要"),),
     ),
     ChoiceConstraint(
         "feddrift_cluster_model_initialization", ("all_random", "pretrained_cluster0"), (FED_DRIFT,),

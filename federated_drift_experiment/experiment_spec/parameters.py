@@ -27,6 +27,14 @@ class ParameterSpec:
 
 PARAMETERS = (
     ParameterSpec(
+        id="driftsurf_accuracy_drop_threshold",
+        code_name="driftsurf_settings.accuracy_drop_threshold",
+        paper_symbol="δ_DriftSurf",
+        cli_name="driftsurf-accuracy-drop-thresholds",
+        methods=("FedDrift",),
+        configuration_surface="typed_settings",
+    ),
+    ParameterSpec(
         id="adaptive_fedavg_initial_learning_rate",
         code_name="adaptive_learning_rate_settings.initial_learning_rate",
         paper_symbol="η_0",

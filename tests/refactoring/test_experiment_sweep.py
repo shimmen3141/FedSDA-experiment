@@ -771,6 +771,7 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
         fedsda_pending_assignment_fifo_capacities=None,
         fedsda_fixed_share_time_scales=None,
         adaptive_fedavg_initial_learning_rates=None,
+        driftsurf_accuracy_drop_thresholds=None,
     )
     assert record["worker_count"] == 2
     assert record["code_revision"] == dict(

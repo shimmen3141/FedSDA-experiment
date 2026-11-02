@@ -313,6 +313,7 @@ BASELINE_CONFIGURATION_CASE_NAMES = (
 )
 # goldenの事例にしない構成の名前と、その構成を守る専用のtestのファイル（リポジトリの根からの位置）。
 CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN: dict[str, str] = {
+    "feddrift-driftsurf": "tests/refactoring/test_feddrift_driftsurf_configuration.py",
     "feddrift-window": "tests/refactoring/test_feddrift_window_and_adaptive_fedavg_configuration.py",
     "feddrift-adaptive-fedavg-window": "tests/refactoring/test_feddrift_window_and_adaptive_fedavg_configuration.py",
     "feddrift-oracle-concept-assignment": "tests/refactoring/test_feddrift_oracle_concept_assignment_configuration.py",

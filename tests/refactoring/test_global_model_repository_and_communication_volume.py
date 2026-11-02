@@ -261,7 +261,7 @@ def test_repository_returns_registration_records_in_model_id_order_and_replaces_
         ),
         (
             lambda repository: repository.record_model_registration(
-                model_id=1, registered_round_index=0, registering_client_id=None
+                model_id=1, registered_round_index=0, registering_client_id="0"
             ),
             TypeError,
         ),
@@ -482,3 +482,14 @@ def test_repository_removes_global_model_keeping_identifier_allocation_and_recor
             global_model_repository.remove_global_model(model_id=invalid_model_id)
         assert global_model_repository.global_model_ids == (0, 2)
         assert global_model_repository.next_global_model_id == 3
+
+
+def test_repository_records_server_owned_role_registration_without_client_id():
+    repository = make_repository()
+    model_id = repository.allocate_global_model_id()
+    repository.record_model_registration(
+        model_id=model_id, registered_round_index=3, registering_client_id=None
+    )
+    assert repository.snapshot_model_registration_records()[-1] == GlobalModelRegistrationRecord(
+        model_id=model_id, registered_round_index=3, registering_client_id=None
+    )

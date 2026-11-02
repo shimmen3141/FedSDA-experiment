@@ -58,7 +58,7 @@ def test_save_load_roundtrip_and_nonfinite_summary(monkeypatch, tmp_path, count)
     assert (
         summary["method_name"] == "feddrift"
         and type(summary["format_version"]) is int
-        and summary["format_version"] == 5
+        and summary["format_version"] == 6
     )
     assert summary["record_table_file_name"] == "test-run.npz"
     assert summary["run_provenance"] == convert_run_provenance_to_mapping(TEST_RUN_PROVENANCE)
@@ -181,7 +181,7 @@ def test_save_failure_cleans_its_files(monkeypatch, artifact_run, tmp_path, stag
     "change",
     (
         {"format_version": True},
-        {"format_version": 6},
+        {"format_version": 7},
         # 版2は、来歴が要る。版1は、来歴を持たない。
         {"format_version": 2},
         {"run_provenance": {"behavior_baseline_version": 5}},

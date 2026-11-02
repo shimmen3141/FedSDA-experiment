@@ -76,6 +76,23 @@ def build_feddrift_run_record_tables(
     run_clients = participants.run_clients
     run_server = participants.run_server
     record_tables: dict[str, ndarray] = {}
+    if run_server._driftsurf_state is not None:
+        records = run_server._driftsurf_records
+        if len(records) != run_result.synchronization_interval_count:
+            raise ValueError("DriftSurfの記録と同期件数が対応していません。")
+        for column in records[0] if records else ():
+            values = [record[column] for record in records]
+            dtype = (
+                float64
+                if column.startswith("accuracy_")
+                else bool_
+                if column in ("entered_reactive", "promoted")
+                else str_
+                if column in ("state_before", "state_after", "training_roles", "prediction_role")
+                or column.endswith("_window_timesteps")
+                else int64
+            )
+            record_tables[f"driftsurf.{column}"] = asarray(values, dtype=dtype)
     adaptive_state = run_server._adaptive_learning_rate_state
     if adaptive_state is not None:
         records = adaptive_state.snapshot_records()

@@ -159,6 +159,13 @@ def _build_argument_parser() -> ArgumentParser:
         help="サーバの集約の間隔（clientあたりの標本数）",
     )
     argument_parser.add_argument(
+        "--driftsurf-accuracy-drop-thresholds",
+        type=float,
+        nargs="+",
+        default=None,
+        help="DriftSurfの正解率低下の閾値δ（有限で正）",
+    )
+    argument_parser.add_argument(
         "--adaptive-fedavg-initial-learning-rates",
         nargs="+",
         type=float,
@@ -248,6 +255,11 @@ def _build_sweep_plan(parsed_arguments: Namespace) -> ExperimentSweepPlan:
         server_aggregation_intervals_per_client_samples=tuple(
             parsed_arguments.aggregation_intervals
         ),
+        driftsurf_accuracy_drop_thresholds=tuple(
+            parsed_arguments.driftsurf_accuracy_drop_thresholds
+        )
+        if parsed_arguments.driftsurf_accuracy_drop_thresholds is not None
+        else None,
         adaptive_fedavg_initial_learning_rates=(
             tuple(parsed_arguments.adaptive_fedavg_initial_learning_rates)
             if parsed_arguments.adaptive_fedavg_initial_learning_rates is not None

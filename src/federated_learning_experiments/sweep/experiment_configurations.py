@@ -13,6 +13,7 @@ from federated_learning_experiments.configuration.experiment_run_conditions impo
 from federated_learning_experiments.methods.feddrift.adaptive_fedavg_learning_rate import (
     AdaptiveFedavgLearningRateSettings,
 )
+from federated_learning_experiments.methods.feddrift.driftsurf_state import DriftSurfSettings
 from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
     RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
 )
@@ -93,6 +94,7 @@ FEDDRIFT_IFCA_WINDOW_PRETRAINED_CLUSTER0_CONFIGURATION_NAME = (
     "feddrift-ifca-window-pretrained-cluster0"
 )
 FEDDRIFT_WINDOW_CONFIGURATION_NAME = "feddrift-window"
+FEDDRIFT_DRIFTSURF_CONFIGURATION_NAME = "feddrift-driftsurf"
 FEDDRIFT_ADAPTIVE_FEDAVG_WINDOW_CONFIGURATION_NAME = "feddrift-adaptive-fedavg-window"
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
@@ -121,6 +123,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     FEDDRIFT_IFCA_WINDOW_PRETRAINED_CLUSTER0_CONFIGURATION_NAME,
     FEDDRIFT_WINDOW_CONFIGURATION_NAME,
     FEDDRIFT_ADAPTIVE_FEDAVG_WINDOW_CONFIGURATION_NAME,
+    FEDDRIFT_DRIFTSURF_CONFIGURATION_NAME,
 )
 
 
@@ -232,6 +235,7 @@ def build_experiment_run_settings(
             f"(available: {', '.join(EXPERIMENT_CONFIGURATION_NAMES)})"
         )
     if configuration_name in (
+        FEDDRIFT_DRIFTSURF_CONFIGURATION_NAME,
         FEDDRIFT_WINDOW_CONFIGURATION_NAME,
         FEDDRIFT_ADAPTIVE_FEDAVG_WINDOW_CONFIGURATION_NAME,
     ):
@@ -245,8 +249,15 @@ def build_experiment_run_settings(
                 participant,
                 run_client_settings=replace(
                     participant.run_client_settings,
-                    model_assignment_policy="single_global_model_assignment",
-                    training_sample_window="current_timestep",
+                    model_assignment_policy="driftsurf_global_role_assignment"
+                    if configuration_name == FEDDRIFT_DRIFTSURF_CONFIGURATION_NAME
+                    else "single_global_model_assignment",
+                    training_sample_window="role_timestep_window"
+                    if configuration_name == FEDDRIFT_DRIFTSURF_CONFIGURATION_NAME
+                    else "current_timestep",
+                    driftsurf_settings=DriftSurfSettings()
+                    if configuration_name == FEDDRIFT_DRIFTSURF_CONFIGURATION_NAME
+                    else None,
                     adaptive_learning_rate_settings=AdaptiveFedavgLearningRateSettings()
                     if configuration_name == FEDDRIFT_ADAPTIVE_FEDAVG_WINDOW_CONFIGURATION_NAME
                     else None,

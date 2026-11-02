@@ -14,6 +14,7 @@ from federated_learning_experiments.core.settings_serialization import (
 from federated_learning_experiments.methods.feddrift.adaptive_fedavg_learning_rate import (
     AdaptiveFedavgLearningRateSettings,
 )
+from federated_learning_experiments.methods.feddrift.driftsurf_state import DriftSurfSettings
 from federated_learning_experiments.runtime.fedavg_run_settings import FedavgRunSettings
 from federated_learning_experiments.runtime.feddrift_run_settings import FeddriftRunSettings
 from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
@@ -53,6 +54,7 @@ class ExperimentSweepPlan:
     per_client_sample_count: int
     server_aggregation_intervals_per_client_samples: tuple[int, ...]
     feddrift_loss_increase_thresholds: tuple[float, ...] | None = None
+    driftsurf_accuracy_drop_thresholds: tuple[float, ...] | None = None
     adaptive_fedavg_initial_learning_rates: tuple[float, ...] | None = None
     # FedSDAの構成の、帰属の保留（FIFO）の容量（標本数）。Fixed-Shareの時間尺度は替えない。
     fedsda_pending_assignment_fifo_capacities: tuple[int, ...] | None = None
@@ -83,6 +85,18 @@ class ExperimentSweepPlan:
         for count_name in ("client_count", "per_client_sample_count"):
             if type(getattr(self, count_name)) is not int:
                 raise TypeError(f"{count_name} must be builtin int")
+        if self.driftsurf_accuracy_drop_thresholds is not None:
+            _validate_distinct_values(
+                values=self.driftsurf_accuracy_drop_thresholds,
+                value_type=float,
+                field_name="driftsurf_accuracy_drop_thresholds",
+            )
+            if "feddrift-driftsurf" not in self.configuration_names:
+                raise ValueError(
+                    "driftsurf_accuracy_drop_thresholds requires feddrift-driftsurf configuration"
+                )
+            for threshold in self.driftsurf_accuracy_drop_thresholds:
+                DriftSurfSettings(accuracy_drop_threshold=threshold)
         if self.adaptive_fedavg_initial_learning_rates is not None:
             _validate_distinct_values(
                 values=self.adaptive_fedavg_initial_learning_rates,
@@ -255,6 +269,28 @@ def build_planned_experiment_runs(
                         ),
                     )
                     if (
+                        type(run_settings) is FeddriftRunSettings
+                        and configuration_name == "feddrift-driftsurf"
+                    ):
+                        participant = run_settings.run_participant_settings
+                        settings_variants = tuple(
+                            replace(
+                                run_settings,
+                                run_participant_settings=replace(
+                                    participant,
+                                    run_client_settings=replace(
+                                        participant.run_client_settings,
+                                        driftsurf_settings=DriftSurfSettings(
+                                            accuracy_drop_threshold=threshold
+                                        ),
+                                    ),
+                                ),
+                            )
+                            for threshold in (
+                                sweep_plan.driftsurf_accuracy_drop_thresholds or (0.10,)
+                            )
+                        )
+                    elif (
                         type(run_settings) is FeddriftRunSettings
                         and configuration_name == "feddrift-adaptive-fedavg-window"
                     ):

@@ -48,5 +48,38 @@
         "result": "FAIL（Major 1: δの調整のrun数——読み違いとして退けた。Minor: 見出し——反映）。再レビューは省く"
       }
     ]
-  }
+  },
+  "implementation": {
+    "status": "implemented_awaiting_primary_review_with_permission_limited_validation",
+    "base_revision": "ecdcb08a",
+    "tasks": [
+      1,
+      2
+    ],
+    "independent_review": "主担当が実施する。今回の実装担当ではCLIを起動していない",
+    "full_pytest": "主担当が実施する",
+    "next_action": "主担当が独立した実装レビューと全pytestを実施し、権限で実行できない205件を確認する。Task 3は今回の対象外",
+    "validation": {
+      "new_test_cases": 26,
+      "new_unit_passed": 23,
+      "fixed_small_runs_passed": 3,
+      "reactive_entries": 31,
+      "promotions": 10,
+      "windows_numerical_golden_matches": 206,
+      "unique_latest_passed": 3839,
+      "unique_latest_skipped": 14,
+      "unique_latest_permission_errors": 205,
+      "unresolved_failures": 0,
+      "ruff": "passed",
+      "pyright": "0 errors / 0 warnings（同じpyprojectをextendsし依存先を明示）"
+    }
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "target": "ecdcb08aの上の未commitの差分",
+    "result": "PASS（Major以上なし）"
+  },
+  "remaining": "Task 3（δの調整600 runと本規模400 run、集計）"
 }

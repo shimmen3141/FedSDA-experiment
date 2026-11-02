@@ -110,16 +110,17 @@ class GlobalModelRepository:
         return allocated_model_id
 
     def record_model_registration(
-        self, *, model_id: int, registered_round_index: int, registering_client_id: int
+        self, *, model_id: int, registered_round_index: int, registering_client_id: int | None
     ) -> None:
         """登録の来歴を記録する。同じモデルIDへの記録は、置き換える。"""
         _validate_nonnegative_identifier(identifier=model_id, identifier_name="model_id")
         _validate_nonnegative_identifier(
             identifier=registered_round_index, identifier_name="registered_round_index"
         )
-        _validate_nonnegative_identifier(
-            identifier=registering_client_id, identifier_name="registering_client_id"
-        )
+        if registering_client_id is not None:
+            _validate_nonnegative_identifier(
+                identifier=registering_client_id, identifier_name="registering_client_id"
+            )
         self._registration_records_by_model_id[model_id] = GlobalModelRegistrationRecord(
             model_id=model_id,
             registered_round_index=registered_round_index,

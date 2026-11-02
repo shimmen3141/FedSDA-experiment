@@ -10,6 +10,7 @@ from federated_learning_experiments.learning.training.parameter_optimizer_settin
 from federated_learning_experiments.methods.feddrift.adaptive_fedavg_learning_rate import (
     AdaptiveFedavgLearningRateSettings,
 )
+from federated_learning_experiments.methods.feddrift.driftsurf_state import DriftSurfSettings
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -40,7 +41,19 @@ class FeddriftRunClientSettings:
         default=None, metadata={"omit_default_from_saved_settings": True}
     )
 
+    driftsurf_settings: DriftSurfSettings | None = field(
+        default=None, metadata={"omit_default_from_saved_settings": True}
+    )
+
     def __post_init__(self) -> None:
+        if self.driftsurf_settings is not None:
+            if type(self.driftsurf_settings) is not DriftSurfSettings:
+                raise TypeError("exact DriftSurfSettingsが必要です。")
+            self.driftsurf_settings.__post_init__()
+        if (self.model_assignment_policy == "driftsurf_global_role_assignment") != (
+            self.driftsurf_settings is not None
+        ):
+            raise ValueError("DriftSurfの設定は役割の帰属と組み合わせてください。")
         if self.adaptive_learning_rate_settings is not None:
             if type(self.adaptive_learning_rate_settings) is not AdaptiveFedavgLearningRateSettings:
                 raise TypeError("exact AdaptiveFedavgLearningRateSettingsが必要です。")
@@ -55,9 +68,13 @@ class FeddriftRunClientSettings:
                     "true_concept_assignment",
                     "minimum_loss_cluster_assignment",
                     "single_global_model_assignment",
+                    "driftsurf_global_role_assignment",
                 ),
             ),
-            ("training_sample_window", ("all_timesteps", "current_timestep")),
+            (
+                "training_sample_window",
+                ("all_timesteps", "current_timestep", "role_timestep_window"),
+            ),
             (
                 "cluster_model_initialization",
                 ("all_pretrained", "all_random", "pretrained_cluster0"),
@@ -83,6 +100,12 @@ class FeddriftRunClientSettings:
                 or self.cluster_model_initialization == "all_pretrained"
             ):
                 raise ValueError("IFCA+Windowには1時刻の窓とクラスタごとの初期化が必要です。")
+        elif self.model_assignment_policy == "driftsurf_global_role_assignment":
+            if (
+                self.training_sample_window != "role_timestep_window"
+                or self.cluster_model_initialization != "all_pretrained"
+            ):
+                raise ValueError("DriftSurfは役割の窓と共通の初期値が必要です。")
         elif self.model_assignment_policy == "single_global_model_assignment":
             if (
                 self.training_sample_window != "current_timestep"
