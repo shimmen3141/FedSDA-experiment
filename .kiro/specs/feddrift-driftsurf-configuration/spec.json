@@ -1,0 +1,52 @@
+{
+  "feature_name": "feddrift-driftsurf-configuration",
+  "created_at": "2026-11-03T00:00:00Z",
+  "updated_at": "2026-11-03",
+  "language": "ja",
+  "phase": "implementation",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー3回目（GPT-6 Luna medium）。Majorは読み違いとして退け、Minorの見出しを直した"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー3回目（GPT-6 Luna medium）。Majorは読み違いとして退け、Minorの見出しを直した"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー3回目（GPT-6 Luna medium）。Majorは読み違いとして退け、Minorの見出しを直した"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": null,
+      "approved_revision": null,
+      "approved_sha256_lf": null,
+      "approved_by": "ユーザー委任、独立レビュー3回目（GPT-6 Luna medium）。Majorは読み違いとして退け、Minorの見出しを直した"
+    }
+  },
+  "ready_for_implementation": true,
+  "base_revision": "91461871",
+  "implementation_assignment": "実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・testの実行・レビューの起動・本規模のコマンドと集計",
+  "specification_review": {
+    "status": "passed_after_rejecting_false_finding",
+    "rounds": [
+      {
+        "round": 1,
+        "result": "FAIL（Major 2: 正解率と初期値の条件、窓・識別子の接続。公式の実装を読めなかった）——反映、公式の写しを作業場所の中へ"
+      },
+      {
+        "round": 2,
+        "result": "FAIL（Major 1: 窓と既存のstoreの接続）——反映"
+      },
+      {
+        "round": 3,
+        "result": "FAIL（Major 1: δの調整のrun数——読み違いとして退けた。Minor: 見出し——反映）。再レビューは省く"
+      }
+    ]
+  }
+}

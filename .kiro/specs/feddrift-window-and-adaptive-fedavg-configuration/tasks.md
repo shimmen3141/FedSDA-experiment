@@ -110,7 +110,7 @@
 
 ### FedAvg+Windowの本規模の結果（2026-11-02、主担当）
 - `results/method-comparison-window-v16/20261102_064312_window-seeds0-9`（uranium）。400 run完了・失敗0。
-- FedHASP−FedAvg+Window: −0.03〜+39.02pp、平均+14.42、FedHASPが上39/40セル（全seedで上37）。下はSEA2・間隔500の1セル（−0.03pp）。
+- FedHASP−FedAvg+Window: −0.03〜+39.02pp、平均+14.42、FedHASPが上39/40セル（全seedで上37）。下はSEA2・間隔200の1セル（−0.03pp）。
 - FedAvg+Window−FedAvg（集約ごと）: 平均−4.38pp、上は5/40セル（SINE2の4セルとCIRCLE2・間隔50）。画像データでは大きく下（rotmnist2・間隔50で−16.3pp）。窓1時刻は「間隔分の標本だけ」で、間隔50では1時刻50標本しか学習に使わない（FedDriftの論文の設定は1時刻500標本）。
 - IFCAのID 0だけ事前学習した版は、SINE2以外の36セルで10 seedの値がFedAvg+Windowと完全に一致した（IFCAはSINE2以外でID 0だけを選んだ。選択の割合を間隔50・500で集計して確かめた）。FedDriftの論文の付録の「IFCA-WはSEA・MNISTでWindowに退化した」と同じ。
 - 通信のFedAvg+Window/FedHASPは、間隔50で0.46〜0.94。
