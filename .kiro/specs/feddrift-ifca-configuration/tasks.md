@@ -9,7 +9,7 @@
   - 要求3.1の文書。実装レビュー（独立CLI）と、関係するtestの結果をImplementation Notesに記録する。全pytestは主担当が流す。
   - _Requirements: 3.1_
   - _Depends:_ 1
-- [ ] 3. 本規模の実行と集計
+- [x] 3. 本規模の実行と集計
   - commit・pushの後、主担当が内部確認をしてコマンドを渡す。結果をFedHASP・FedDrift・FedAvg・Oracleと対で集計し、実験の台帳に記録する。
   - _Requirements: 3.2_
   - _Depends:_ 2
@@ -88,3 +88,10 @@
 - 実装レビュー（GPT-6 Luna、effort medium、対象は`e2dae549`の上の未commitの差分）: PASS（新しい指摘なし）。
 - 全pytest（`tests`、Windows、12並列、1894秒、JUnit `../../venv/refactoring-tests/ifca-full-pytest.xml`）: 13,273 passed、10 skipped、失敗0。実装担当の環境で権限のため実行できなかったtestを含む。
 - 小さい全体runで、MNIST4ではID 0だけが選ばれた（2構成とも500回中500回）。最初の時刻に全clientがID 0で学習し、一部のラベルの入れ替えでは学習済みのID 0の損失が乱数のモデルより小さいまま、という見込み（IFCAの性質で、仕様の範囲）。本規模の結果でも確かめ、論文に書く。
+
+### 本規模の結果（2026-11-02、主担当）
+- `results/method-comparison-ifca-v16/20261101_235626_ifca-window-seeds0-9`（uranium）。2構成×400 run、計800 run完了・失敗0。集計は主担当のscratchpadの`all_methods_compare.py`（Git管理外）。比べる相手は論文の表1と同じ結果（FedDriftは新しい4データも調整したδ）。
+- `feddrift-ifca-window`（全乱数）: FedHASPが40/40セルで上（+1.21〜+40.93pp、全seedで上40）。FedDriftより40/40セルで下（−27.41〜−1.32pp）。FedAvg（集約ごと）より下のセルが多く、画像データで大きく下（rotmnist4の間隔500で52.25%、FedAvg 73.49%）。乱数の初期化で共通の事前学習を使えないことが効いている。
+- `feddrift-ifca-window-pretrained-cluster0`（ID 0だけ事前学習）: FedHASPが39/40セルで上（−0.03〜+36.77pp。下はSEA2の1セルで−0.03pp）。全乱数より高いが、画像データではFedAvgより下。
+- 通信はIFCAがどのセルでも最少（変わらないモデルを送り直さない数え方。公式のIFCAは毎roundでK個を配る）。
+- IDごとに選ばれた回数は、本規模ではまだ集計していない。

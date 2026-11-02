@@ -26,3 +26,8 @@
 
 ## 本評価
 - 選んだδで、seed 0〜9、12本のコマンド（160 run、`--study feddrift-tuned-delta-new-datasets-v16`）。結果が出たら、論文の表1の新しい4データのFedDriftを差し替える。
+
+## 本評価の結果（2026-11-02）
+- `results/feddrift-tuned-delta-new-datasets-v16`の12フォルダ（uranium、commit `169380a9`、基準版16）。160 run完了・失敗0。2組（`20261102_111832_*`・`20261102_132309_*`）に計算量の見積もりが等しくなるよう分けて流した。
+- 既定のδ（`results/new-datasets-baselines/feddrift`）との差は−0.74〜+2.65pp、平均+0.36pp。下がったセルは5つ（最大でfmnist2・間隔100の−0.74pp）で、調整用のseedで選んだδが評価のseedでは既定より良いとは限らない。
+- FedHASP（基準版16）−調整したFedDrift: 16セルすべてで+2.05〜+18.91pp、全セルで10 seedすべてFedHASPが上。論文の表1の新しい4データのFedDriftをこの結果へ差し替える。
