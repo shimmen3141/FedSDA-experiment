@@ -9,7 +9,7 @@
   - 要求5.1の文書（構成の一覧、`differences-from-feddrift.md`、`python -m tools.generate_option_docs`での設定参照の再生成）。関係するtestの結果をImplementation Notesに記録する。実装レビュー（独立CLI）と全pytestは主担当が行う。
   - _Requirements: 5.1_
   - _Depends:_ 1
-- [ ] 3. 調整・本規模の実行と集計
+- [x] 3. 調整・本規模の実行と集計
   - commit・pushの後、主担当が内部確認をして、Windowの本規模とAdaptive-FedAvgの調整のコマンドを渡し、$\eta_0$ を選んでからAdaptive-FedAvgの本規模のコマンドを渡す。結果をFedHASP・FedDrift・FedAvg・Oracle・IFCAと対で集計し、実験の台帳に記録する。
   - _Requirements: 5.2_
   - _Depends:_ 2
@@ -121,3 +121,9 @@
 - 選んだη0: 0.01が1セル（CIRCLE2・間隔500）、0.1が8セル（CIRCLE2の間隔100・200、SEA2の間隔100・500、SEA4の間隔100・200・500）、0.3が20セル、1.0が11セル（SINE2の全間隔、MNIST2・間隔50、MNIST4・rotmnist2・rotmnist4の間隔50・100）。表は`results/adaptive-fedavg-lr-tuning-v16/selected-initial-learning-rate.csv`（候補0.0001〜3.0）。
 - 短い間隔（集約が多い）ほど大きいη0が選ばれた。学習率が $\eta_0\hat\gamma_t/t$ で集約の回数に反比例して下がることと合う。論文では、元の論文の候補（$10^{-4}$〜$10^{-1}$）の上端が最良で上がり続けたので、上へ0.3・1.0・3.0を足し、全セルで内側の最良を選んだと書く。
 - 本評価: seed 0〜9、12本のコマンドで400 run（`--study method-comparison-adaptive-fedavg-v16`）。
+
+### Adaptive-FedAvgの本規模の結果（2026-11-03、主担当）
+- `results/method-comparison-adaptive-fedavg-v16`の12フォルダ（uranium）。400 run完了・失敗0。各runの初期の学習率が、選んだ値（`selected-initial-learning-rate.csv`）と一致することを集計の中で確かめた。
+- FedHASP−Adaptive-FedAvg: +0.08〜+38.91pp、平均+11.41、40/40セルで上（全seedで上38）。
+- Adaptive-FedAvg−FedAvg+Window: 平均+3.02、上33/40（学習率の調整の効果）。Adaptive-FedAvg−FedAvg（集約ごと）: 平均−1.37、上8/40。
+- Oracleを除く比較手法の中でFedHASPが最良のセルは35/40で変わらない（残りはSEAの5セル。FedDriftが4、FedAvgが1）。
