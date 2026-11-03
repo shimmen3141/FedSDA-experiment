@@ -1,0 +1,53 @@
+{
+  "feature_name": "feddrift-fedem-configuration",
+  "created_at": "2026-11-04T00:00:00Z",
+  "updated_at": "2026-11-04",
+  "language": "ja",
+  "phase": "implementation",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（2026-11-04にFedEM＋Windowを進める指示）、独立レビュー4回目（GPT-6 Luna medium）でMajor以上なし、Minorを反映"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（2026-11-04にFedEM＋Windowを進める指示）、独立レビュー4回目（GPT-6 Luna medium）でMajor以上なし、Minorを反映"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（2026-11-04にFedEM＋Windowを進める指示）、独立レビュー4回目（GPT-6 Luna medium）でMajor以上なし、Minorを反映"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（2026-11-04にFedEM＋Windowを進める指示）、独立レビュー4回目（GPT-6 Luna medium）でMajor以上なし、Minorを反映"
+    }
+  },
+  "ready_for_implementation": true,
+  "base_revision": "232450ec",
+  "implementation_assignment": "実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・testの実行・レビューの起動・予備の実行のコマンドと集計",
+  "specification_review": {
+    "status": "passed_after_minor_fix",
+    "rounds": [
+      {
+        "round": 1,
+        "result": "FAIL（Major 4: E-stepの対象の説明、seedと選択の規則、予算、test。Minor 1）——反映"
+      },
+      {
+        "round": 2,
+        "result": "FAIL（Major 3: -historyのπ、追従の指標、時刻の中の順序。Minor 1）——反映"
+      },
+      {
+        "round": 3,
+        "result": "FAIL（Major 2: 初期化とE-stepの範囲の書き方の不一致。Minor 1）——反映"
+      },
+      {
+        "round": 4,
+        "result": "FAIL（Minor 1だけ: 選択の手順）——文面を直し、再レビューは省く"
+      }
+    ]
+  }
+}
