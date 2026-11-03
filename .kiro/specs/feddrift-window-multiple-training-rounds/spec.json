@@ -1,0 +1,49 @@
+{
+  "feature_name": "feddrift-window-multiple-training-rounds",
+  "created_at": "2026-11-03T00:00:00Z",
+  "updated_at": "2026-11-03",
+  "language": "ja",
+  "phase": "implementation",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（2026-11-03にspec作りから進める指示）、独立レビュー3回目（GPT-6 Luna medium）PASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（2026-11-03にspec作りから進める指示）、独立レビュー3回目（GPT-6 Luna medium）PASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（2026-11-03にspec作りから進める指示）、独立レビュー3回目（GPT-6 Luna medium）PASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（2026-11-03にspec作りから進める指示）、独立レビュー3回目（GPT-6 Luna medium）PASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "base_revision": "2a3ccbc8",
+  "implementation_assignment": "実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・testの実行・レビューの起動・予備の実行のコマンドと集計",
+  "specification_review": {
+    "status": "passed",
+    "rounds": [
+      {
+        "round": 1,
+        "result": "FAIL（Major 2）——学習の対象の集合のroundごとの作り直しと通知の区別、分割の後の標本の付け替えと件数の記録"
+      },
+      {
+        "round": 2,
+        "result": "FAIL（Major 2）——判定とroundの順序、分割の後の新しいIDの集約の経路"
+      },
+      {
+        "round": 3,
+        "result": "PASS（Minor 1、変えない）"
+      }
+    ]
+  }
+}
