@@ -72,3 +72,7 @@
 - 独立実装レビュー（GPT-6 Luna、effort medium、`results/_sol_prompts/cfl-impl-review.out`）: PASS（Major以上なし）。
 - 全pytest（主担当、Windows、`-n 8 --dist loadfile`）: 13,378 passed、8 skipped、失敗0・エラー0（2,085秒）。JUnitは`.validation-cfl/full-pytest-claude.xml`。実装担当の環境で権限のため実行できなかった106件とslow 14件も、この中で通った。
 - Task 1のcheckboxを完了にした。Task 3（予備の実行）はユーザーの指示（2026-11-03）で手元で流す。
+
+### 予備の実行の結果（2026-11-03、手元）
+
+- `results/cfl-window-pilot-v16/20261103_161325_split-check-seeds100-102`、24 run、失敗0。分割は全runで0回。「平均の更新ノルム<eps1」が1回も成り立たない（1時刻1roundでは平均の更新が小さくならない）。design.mdの判断の材料のうち「分割が1回も起きない」に当たる。本規模へ進むか、round数を増やす派生の構成を作るか、比較から外すかはユーザーの判断待ち。台帳`docs/experiments/experiment-log.md`に記録。
