@@ -23,6 +23,7 @@ from federated_learning_experiments.runtime.feddrift_detection_batch_processing 
     FeddriftDetectionBatchProcessor,
     FeddriftDetectionBatchTransition,
 )
+from federated_learning_experiments.runtime.fedem_mixture import FedemClientMixture
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -90,6 +91,7 @@ class FeddriftClientStreamProcessor:
             "single_global_model_assignment",
             "driftsurf_global_role_assignment",
             "cfl_bipartition_assignment",
+            "fedem_responsibility_assignment",
         ):
             raise ValueError("未対応の割当方式です。")
         self._driftsurf_assignment = model_assignment_policy == "driftsurf_global_role_assignment"
@@ -108,9 +110,19 @@ class FeddriftClientStreamProcessor:
             "all_timesteps",
             "current_timestep",
             "role_timestep_window",
+            "all_observed_history",
         ):
             raise ValueError("未対応の学習窓です。")
         self._current_timestep_window = training_sample_window == "current_timestep"
+        self._fedem = (
+            FedemClientMixture(
+                registry=detection_batch_processor._registry,
+                training_samples=detection_batch_processor._training_samples,
+                current_timestep_window=self._current_timestep_window,
+            )
+            if model_assignment_policy == "fedem_responsibility_assignment"
+            else None
+        )
         self._indexed_buffer: list[IndexedObservedTrainingSample] = []
         self._current_timestep_assigned_model_ids: set[int] = set()
         self._batch_size = detection_batch_sample_count
@@ -186,7 +198,11 @@ class FeddriftClientStreamProcessor:
             current = self._processor.current_training_model_state
             sample = observation.training_sample
             with no_grad():
-                scores = current.classifier(sample.input_features)
+                scores = (
+                    self._fedem.predict(sample.input_features)
+                    if self._fedem is not None
+                    else current.classifier(sample.input_features)
+                )
                 predicted_class_id = int(
                     predict_class_labels_from_prediction_scores(
                         prediction_scores=scores, class_count=current.classifier.class_count
@@ -226,6 +242,12 @@ class FeddriftClientStreamProcessor:
     def flush_detection_buffer(self) -> FeddriftDetectionBatchTransition | None:
         """残りを一度処理し、既存予測記録へは結果を付加しない。"""
         if not self._buffer:
+            return None
+        if self._fedem is not None:
+            self._fedem.append_timestep_samples(
+                samples=tuple(self._buffer), processed_sample_count=self._processed_count
+            )
+            self._buffer.clear()
             return None
         if self._cfl_assignment:
             selected = self._processor._assignment.current_training_model_id

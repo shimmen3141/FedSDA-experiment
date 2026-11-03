@@ -487,32 +487,34 @@ OPTIONS = (
     ),
     OptionSpec(
         "feddrift_model_assignment_policy", "FedDriftのモデルへの帰属", "adaptation",
-        ("detection_batch_assignment", "true_concept_assignment", "minimum_loss_cluster_assignment", "single_global_model_assignment", "driftsurf_global_role_assignment", "cfl_bipartition_assignment"),
+        ("detection_batch_assignment", "true_concept_assignment", "minimum_loss_cluster_assignment", "single_global_model_assignment", "driftsurf_global_role_assignment", "cfl_bipartition_assignment", "fedem_responsibility_assignment"),
         "新APIのFeddriftRunClientSettings.model_assignment_policy。既定は検出バッチの帰属。"
         "真概念の帰属は初期Kモデルへ標本ごとに振り分け、直前のラベルの概念で予測する。"
         "最小損失の帰属は最初の時刻はID 0、以後はバッチの平均有界損失が最小のモデルを選ぶ。"
         "単一モデルの帰属は全標本をID 0へ割り当てる。"
         "DriftSurfの帰属はサーバが決めた予測の役割を全clientが使う。"
         "CFLの帰属は最初はID 0で、サーバの2分割時だけ変える。"
-        "旧CLIでは切り替えず、新APIのOracle・IFCA・Window・DriftSurf・CFL構成で指定する。",
+        "FedEMは全成分をqで学習し、その時刻のqの平均πで予測を混ぜる。"
+        "旧CLIでは切り替えず、新APIのOracle・IFCA・Window・DriftSurf・CFL・FedEM構成で指定する。",
         (FED_DRIFT,), (FED_DRIFT,),
         requires_capabilities=("multiple_models",),
         active_when=(ActivationRule("method", (FED_DRIFT,), "FedDriftだけで有効"),),
         configuration_surface="config",
     ),
     OptionSpec(
-        "feddrift_local_training_round_count", "窓1時刻の学習round数", "training",
-        ("positive integer",), "新APIのserver_settings.local_training_round_count。既定1。掃引はfeddrift-windowとfeddrift-cfl-windowだけ。ほかの構成は既定以外を拒否。",
+        "feddrift_local_training_round_count", "1時刻の学習round数", "training",
+        ("positive integer",), "新APIのserver_settings.local_training_round_count。既定1。掃引はfeddrift-window・feddrift-cfl-windowとFedEMの4構成。ほかの構成は既定以外を拒否。",
         (FED_DRIFT,), (FED_DRIFT,),
-        active_when=(ActivationRule("feddrift_model_assignment_policy", ("single_global_model_assignment", "cfl_bipartition_assignment"), "単一モデルまたはCFLの窓だけで有効"), ActivationRule("feddrift_adaptive_learning_rate", ("fixed",), "学習率固定の構成だけで有効")),
+        active_when=(ActivationRule("feddrift_model_assignment_policy", ("single_global_model_assignment", "cfl_bipartition_assignment", "fedem_responsibility_assignment"), "単一モデル・CFLの窓またはFedEMで有効"), ActivationRule("feddrift_adaptive_learning_rate", ("fixed",), "学習率固定の構成だけで有効")),
         cli_name="feddrift-local-training-round-counts", configuration_surface="config",
     ),
     OptionSpec(
         "feddrift_training_sample_window", "FedDriftの学習標本の窓", "training",
-        ("all_timesteps", "current_timestep", "role_timestep_window"),
+        ("all_timesteps", "current_timestep", "role_timestep_window", "all_observed_history"),
         "新APIのFeddriftRunClientSettings.training_sample_window。既定は全時刻。"
         "IFCA+Window・単一モデルのWindow・CFL+Windowは、全モデルの標本を空にして今の時刻のバッチだけを割り当てたモデルに追加する。"
-        "役割の時刻窓は直近10時刻を保管し、全モデルの標本を空にして役割の窓の標本だけを追加する。",
+        "役割の時刻窓は直近10時刻を保管し、全モデルの標本を空にして役割の窓の標本だけを追加する。"
+        "FedEMのcurrent_timestepはその時刻だけ、all_observed_historyは初めからの全標本を全成分へ渡す。",
         (FED_DRIFT,), (FED_DRIFT,),
         active_when=(ActivationRule("method", (FED_DRIFT,), "FedDriftだけで有効"),),
         configuration_surface="config",
@@ -521,7 +523,7 @@ OPTIONS = (
         "feddrift_cluster_model_initialization", "FedDriftのクラスタモデルの初期化", "training",
         ("all_pretrained", "all_random", "pretrained_cluster0"),
         "新APIのFeddriftRunClientSettings.cluster_model_initialization。既定は全モデルを事前学習から複写。"
-        "IFCAの全乱数初期化、またはID 0だけ共通の事前学習モデルを使う初期化。",
+        "IFCA・FedEMの全乱数初期化、またはID 0だけ共通の事前学習モデルを使う初期化。",
         (FED_DRIFT,), (FED_DRIFT,),
         active_when=(ActivationRule("method", (FED_DRIFT,), "FedDriftだけで有効"),),
         configuration_surface="config",
@@ -597,13 +599,25 @@ OPTIONS = (
 
 CHOICE_CONSTRAINTS = (
     ChoiceConstraint(
+        "feddrift_model_assignment_policy", ("fedem_responsibility_assignment",), (FED_DRIFT,),
+        requires_selections=(
+            ActivationRule("feddrift_training_sample_window", ("current_timestep", "all_observed_history"), "FedEMの標本の範囲"),
+            ActivationRule("feddrift_cluster_model_initialization", ("all_random", "pretrained_cluster0"), "成分ごとの初期化"),
+        ),
+    ),
+    ChoiceConstraint(
+        "feddrift_training_sample_window", ("all_observed_history",), (FED_DRIFT,),
+        requires_selections=(ActivationRule("feddrift_model_assignment_policy", ("fedem_responsibility_assignment",), "FedEMだけで有効"),),
+    ),
+
+    ChoiceConstraint(
         "feddrift_local_training_round_count", ("positive integer",), (FED_DRIFT,),
         requires_selections=(
-            ActivationRule("feddrift_training_sample_window", ("current_timestep",), "同じ1時刻の窓を反復する"),
-            ActivationRule("feddrift_model_assignment_policy", ("single_global_model_assignment", "cfl_bipartition_assignment"), "FedAvg+WindowまたはCFL+Windowだけ"),
+            ActivationRule("feddrift_training_sample_window", ("current_timestep", "all_observed_history"), "同じ学習標本でroundを反復する"),
+            ActivationRule("feddrift_model_assignment_policy", ("single_global_model_assignment", "cfl_bipartition_assignment", "fedem_responsibility_assignment"), "FedAvg+Window・CFL+Window・FedEMだけ"),
             ActivationRule("feddrift_adaptive_learning_rate", ("fixed",), "Adaptive-FedAvgは対象外"),
         ),
-        note="掃引の既定1は全構成で不変。既定以外は2構成だけ。FedDrift本体の既存のround設定は変えない。",
+        note="掃引の既定1は全構成で不変。既定以外はWindowの2構成とFedEMの4構成。FedDrift本体の既存のround設定は変えない。",
     ),
     ChoiceConstraint("feddrift_model_assignment_policy", ("cfl_bipartition_assignment",), (FED_DRIFT,), requires_selections=(ActivationRule("feddrift_training_sample_window", ("current_timestep",), "CFLは1時刻の窓が必要"), ActivationRule("feddrift_cluster_model_initialization", ("all_pretrained",), "共通の事前学習初期値が必要"))),
     ChoiceConstraint("feddrift_model_assignment_policy", ("single_global_model_assignment",), (FED_DRIFT,), requires_selections=(
@@ -623,11 +637,11 @@ CHOICE_CONSTRAINTS = (
     ),
     ChoiceConstraint(
         "feddrift_training_sample_window", ("current_timestep",), (FED_DRIFT,),
-        requires_selections=(ActivationRule("feddrift_model_assignment_policy", ("minimum_loss_cluster_assignment", "single_global_model_assignment", "driftsurf_global_role_assignment", "cfl_bipartition_assignment"), "IFCA・単一モデル・CFLの帰属が必要"),),
+        requires_selections=(ActivationRule("feddrift_model_assignment_policy", ("minimum_loss_cluster_assignment", "single_global_model_assignment", "driftsurf_global_role_assignment", "cfl_bipartition_assignment", "fedem_responsibility_assignment"), "IFCA・単一モデル・CFL・FedEMの帰属が必要"),),
     ),
     ChoiceConstraint(
         "feddrift_cluster_model_initialization", ("all_random", "pretrained_cluster0"), (FED_DRIFT,),
-        requires_selections=(ActivationRule("feddrift_model_assignment_policy", ("minimum_loss_cluster_assignment",), "IFCAの帰属が必要"),),
+        requires_selections=(ActivationRule("feddrift_model_assignment_policy", ("minimum_loss_cluster_assignment", "fedem_responsibility_assignment"), "IFCAまたはFedEMの帰属が必要"),),
     ),
     ChoiceConstraint(
         "clustering_consolidation",

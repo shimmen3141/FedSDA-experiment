@@ -153,7 +153,7 @@ client IDの列はカンマ区切り文字列、未判定の`alpha_cross`はNaN�
 既存構成の設定・識別子・表は変えない。
 
 `--feddrift-local-training-round-counts`は正の整数の列（省略時1）で、
-`feddrift-window`と`feddrift-cfl-window`だけを掃引する。ほかの構成を含む計画は既定以外のRを拒否する。
+`feddrift-window`と`feddrift-cfl-window`、FedEMの4構成を掃引する。ほかの構成を含む計画は既定以外のRを拒否する。
 FedAvg+Windowも、同じ時刻の窓をR回学習する対照となる。R=1の保存設定・識別子は変えない。
 
 各roundは、その時点の割り当てから学習対象を作り、学習後・集約前にCFLを判定する。
@@ -171,3 +171,17 @@ FedAvg+Windowも、同じ時刻の窓をR回学習する対照となる。R=1の
 この差は全手法に共通の学習規則（D05）であり、同じRのFedAvg+Windowにも同じく生じる。
 
 Rの予備実行と本規模へ進む判断は[今回の設計](../../.kiro/specs/feddrift-window-multiple-training-rounds/design.md)に従う。
+
+## FedEMの4構成
+
+`feddrift-fedem-window`・`feddrift-fedem-history`と、それぞれの`-pretrained-component0`付き構成は、Marfoq et al.（NeurIPS 2021）の公式実装`omarfoq/fedem`（`996fadd`）の混合モデルをFedDriftの実行基盤へ接続する。成分数Mにはデータの真のコンセプト数を与える（FedEMに有利な条件）。統合・ドリフト検出・新モデル作成は行わない。
+
+各roundは、配布済みモデルで全学習標本の交差エントロピー損失を計算し、`q = softmax(log(π) − loss)`、今の時刻の標本のqの平均によるπ更新、全成分のM-step、集約、配布の順に行う。M-stepは`Σ qᵢₘ ℓₘ / |B|`（qの和では割らない）。集約は全成分ともclientの学習標本件数の割合を使い、qの和を使わない。πとqは通信しない。
+
+公式に準じる点は、E/M-stepの式、全成分の学習、集約の件数重み、πによる確率の混合、独立の乱数初期化と一様な初期πである。共通の事前学習は乱数系列とデータ生成を揃えるため全構成で行う。`-pretrained-component0`なしは事前学習のパラメータを成分へ使わず、付きはID 0だけその写しを使う。ほかの成分の乱数初期値は両者で一致し、初期化でrunの乱数を消費しない。
+
+公式との差は、(a) ラベル観測前の逐次評価、(b) 共通条件の局所予算・学習率・Adam（D04・D05・D11）、(c) `-pretrained-component0`でのID 0の初期値、(d) 学習標本はその時刻だけ（window）またはrunの初めから全部（history）、(e) 時刻内round数R（既定1）、(f) 真のコンセプト数をMとして与える点、(g) πは今の時刻の標本で推定する点である。windowでは(g)は公式の全学習標本の平均と同じ。historyでもE/M-stepは全履歴を使うが、πに古いコンセプトの割合を残さないため、その時刻のqだけを平均する。予測には直前の時刻の最後のroundのπと最後の配布モデルを使い、集約の間は更新しない。
+
+各成分にFedDriftの1モデル分の学習予算を与えるため、局所学習とパラメータ通信はおおむねM倍になる。予算をMで割らず、精度と通信・計算量を対で比較する。E-stepの全標本のforwardも推論計数へ含める。historyは保持とE-stepの費用が時刻とともに増える。
+
+保存形式9は`fedem_client_mixture`（`timestep_index, client_id, model_id, mixture_weight`）と`fedem_sample_responsibility`（`timestep_index, client_id, sample_index, max_responsibility_model_id, max_responsibility`）を保存する。いずれも最後のroundのE-stepを記録し、後者はhistoryでもその時刻の標本だけである。最大qの成分は診断用で、学習は全成分で行う。予備実験と本規模の構成選択は別工程で行う。

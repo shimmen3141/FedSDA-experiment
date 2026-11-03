@@ -20,6 +20,7 @@ from federated_learning_experiments.runtime.feddrift_run_settings import Feddrif
 from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
 from federated_learning_experiments.sweep.experiment_configurations import (
     EXPERIMENT_CONFIGURATION_NAMES,
+    FEDEM_CONFIGURATION_NAMES,
     build_experiment_run_settings,
 )
 
@@ -95,12 +96,12 @@ class ExperimentSweepPlan:
             if any(value < 1 for value in self.feddrift_local_training_round_counts):
                 raise ValueError("feddrift_local_training_round_counts must be positive")
             if any(value != 1 for value in self.feddrift_local_training_round_counts) and any(
-                name not in ("feddrift-window", "feddrift-cfl-window")
+                name not in ("feddrift-window", "feddrift-cfl-window", *FEDEM_CONFIGURATION_NAMES)
                 for name in self.configuration_names
             ):
                 raise ValueError(
                     "feddrift_local_training_round_counts other than 1 requires only "
-                    "feddrift-window or feddrift-cfl-window configurations"
+                    "feddrift-window, feddrift-cfl-window or FedEM configurations"
                 )
         if self.driftsurf_accuracy_drop_thresholds is not None:
             _validate_distinct_values(
@@ -363,7 +364,11 @@ def build_planned_experiment_runs(
                         )
                     else:
                         settings_variants = (run_settings,)
-                    if configuration_name in ("feddrift-window", "feddrift-cfl-window"):
+                    if configuration_name in (
+                        "feddrift-window",
+                        "feddrift-cfl-window",
+                        *FEDEM_CONFIGURATION_NAMES,
+                    ):
                         settings_variants = tuple(
                             _replace_feddrift_training_round_count(variant, round_count)
                             for variant in settings_variants

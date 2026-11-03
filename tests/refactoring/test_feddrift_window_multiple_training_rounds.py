@@ -63,7 +63,7 @@ def test_all_default_settings_and_identifiers_match_before_change():
             convert_settings_to_plain_mapping(settings(configuration=n)),
             make_run_identifier(configuration_name=n, run_settings=settings(configuration=n)),
         )
-        for n in EXPERIMENT_CONFIGURATION_NAMES
+        for n in EXPERIMENT_CONFIGURATION_NAMES[:27]
     ]
     # d734a8b2の27構成。保存設定の全項目と識別子を実装前に採取した。
     assert len(values) == 27
@@ -104,7 +104,14 @@ def test_sweep_cli_defaults_and_distinct_identifiers():
         assert run.run_settings == settings(configuration=run.configuration_name)
 
 
-@pytest.mark.parametrize("name", [n for n in EXPERIMENT_CONFIGURATION_NAMES if n not in WINDOWS])
+@pytest.mark.parametrize(
+    "name",
+    [
+        n
+        for n in EXPERIMENT_CONFIGURATION_NAMES
+        if n not in WINDOWS and not n.startswith("feddrift-fedem-")
+    ],
+)
 def test_sweep_rejects_nonwindow_rounds(name):
     with pytest.raises(ValueError, match="feddrift_local_training_round_counts"):
         plan((name,), (3,))
@@ -154,7 +161,7 @@ def test_round_axis_declarations_and_artifact_version():
     assert any(c.option_id == name and c.requires_selections for c in CHOICE_CONSTRAINTS)
     assert FEDDRIFT_LOCAL_TRAINING_ROUND_COUNT_AXIS.parameter_id == name
     assert FEDDRIFT_LOCAL_TRAINING_ROUND_COUNT_AXIS.values == (1,)
-    assert RUN_ARTIFACT_FORMAT_VERSION == SWEEP_RECORD_FORMAT_VERSION == 8
+    assert RUN_ARTIFACT_FORMAT_VERSION == SWEEP_RECORD_FORMAT_VERSION == 9
 
 
 def test_cfl_reassignment_destination_is_checked_before_state_updates(monkeypatch):

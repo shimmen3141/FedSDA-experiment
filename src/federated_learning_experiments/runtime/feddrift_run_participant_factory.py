@@ -214,7 +214,11 @@ class FeddriftRunParticipantFactory:
                 initial_model_count=(
                     definition.concept_count
                     if settings.run_client_settings.model_assignment_policy
-                    in ("true_concept_assignment", "minimum_loss_cluster_assignment")
+                    in (
+                        "true_concept_assignment",
+                        "minimum_loss_cluster_assignment",
+                        "fedem_responsibility_assignment",
+                    )
                     else 2
                     if settings.run_client_settings.model_assignment_policy
                     == "driftsurf_global_role_assignment"

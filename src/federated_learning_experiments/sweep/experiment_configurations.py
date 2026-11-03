@@ -97,6 +97,20 @@ FEDDRIFT_WINDOW_CONFIGURATION_NAME = "feddrift-window"
 FEDDRIFT_DRIFTSURF_CONFIGURATION_NAME = "feddrift-driftsurf"
 FEDDRIFT_ADAPTIVE_FEDAVG_WINDOW_CONFIGURATION_NAME = "feddrift-adaptive-fedavg-window"
 FEDDRIFT_CFL_WINDOW_CONFIGURATION_NAME = "feddrift-cfl-window"
+FEDDRIFT_FEDEM_WINDOW_CONFIGURATION_NAME = "feddrift-fedem-window"
+FEDDRIFT_FEDEM_WINDOW_PRETRAINED_COMPONENT0_CONFIGURATION_NAME = (
+    "feddrift-fedem-window-pretrained-component0"
+)
+FEDDRIFT_FEDEM_HISTORY_CONFIGURATION_NAME = "feddrift-fedem-history"
+FEDDRIFT_FEDEM_HISTORY_PRETRAINED_COMPONENT0_CONFIGURATION_NAME = (
+    "feddrift-fedem-history-pretrained-component0"
+)
+FEDEM_CONFIGURATION_NAMES = (
+    FEDDRIFT_FEDEM_WINDOW_CONFIGURATION_NAME,
+    FEDDRIFT_FEDEM_WINDOW_PRETRAINED_COMPONENT0_CONFIGURATION_NAME,
+    FEDDRIFT_FEDEM_HISTORY_CONFIGURATION_NAME,
+    FEDDRIFT_FEDEM_HISTORY_PRETRAINED_COMPONENT0_CONFIGURATION_NAME,
+)
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
@@ -126,6 +140,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     FEDDRIFT_ADAPTIVE_FEDAVG_WINDOW_CONFIGURATION_NAME,
     FEDDRIFT_DRIFTSURF_CONFIGURATION_NAME,
     FEDDRIFT_CFL_WINDOW_CONFIGURATION_NAME,
+    *FEDEM_CONFIGURATION_NAMES,
 )
 
 
@@ -235,6 +250,31 @@ def build_experiment_run_settings(
         raise ValueError(
             f"unknown experiment configuration: {configuration_name!r} "
             f"(available: {', '.join(EXPERIMENT_CONFIGURATION_NAMES)})"
+        )
+    if configuration_name in FEDEM_CONFIGURATION_NAMES:
+        feddrift = build_default_feddrift_run_settings(
+            experiment_run_conditions=experiment_run_conditions
+        )
+        participant = feddrift.run_participant_settings
+        return replace(
+            feddrift,
+            run_participant_settings=replace(
+                participant,
+                run_client_settings=replace(
+                    participant.run_client_settings,
+                    model_assignment_policy="fedem_responsibility_assignment",
+                    training_sample_window=(
+                        "current_timestep"
+                        if configuration_name in FEDEM_CONFIGURATION_NAMES[:2]
+                        else "all_observed_history"
+                    ),
+                    cluster_model_initialization=(
+                        "pretrained_cluster0"
+                        if configuration_name.endswith("-pretrained-component0")
+                        else "all_random"
+                    ),
+                ),
+            ),
         )
     if configuration_name in (
         FEDDRIFT_CFL_WINDOW_CONFIGURATION_NAME,

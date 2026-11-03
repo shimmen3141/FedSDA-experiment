@@ -2,7 +2,7 @@
 
 from random import Random
 
-from torch import cat
+from torch import Tensor, cat, isfinite
 
 from federated_learning_experiments.learning.training.held_model_training_batch_sampling import (
     _validate_observed_training_sample,
@@ -23,6 +23,10 @@ from federated_learning_experiments.learning.training.model_training_and_assignm
 from federated_learning_experiments.learning.training.model_training_sample_store import (
     ModelTrainingSampleStore,
 )
+from federated_learning_experiments.runtime.fedem_mixture import (
+    _fedem_per_sample_loss,
+    _fedem_weighted_loss,
+)
 
 
 def train_feddrift_held_models_for_round(
@@ -35,6 +39,7 @@ def train_feddrift_held_models_for_round(
     updates_per_sample: int,
     k_steps: int,
     eligible_model_ids: frozenset[int] | None = None,
+    sample_responsibilities_by_model_id: dict[int, Tensor] | None = None,
 ) -> tuple[float, ...]:
     """全参加列を検査してから、store順に各モデルの予算を続けて更新する。"""
     if eligible_model_ids is not None and (
@@ -68,6 +73,15 @@ def train_feddrift_held_models_for_round(
         and (eligible_model_ids is None or collection.model_id in eligible_model_ids)
     )
     # 乱数/先行モデルを更新する前に、全参加populationを検査する。
+    if sample_responsibilities_by_model_id is not None:
+        for collection in participants:
+            weights = sample_responsibilities_by_model_id[collection.model_id]
+            if (
+                weights.shape != (len(collection.training_samples),)
+                or not isfinite(weights).all().item()
+                or not ((weights >= 0) & (weights <= 1)).all().item()
+            ):
+                raise ValueError("FedEMのqは学習標本と同じ件数の有限な0〜1の重みが必要です。")
     for collection in participants:
         state = states[collection.model_id]
         if type(state) is not HeldModelTrainingState:
@@ -95,6 +109,32 @@ def train_feddrift_held_models_for_round(
     for collection in participants:
         state = states[collection.model_id]
         for _ in range(update_count):
+            if sample_responsibilities_by_model_id is not None:
+                # 既存のsample(population, B)と同じ非復元抽出。qと標本を同じ位置で取り出す。
+                indices = python_random_generator.sample(
+                    range(len(collection.training_samples)), batch_sample_count
+                )
+                samples = [collection.training_samples[i] for i in indices]
+                optimizer = state.concept_specific_parameter_optimizer_state.parameter_optimizer
+                optimizer.zero_grad()
+                outputs = state.classifier(cat([s.input_features for s in samples]))
+                loss_tensor = _fedem_weighted_loss(
+                    _fedem_per_sample_loss(
+                        outputs,
+                        cat([s.observed_class_labels for s in samples]),
+                        state.classifier.class_count,
+                    ),
+                    sample_responsibilities_by_model_id[state.model_id][indices],
+                )
+                loss_tensor.backward()
+                optimizer.step()
+                model_training_and_assignment_counts_store.record_completed_model_training(
+                    model_id=state.model_id,
+                    trained_sample_count=batch_sample_count,
+                    parameter_update_step_count=1,
+                )
+                completed_losses.append(float(loss_tensor.item()))
+                continue
             (batch,) = sample_training_batches_for_held_models(
                 held_model_ids=frozenset((state.model_id,)),
                 ordered_model_training_samples=(collection,),

@@ -225,6 +225,8 @@ class FeddriftRunClient:
     ) -> tuple[float, ...]:
         """旧の検出batch件数を倍率として、一roundだけ連続更新する。"""
         owners = self._owners
+        fedem = self._stream_processor._fedem
+        responsibilities = fedem.expectation_step() if fedem is not None else None
         return train_feddrift_held_models_for_round(
             held_model_training_state_registry=owners.held_model_training_state_registry,
             training_sample_store=owners.training_sample_store,
@@ -234,6 +236,7 @@ class FeddriftRunClient:
             updates_per_sample=self._settings.updates_per_sample,
             k_steps=self._settings.detection_batch_sample_count,
             eligible_model_ids=eligible_model_ids,
+            sample_responsibilities_by_model_id=responsibilities,
         )
 
     def flush_detection_buffer(self) -> FeddriftDetectionBatchTransition | None:

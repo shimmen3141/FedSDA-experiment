@@ -49,5 +49,17 @@
         "result": "FAIL（Minor 1だけ: 選択の手順）——文面を直し、再レビューは省く"
       }
     ]
+  },
+  "implementation_status": {
+    "tasks": [
+      1,
+      2
+    ],
+    "status": "Task 1・2完了。実装レビュー（一時的にHaiku 5.5）PASS、全pytestの結果はtasks.mdのImplementation Notes",
+    "next_action": "Task 3（予備の実行96 run）のコマンドを渡し、集計する"
+  },
+  "implementation_review": {
+    "reviewer": "Claude Haiku 5.5（effort medium、Lunaの使用上限のためユーザー指示で代替）",
+    "result": "PASS（Major以上なし、Minor 5のうち3を採用）"
   }
 }

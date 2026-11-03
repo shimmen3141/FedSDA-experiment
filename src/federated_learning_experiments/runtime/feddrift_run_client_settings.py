@@ -83,11 +83,17 @@ class FeddriftRunClientSettings:
                     "single_global_model_assignment",
                     "driftsurf_global_role_assignment",
                     "cfl_bipartition_assignment",
+                    "fedem_responsibility_assignment",
                 ),
             ),
             (
                 "training_sample_window",
-                ("all_timesteps", "current_timestep", "role_timestep_window"),
+                (
+                    "all_timesteps",
+                    "current_timestep",
+                    "role_timestep_window",
+                    "all_observed_history",
+                ),
             ),
             (
                 "cluster_model_initialization",
@@ -108,7 +114,13 @@ class FeddriftRunClientSettings:
                 raise TypeError(f"{name}はbuiltin strが必要です。")
             if value not in choices:
                 raise ValueError(f"{name}が未対応です。")
-        if self.model_assignment_policy == "minimum_loss_cluster_assignment":
+        if self.model_assignment_policy == "fedem_responsibility_assignment":
+            if (
+                self.training_sample_window not in ("current_timestep", "all_observed_history")
+                or self.cluster_model_initialization == "all_pretrained"
+            ):
+                raise ValueError("FedEMは時刻または全履歴の標本と成分ごとの初期化が必要です。")
+        elif self.model_assignment_policy == "minimum_loss_cluster_assignment":
             if (
                 self.training_sample_window != "current_timestep"
                 or self.cluster_model_initialization == "all_pretrained"

@@ -382,6 +382,11 @@ class FeddriftRunServer:
         self._aggregate_and_distribute_models(active_ids=active_ids, update_model_weights=True)
 
     def _current_timestep_training_model_ids(self) -> frozenset[int] | None:
+        if (
+            self.run_clients[0]._settings.model_assignment_policy
+            == "fedem_responsibility_assignment"
+        ):
+            return frozenset(self.global_model_repository.global_model_ids)
         if self._driftsurf_state is not None:
             return self._driftsurf_training_model_ids
         if self._true_concept_assignment:

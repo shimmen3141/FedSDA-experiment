@@ -495,4 +495,34 @@ def build_feddrift_run_record_tables(
             record_tables[f"{phase}_model_computation.{field.name}"] = _integer_column(
                 [getattr(phase_counts, field.name)]
             )
+    if run_clients[0]._settings.model_assignment_policy == "fedem_responsibility_assignment":
+        for table, columns, attribute in (
+            (
+                "fedem_client_mixture",
+                ("timestep_index", "client_id", "model_id", "mixture_weight"),
+                "mixture_records",
+            ),
+            (
+                "fedem_sample_responsibility",
+                (
+                    "timestep_index",
+                    "client_id",
+                    "sample_index",
+                    "max_responsibility_model_id",
+                    "max_responsibility",
+                ),
+                "responsibility_records",
+            ),
+        ):
+            rows = [
+                (row[0], client.client_id, *row[1:])
+                for client in run_clients
+                if client.stream_processor._fedem is not None
+                for row in getattr(client.stream_processor._fedem, attribute)
+            ]
+            for index, column in enumerate(columns):
+                values = [row[index] for row in rows]
+                record_tables[f"{table}.{column}"] = (
+                    _float_column(values) if index == len(columns) - 1 else _integer_column(values)
+                )
     return record_tables

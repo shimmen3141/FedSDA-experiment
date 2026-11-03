@@ -769,7 +769,7 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
         "run_outcomes",
         "unreadable_run_summary_descriptions",
     ]
-    assert record["record_format_version"] == 8
+    assert record["record_format_version"] == 9
     assert record["command_arguments"] == ["--datasets", "circle2"]
     assert record["sweep_plan"] == dict(
         configuration_names=["fedsda"],
@@ -1480,7 +1480,7 @@ def test_command_places_results_under_the_study_with_a_readme(tmp_path, monkeypa
     record = json.loads(
         next(output_directory.glob("sweep_record_*.json")).read_text(encoding="utf-8")
     )
-    assert record["record_format_version"] == 8
+    assert record["record_format_version"] == 9
     assert (
         record["purpose"] == SMALL_COMMAND_ARGUMENTS[SMALL_COMMAND_ARGUMENTS.index("--purpose") + 1]
     )

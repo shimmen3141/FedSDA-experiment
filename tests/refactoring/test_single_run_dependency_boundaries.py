@@ -3454,6 +3454,7 @@ def test_feddrift_client_stream_processing_rejects_outer_dependencies(forbidden_
     "source_module_path",
     (
         "runtime/feddrift_client_round_training.py",
+        "runtime/fedem_mixture.py",
         "learning/training/independent_model_parameter_update.py",
     ),
 )
@@ -3473,6 +3474,33 @@ def test_feddrift_round_training_rejects_outer_dependencies(source_module_path, 
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    fedem_imports = {
+        "runtime/fedem_mixture.py": (
+            "torch",
+            "torch.nn.functional.binary_cross_entropy",
+            "torch.nn.functional.cross_entropy",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations.convert_model_outputs_to_prediction_probabilities",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+        ),
+        "runtime/feddrift_client_round_training.py": (
+            "torch.Tensor",
+            "torch.isfinite",
+            "federated_learning_experiments.runtime.fedem_mixture._fedem_per_sample_loss",
+            "federated_learning_experiments.runtime.fedem_mixture._fedem_weighted_loss",
+        ),
+        "runtime/feddrift_client_stream_processing.py": (
+            "federated_learning_experiments.runtime.fedem_mixture.FedemClientMixture",
+        ),
+        "sweep/experiment_sweep_plan.py": (
+            "federated_learning_experiments.sweep.experiment_configurations.FEDEM_CONFIGURATION_NAMES",
+        ),
+    }
+    if source_module_path == "runtime/fedem_mixture.py":
+        return imported_module_name in fedem_imports[source_module_path]
+    if imported_module_name in fedem_imports.get(source_module_path, ()):
+        return True
     if source_module_path == "methods/feddrift/cfl_cluster_splitting.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -6015,6 +6043,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/feddrift_run_client.py",
             "runtime/feddrift_run_client_settings.py",
             "runtime/feddrift_client_round_training.py",
+            "runtime/fedem_mixture.py",
             "learning/training/independent_model_parameter_update.py",
             "runtime/feddrift_client_stream_processing.py",
             "runtime/feddrift_detection_batch_processing.py",
