@@ -79,6 +79,7 @@ flowchart LR
     feddrift_distance_threshold["<b>FedDrift距離閾値 δ_FedDrift</b><br/>non-negative number"]
   end
   subgraph group_training[training]
+    feddrift_local_training_round_count["<b>窓1時刻の学習round数</b><br/>positive integer"]
     feddrift_training_sample_window["<b>FedDriftの学習標本の窓</b><br/>all_timesteps | current_timestep | role_timestep_window"]
     feddrift_cluster_model_initialization["<b>FedDriftのクラスタモデルの初期化</b><br/>all_pretrained | all_random | pretrained_cluster0"]
     feddrift_adaptive_learning_rate["<b>FedDriftの学習率の調整</b><br/>fixed | adaptive_fedavg"]
@@ -116,6 +117,8 @@ flowchart LR
   clustering_policy -->|"クラスタリングを実行するとき"| clustering_consolidation
   clustering_consolidation -->|"非劣性制約付きマージのとき"| merge_noninferiority_margin
   method -->|"FedDriftだけで有効"| feddrift_model_assignment_policy
+  feddrift_model_assignment_policy -->|"単一モデルまたはCFLの窓だけで有効"| feddrift_local_training_round_count
+  feddrift_adaptive_learning_rate -->|"学習率固定の構成だけで有効"| feddrift_local_training_round_count
   method -->|"FedDriftだけで有効"| feddrift_training_sample_window
   method -->|"FedDriftだけで有効"| feddrift_cluster_model_initialization
   feddrift_model_assignment_policy -->|"CFLの帰属だけで有効"| cfl_split_gamma
@@ -123,6 +126,9 @@ flowchart LR
   method -->|"FedDriftだけで有効"| feddrift_adaptive_learning_rate
   feddrift_adaptive_learning_rate -->|"学習率の調整のときだけ"| adaptive_fedavg_initial_learning_rate
   feddrift_adaptive_learning_rate -->|"学習率の調整のときだけ"| adaptive_fedavg_beta
+  feddrift_training_sample_window -.->|"positive integer: 同じ1時刻の窓を反復する"| feddrift_local_training_round_count
+  feddrift_model_assignment_policy -.->|"positive integer: FedAvg+WindowまたはCFL+Windowだけ"| feddrift_local_training_round_count
+  feddrift_adaptive_learning_rate -.->|"positive integer: Adaptive-FedAvgは対象外"| feddrift_local_training_round_count
   feddrift_training_sample_window -.->|"cfl_bipartition_assignment: CFLは1時刻の窓が必要"| feddrift_model_assignment_policy
   feddrift_cluster_model_initialization -.->|"cfl_bipartition_assignment: 共通の事前学習初期値が必要"| feddrift_model_assignment_policy
   feddrift_training_sample_window -.->|"single_global_model_assignment: 単一モデルには1時刻の窓が必要"| feddrift_model_assignment_policy
@@ -195,6 +201,7 @@ flowchart LR
 | `cluster_linkage` | cli: `--cluster-linkage` | 実装済み | 対象外 | 対象外 | 対象外 | モデル対判定からクラスタを構成する方法 |
 | `fedsda_distance_threshold` | cli: `--fedsda-distance-threshold` | 実装済み | 対象外 | 対象外 | 対象外 | モデル適合・再利用および距離ベース統合の閾値 |
 | `feddrift_model_assignment_policy` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのFeddriftRunClientSettings.model_assignment_policy。既定は検出バッチの帰属。真概念の帰属は初期Kモデルへ標本ごとに振り分け、直前のラベルの概念で予測する。最小損失の帰属は最初の時刻はID 0、以後はバッチの平均有界損失が最小のモデルを選ぶ。単一モデルの帰属は全標本をID 0へ割り当てる。DriftSurfの帰属はサーバが決めた予測の役割を全clientが使う。CFLの帰属は最初はID 0で、サーバの2分割時だけ変える。旧CLIでは切り替えず、新APIのOracle・IFCA・Window・DriftSurf・CFL構成で指定する。 |
+| `feddrift_local_training_round_count` | config: `--feddrift-local-training-round-counts` | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのserver_settings.local_training_round_count。既定1。掃引はfeddrift-windowとfeddrift-cfl-windowだけ。ほかの構成は既定以外を拒否。 |
 | `feddrift_training_sample_window` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのFeddriftRunClientSettings.training_sample_window。既定は全時刻。IFCA+Window・単一モデルのWindow・CFL+Windowは、全モデルの標本を空にして今の時刻のバッチだけを割り当てたモデルに追加する。役割の時刻窓は直近10時刻を保管し、全モデルの標本を空にして役割の窓の標本だけを追加する。 |
 | `feddrift_cluster_model_initialization` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのFeddriftRunClientSettings.cluster_model_initialization。既定は全モデルを事前学習から複写。IFCAの全乱数初期化、またはID 0だけ共通の事前学習モデルを使う初期化。 |
 | `cfl_split_gamma` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのcfl_split_gamma。既定0.1、CFLの分割だけで有効。掃引軸は持たない。 |
@@ -221,6 +228,7 @@ flowchart LR
 
 | オプション値 | 実装済みmode | 追加前提 | 備考 |
 |---|---|---|---|
+| `feddrift_local_training_round_count` = `positive integer` | `FedDrift` | 同じ1時刻の窓を反復する<br/>FedAvg+WindowまたはCFL+Windowだけ<br/>Adaptive-FedAvgは対象外 | 掃引の既定1は全構成で不変。既定以外は2構成だけ。FedDrift本体の既存のround設定は変えない。 |
 | `feddrift_model_assignment_policy` = `cfl_bipartition_assignment` | `FedDrift` | CFLは1時刻の窓が必要<br/>共通の事前学習初期値が必要 |  |
 | `feddrift_model_assignment_policy` = `single_global_model_assignment` | `FedDrift` | 単一モデルには1時刻の窓が必要<br/>共通の事前学習モデルが必要 |  |
 | `feddrift_model_assignment_policy` = `driftsurf_global_role_assignment` | `FedDrift` | DriftSurfの役割の窓が必要<br/>共通の事前学習初期値が必要 |  |

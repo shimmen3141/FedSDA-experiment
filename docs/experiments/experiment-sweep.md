@@ -166,10 +166,10 @@ NPZ・run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変
 | `feddrift-oracle-concept-assignment` | FedDriftの学習・集約を使い、真概念ごとに標本を帰属。初期Kモデルを維持し、予測は直前のラベルの概念（最初はID 0）。検出・新規作成・統合は行わない | 対応なし（[Oracleの評価の違い](differences-from-feddrift.md#真のコンセプトで割り当てるoracle構成)） |
 | `feddrift-ifca-window` | 真の概念数Kのモデルを全て乱数で初期化。最初はID 0、以後はclientごと・時刻ごとの最小損失で選び、今の時刻だけで学習。Kモデルを維持し統合しない | IFCA+Windowの移植（[論文との違いと記録](differences-from-feddrift.md#ifcawindowの2構成)） |
 | `feddrift-ifca-window-pretrained-cluster0` | 上のIFCA+WindowのID 0だけを共通の事前学習モデルにする。ID 1以降の乱数初期値は全乱数版と同じ | 初期化の影響を示す参考構成（[論文との違い](differences-from-feddrift.md#ifcawindowの2構成)） |
-| `feddrift-window` | 共通の事前学習モデル1個（ID 0）へ全標本を帰属し、今の時刻だけで学習。optimizer・学習率はデータ別のFedDrift既定。検出・作成・統合なし | Window（[公式との差と記録](differences-from-feddrift.md#windowとadaptive-fedavgの2構成)） |
+| `feddrift-window` | 共通の事前学習モデル1個（ID 0）へ全標本を帰属し、今の時刻だけで学習。optimizer・学習率はデータ別のFedDrift既定。検出・作成・統合なし。Rは`--feddrift-local-training-round-counts`で指定（既定1） | Window（[公式との差と記録](differences-from-feddrift.md#windowとadaptive-fedavgの2構成)） |
 | `feddrift-adaptive-fedavg-window` | Windowの局所学習をSGDへ替え、集約後に公式AdaStateの式で次時刻の学習率を決める | Adaptive-FedAvg（[公式との差と記録](differences-from-feddrift.md#windowとadaptive-fedavgの2構成)） |
 | `feddrift-driftsurf` | 全clientの正解率で予測・安定・反応の役割を切り替え、役割ごとの最大10時刻の窓で学習。δ既定0.10、反応3時刻。FedDriftの検出・作成・統合なし | DriftSurf（[公式との差と記録](differences-from-feddrift.md#driftsurfの構成)） |
-| `feddrift-cfl-window` | 1モデルから始め、更新のノルム・余弦類似度による完全連結2分割で最大Kモデルまで増やす。割り当てを保持し、今の時刻だけで学習。γ既定0.1、掃引軸なし | CFL+Window（[公式との差と記録](differences-from-feddrift.md#cflwindowの構成)） |
+| `feddrift-cfl-window` | 1モデルから始め、更新のノルム・余弦類似度による完全連結2分割で最大Kモデルまで増やす。割り当てを保持し、今の時刻だけで学習。γ既定0.1（γの掃引軸なし）。Rは`--feddrift-local-training-round-counts`で指定（既定1） | CFL+Window（[公式との差と記録](differences-from-feddrift.md#cflwindowの構成)） |
 | `fedsda` | 提案構成。同期時点と局所更新の結合予測を混ぜる。FIFO容量30・T120。候補を検証せずに採用し、候補の学習では共有部を固定する（基準版7） | `reference`（現在は予測方式・T・候補の採否などに意図した差がある） |
 | `fedsda-every-sample-change-interval-search` | 基準版16から既定の`fedsda`と同じ設定。`change_interval_search=every_sample_with_reverse_prequential_code`で、新しい順の1本の流れの途中和から、最小変化区間以上の全部のkを1件刻みで測る。これまでのコマンドと結果の記録のために残し、識別子は実行済みの結果と同じ（`fedsda`の識別子とは異なる） | 対応なし（[既定を替えるspec](../../.kiro/specs/fedsda-every-sample-change-interval-search-default/design.md)） |
 | `fedsda-minimum-interval-multiples-change-interval-search` | 提案構成の`change_interval_search`だけを`minimum_interval_multiples_with_forward_prequential_code`へ戻す（基準版15までの既定）。kを最小変化区間の倍数に限り、kごとに末尾k件を古い方から一から学習して測る | 対応なし（[spec](../../.kiro/specs/fedsda-every-sample-change-interval-search-default/design.md)） |
@@ -349,3 +349,11 @@ Windowは調整しない。Adaptive-FedAvgは評価に使わないseed 100〜102
 省略時は0.10。既定のδは保存設定から省かれ、明示した既定値も同じrun識別子になる。
 調整は評価に使わないseed 100〜102でデータ×間隔ごとに行う。
 条件と選択・上端の判断は[DriftSurfの設計](../../.kiro/specs/feddrift-driftsurf-configuration/design.md)に従う。
+
+### FedAvg+Window・CFL+Windowのround数の掃引
+
+`--feddrift-local-training-round-counts 1 3`で1時刻のround数Rを指定する。
+正の整数、重複不可。省略時は1。既定以外のRは`feddrift-window`と`feddrift-cfl-window`だけで許す。
+同じ時刻の窓をR回学習し、計算とパラメータ通信を各roundで数える。
+CFLは各roundの学習後・集約前に分割を判定し、分割後の残りのroundは新しい割り当てで学習する。
+公式との違いは[比較資料](differences-from-feddrift.md#cflwindowの構成)を参照する。

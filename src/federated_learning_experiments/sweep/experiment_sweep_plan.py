@@ -55,6 +55,7 @@ class ExperimentSweepPlan:
     server_aggregation_intervals_per_client_samples: tuple[int, ...]
     feddrift_loss_increase_thresholds: tuple[float, ...] | None = None
     driftsurf_accuracy_drop_thresholds: tuple[float, ...] | None = None
+    feddrift_local_training_round_counts: tuple[int, ...] | None = None
     adaptive_fedavg_initial_learning_rates: tuple[float, ...] | None = None
     # FedSDAの構成の、帰属の保留（FIFO）の容量（標本数）。Fixed-Shareの時間尺度は替えない。
     fedsda_pending_assignment_fifo_capacities: tuple[int, ...] | None = None
@@ -85,6 +86,22 @@ class ExperimentSweepPlan:
         for count_name in ("client_count", "per_client_sample_count"):
             if type(getattr(self, count_name)) is not int:
                 raise TypeError(f"{count_name} must be builtin int")
+        if self.feddrift_local_training_round_counts is not None:
+            _validate_distinct_values(
+                values=self.feddrift_local_training_round_counts,
+                value_type=int,
+                field_name="feddrift_local_training_round_counts",
+            )
+            if any(value < 1 for value in self.feddrift_local_training_round_counts):
+                raise ValueError("feddrift_local_training_round_counts must be positive")
+            if any(value != 1 for value in self.feddrift_local_training_round_counts) and any(
+                name not in ("feddrift-window", "feddrift-cfl-window")
+                for name in self.configuration_names
+            ):
+                raise ValueError(
+                    "feddrift_local_training_round_counts other than 1 requires only "
+                    "feddrift-window or feddrift-cfl-window configurations"
+                )
         if self.driftsurf_accuracy_drop_thresholds is not None:
             _validate_distinct_values(
                 values=self.driftsurf_accuracy_drop_thresholds,
@@ -346,6 +363,14 @@ def build_planned_experiment_runs(
                         )
                     else:
                         settings_variants = (run_settings,)
+                    if configuration_name in ("feddrift-window", "feddrift-cfl-window"):
+                        settings_variants = tuple(
+                            _replace_feddrift_training_round_count(variant, round_count)
+                            for variant in settings_variants
+                            for round_count in (
+                                sweep_plan.feddrift_local_training_round_counts or (1,)
+                            )
+                        )
                     for settings_variant in settings_variants:
                         planned_runs.append(
                             PlannedExperimentRun(
@@ -361,6 +386,24 @@ def build_planned_experiment_runs(
     if fedsda_axis_names and not built_fedsda_run_count:
         raise ValueError(f"{' and '.join(fedsda_axis_names)} requires a FedSDA configuration")
     return tuple(planned_runs)
+
+
+def _replace_feddrift_training_round_count(
+    run_settings: FedsdaRunSettings | FeddriftRunSettings | FedavgRunSettings,
+    round_count: int,
+) -> FeddriftRunSettings:
+    """窓構成のserver設定だけを替え、参加者の組合せの検査を通す。"""
+    assert type(run_settings) is FeddriftRunSettings
+    participant = run_settings.run_participant_settings
+    return replace(
+        run_settings,
+        run_participant_settings=replace(
+            participant,
+            server_settings=replace(
+                participant.server_settings, local_training_round_count=round_count
+            ),
+        ),
+    )
 
 
 def _fedsda_axis_names(*, sweep_plan: ExperimentSweepPlan) -> tuple[str, ...]:

@@ -159,6 +159,13 @@ def _build_argument_parser() -> ArgumentParser:
         help="サーバの集約の間隔（clientあたりの標本数）",
     )
     argument_parser.add_argument(
+        "--feddrift-local-training-round-counts",
+        type=int,
+        nargs="+",
+        default=None,
+        help="FedAvg+WindowとCFL+Windowの1時刻のround数（正の整数、省略時1）",
+    )
+    argument_parser.add_argument(
         "--driftsurf-accuracy-drop-thresholds",
         type=float,
         nargs="+",
@@ -254,6 +261,11 @@ def _build_sweep_plan(parsed_arguments: Namespace) -> ExperimentSweepPlan:
         per_client_sample_count=parsed_arguments.per_client_sample_count,
         server_aggregation_intervals_per_client_samples=tuple(
             parsed_arguments.aggregation_intervals
+        ),
+        feddrift_local_training_round_counts=(
+            tuple(parsed_arguments.feddrift_local_training_round_counts)
+            if parsed_arguments.feddrift_local_training_round_counts is not None
+            else None
         ),
         driftsurf_accuracy_drop_thresholds=tuple(
             parsed_arguments.driftsurf_accuracy_drop_thresholds

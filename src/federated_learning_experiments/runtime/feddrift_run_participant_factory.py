@@ -78,15 +78,21 @@ class FeddriftRunParticipantSettings:
         if client.model_assignment_policy != "detection_batch_assignment" and not all(policies):
             raise ValueError("Oracleは現在のFedDriftの学習・集約規則と組み合わせてください。")
         if (
-            client.model_assignment_policy
-            in (
-                "minimum_loss_cluster_assignment",
-                "single_global_model_assignment",
-                "cfl_bipartition_assignment",
-            )
+            client.model_assignment_policy == "minimum_loss_cluster_assignment"
             and server.local_training_round_count != 1
         ):
             raise ValueError("IFCA+Windowの選択は1時刻1roundだけに対応します。")
+        if (
+            server.local_training_round_count != 1
+            and client.model_assignment_policy == "single_global_model_assignment"
+            and client.adaptive_learning_rate_settings is not None
+        ):
+            raise ValueError("Adaptive-FedAvg+Windowは1時刻1roundだけに対応します。")
+        if (
+            server.local_training_round_count != 1
+            and client.model_assignment_policy == "driftsurf_global_role_assignment"
+        ):
+            raise ValueError("DriftSurfは1時刻1roundだけに対応します。")
         if any(policies) and server.new_model_isolation_timestep_count != 1:
             raise ValueError("新しいFedDriftの扱いでは隔離期間は1だけです。")
         if (

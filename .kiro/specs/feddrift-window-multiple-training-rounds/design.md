@@ -13,7 +13,7 @@ FedAvg+Window（`feddrift-window`）とCFL+Window（`feddrift-cfl-window`）で�
 ## round ごとの挙動（2構成に共通）
 - 各roundで、今と同じ`train_feddrift_held_models_for_round`（局所の予算`updates_per_sample`×`k_steps`、バッチ、学習率、件数の条件）を使う。集約の重みはその時刻の窓の件数。通信（上りのパラメータ、下りの配布）と計算の計数は毎round行う。学習の対象の集合（学習と集約に使うモデルIDの集合）と、その通知（メッセージの件数）は別のものとして扱う。学習の対象の集合は毎roundの学習の直前に作り直す（下の「CFLの時刻の途中の分割」）。FedAvg+Windowと、分割の無い時刻のCFLでは、毎round同じ集合になる。通知は今どおり時刻に1回、clientごとに1通と数え、CFLで時刻の途中に集合が変わったときだけ下のとおり足す。
 - 窓の標本は時刻の初めにだけ空にする（今の`feddrift_client_stream_processing.py`の位置のまま）。その時刻の $R$ 回のroundは同じ窓の標本を使う。
-- optimizerは慣性も重み減衰もないSGD（`parameter_optimizer_settings.py`）なので状態を持たず、roundごとに作り直しても公式の時刻の中で保つ学習と結果は変わらない（D05の違いは $R>1$ でも生じない）。
+- optimizerは既定のAdam（AMSGrad、weight decay 0.001、`feddrift_default_run_settings.py`）で、配布のたびに作り直す（D05）。公式の学習器はモデルごとのAdamを初めに1度作り、時刻の中のroundで状態を保つ。$R>1$ ではこの差が残るが、全手法に共通の学習規則であり、同じ $R$ のFedAvg+Windowにも同じく生じるので許容する（2026-11-03、実装時の確認で訂正）。
 
 ## CFLの時刻の途中の分割
 - 1時刻の中の各round $r=0,\dots,R-1$ は、次の順に行う（公式の「clientの学習→`aggregate`の中の`cluster_cfl`→分割なら集約を省いて返す」と同じ順）。

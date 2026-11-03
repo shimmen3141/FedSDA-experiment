@@ -29,6 +29,14 @@
   "ready_for_implementation": true,
   "base_revision": "2a3ccbc8",
   "implementation_assignment": "実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・testの実行・レビューの起動・予備の実行のコマンドと集計",
+  "implementation_status": {
+    "tasks": [
+      1,
+      2
+    ],
+    "status": "Task 1・2完了。実装レビューPASS、全pytestの結果はtasks.mdのImplementation Notes",
+    "next_action": "Task 3（予備の実行96 run）のコマンドを渡し、集計する"
+  },
   "specification_review": {
     "status": "passed",
     "rounds": [
@@ -45,5 +53,9 @@
         "result": "PASS（Minor 1、変えない）"
       }
     ]
+  },
+  "implementation_review": {
+    "reviewer": "GPT-6 Luna（medium、read-only）",
+    "result": "PASS（Major以上なし）"
   }
 }

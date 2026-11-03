@@ -27,6 +27,14 @@ class ParameterSpec:
 
 PARAMETERS = (
     ParameterSpec(
+        id="feddrift_local_training_round_count",
+        code_name="server_settings.local_training_round_count",
+        paper_symbol="R",
+        cli_name="feddrift-local-training-round-counts",
+        methods=("FedDrift",),
+        configuration_surface="typed_settings",
+    ),
+    ParameterSpec(
         id="cfl_split_gamma",
         code_name="run_client_settings.cfl_split_gamma",
         paper_symbol="γ_CFL",

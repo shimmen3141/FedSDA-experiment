@@ -78,7 +78,10 @@ def build_feddrift_run_record_tables(
     record_tables: dict[str, ndarray] = {}
     if run_server._cfl_state is not None:
         rows = run_server._cfl_records
+        if len(rows) != len(run_server._cfl_record_round_indices):
+            raise ValueError("CFLの分割判定とround番号の件数が対応していません。")
         for column, values in (
+            ("round_index", run_server._cfl_record_round_indices),
             ("timestep_index", [t for t, _ in rows]),
             ("model_id", [r[0] for _, r in rows]),
             ("new_model_id", [r[9] for _, r in rows]),

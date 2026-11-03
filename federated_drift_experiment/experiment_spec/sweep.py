@@ -37,6 +37,14 @@ class SweepAxis:
         return False
 
 
+# 新APIの掃引軸の宣言。旧SweepPlanへ渡さず、実行は新APIの型付き計画が担う。
+FEDDRIFT_LOCAL_TRAINING_ROUND_COUNT_AXIS = SweepAxis(
+    parameter_id="feddrift_local_training_round_count",
+    values=(1,),
+    applies_to="feddrift",
+)
+
+
 @dataclass(frozen=True)
 class SweepPlan:
     datasets: tuple[str, ...]

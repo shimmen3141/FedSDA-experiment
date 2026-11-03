@@ -91,6 +91,7 @@ def test_sweep_command_arguments_are_only_extended_by_the_artifact_organization(
         "--configurations",
         "--datasets",
         "--driftsurf-accuracy-drop-thresholds",
+        "--feddrift-local-training-round-counts",
         "--feddrift-loss-increase-thresholds",
         "--fedsda-fixed-share-time-scales",
         "--fedsda-pending-assignment-fifo-capacities",

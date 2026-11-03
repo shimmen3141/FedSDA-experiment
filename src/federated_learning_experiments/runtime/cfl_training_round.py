@@ -48,12 +48,24 @@ def split_cfl_training_round(
                 [(local[k] - base[k]).detach().cpu().numpy().flatten() for k in base]
             )
             uploads.append(local)
+    # 1候補につき最大1 IDを払い出す。判定状態と記録の更新前に移し先の不在を検査する。
+    prospective_ids = range(
+        state.next_model_id,
+        min(server._maximum_cfl_model_count, state.next_model_id + len(active_ids)),
+    )
+    if any(
+        collection.model_id in prospective_ids
+        for client in server.run_clients
+        for collection in client.owners.training_sample_store.snapshot_ordered_model_training_samples()
+    ):
+        raise ValueError("CFL分割の新しいモデルIDに学習標本の列が存在します。")
     records = state.check(
         updates_by_model=updates,
         gamma=server.run_clients[0]._settings.cfl_split_gamma,
         maximum_model_count=server._maximum_cfl_model_count,
     )
     server._cfl_records.extend((timestep_index, row) for row in records)
+    server._cfl_record_round_indices.extend(server._current_training_round_index for _ in records)
     splits = [row for row in records if row[8]]
     if not splits:
         return False
@@ -82,5 +94,8 @@ def split_cfl_training_round(
             if client.client_id in row[11]:
                 client.owners.current_training_model_assignment.assign_model_for_training(
                     model_id=row[9]
+                )
+                client.owners.training_sample_store.reassign_model_training_samples_id(
+                    original_model_id=row[0], reassigned_model_id=row[9]
                 )
     return True

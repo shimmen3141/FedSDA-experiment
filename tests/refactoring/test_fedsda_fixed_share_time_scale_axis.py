@@ -335,7 +335,7 @@ def test_command_saves_runs_with_time_scale_column_and_record_format_version(tmp
     ) == [("30", "60"), ("60", "60")]
     (record_path,) = output_directory.glob("sweep_record_*.json")
     record = json.loads(record_path.read_text(encoding="utf-8"))
-    assert record["record_format_version"] == 7
+    assert record["record_format_version"] == 8
     assert record["sweep_plan"]["fedsda_fixed_share_time_scales"] == [60]
     assert record["sweep_plan"]["fedsda_pending_assignment_fifo_capacities"] == [30, 60]
     # 時間尺度の項目を持たない要約でも、行を外さず、列を空にする。

@@ -32,7 +32,8 @@ RUN_SUMMARY_TABLE_FILE_NAME = "run_summary.csv"
 # 版4: 計画に、FedSDAの学習batchの抜き出し方の軸を足した。版5: 計画に、FedSDAの帰属の保留の容量の軸を足した。
 # 版6: 計画から、学習batchの抜き出し方の軸を外した（2026-10-15）。
 # 版7: 計画に、Fixed-Shareの時間尺度の軸を足し、容量の軸は時間尺度を替えなくなった（版5・6では同じ値に替えた）。
-SWEEP_RECORD_FORMAT_VERSION = 7
+# 版8: 計画に、FedAvg+WindowとCFL+Windowの1時刻のround数の軸を追加。
+SWEEP_RECORD_FORMAT_VERSION = 8
 EXPERIMENT_README_FILE_NAME = "README.md"
 # 一覧の表の、実行条件の列（要約の`run_settings.execution_settings.experiment_run_conditions`のキー）。
 _CONDITION_COLUMN_NAMES = (

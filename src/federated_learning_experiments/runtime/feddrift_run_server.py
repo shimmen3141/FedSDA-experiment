@@ -148,6 +148,8 @@ class FeddriftRunServer:
         self._cfl_initial_parameters = deepcopy(initial_parameter_snapshot)
         self._cfl_initial_statistics = statistics
         self._cfl_records: list[tuple[int, tuple]] = []
+        self._cfl_record_round_indices: list[int] = []
+        self._current_training_round_index = 0
         self._true_concept_assignment = (
             run_clients[0]._settings.model_assignment_policy == "true_concept_assignment"
         )
@@ -537,7 +539,14 @@ class FeddriftRunServer:
             self.communication_volume_record_store.record_messages(
                 transfer_direction="download", message_count=len(self.run_clients)
             )
-        for _ in range(self._settings.local_training_round_count):
+        for round_index in range(self._settings.local_training_round_count):
+            self._current_training_round_index = round_index
+            current_eligible = self._current_timestep_training_model_ids()
+            if current_eligible != eligible and current_eligible is not None:
+                self.communication_volume_record_store.record_messages(
+                    transfer_direction="download", message_count=len(self.run_clients)
+                )
+            eligible = current_eligible
             for client in self.run_clients:
                 client.train_local_round(eligible_model_ids=eligible)
             self.aggregate_and_distribute_training_round(timestep_index=timestep_index)

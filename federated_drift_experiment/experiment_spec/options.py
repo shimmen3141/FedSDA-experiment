@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-OPTION_SCHEMA_VERSION = 14
+OPTION_SCHEMA_VERSION = 15
 
 FED_SDA = "FedSDA"
 FED_DRIFT = "FedDrift"
@@ -501,6 +501,13 @@ OPTIONS = (
         configuration_surface="config",
     ),
     OptionSpec(
+        "feddrift_local_training_round_count", "窓1時刻の学習round数", "training",
+        ("positive integer",), "新APIのserver_settings.local_training_round_count。既定1。掃引はfeddrift-windowとfeddrift-cfl-windowだけ。ほかの構成は既定以外を拒否。",
+        (FED_DRIFT,), (FED_DRIFT,),
+        active_when=(ActivationRule("feddrift_model_assignment_policy", ("single_global_model_assignment", "cfl_bipartition_assignment"), "単一モデルまたはCFLの窓だけで有効"), ActivationRule("feddrift_adaptive_learning_rate", ("fixed",), "学習率固定の構成だけで有効")),
+        cli_name="feddrift-local-training-round-counts", configuration_surface="config",
+    ),
+    OptionSpec(
         "feddrift_training_sample_window", "FedDriftの学習標本の窓", "training",
         ("all_timesteps", "current_timestep", "role_timestep_window"),
         "新APIのFeddriftRunClientSettings.training_sample_window。既定は全時刻。"
@@ -589,6 +596,15 @@ OPTIONS = (
 )
 
 CHOICE_CONSTRAINTS = (
+    ChoiceConstraint(
+        "feddrift_local_training_round_count", ("positive integer",), (FED_DRIFT,),
+        requires_selections=(
+            ActivationRule("feddrift_training_sample_window", ("current_timestep",), "同じ1時刻の窓を反復する"),
+            ActivationRule("feddrift_model_assignment_policy", ("single_global_model_assignment", "cfl_bipartition_assignment"), "FedAvg+WindowまたはCFL+Windowだけ"),
+            ActivationRule("feddrift_adaptive_learning_rate", ("fixed",), "Adaptive-FedAvgは対象外"),
+        ),
+        note="掃引の既定1は全構成で不変。既定以外は2構成だけ。FedDrift本体の既存のround設定は変えない。",
+    ),
     ChoiceConstraint("feddrift_model_assignment_policy", ("cfl_bipartition_assignment",), (FED_DRIFT,), requires_selections=(ActivationRule("feddrift_training_sample_window", ("current_timestep",), "CFLは1時刻の窓が必要"), ActivationRule("feddrift_cluster_model_initialization", ("all_pretrained",), "共通の事前学習初期値が必要"))),
     ChoiceConstraint("feddrift_model_assignment_policy", ("single_global_model_assignment",), (FED_DRIFT,), requires_selections=(
         ActivationRule("feddrift_training_sample_window", ("current_timestep",), "単一モデルには1時刻の窓が必要"),
