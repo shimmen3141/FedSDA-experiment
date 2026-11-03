@@ -35,8 +35,9 @@ from federated_learning_experiments.runtime.feddrift_run_record_tables import (
 # 版4: IFCA構成だけのcluster_selection表を追加。既存構成の表は変更しない。
 # 版5: Adaptive-FedAvg構成だけのadaptive_learning_rate表を追加。
 # 版6: DriftSurf構成だけのdriftsurf表を追加。
-RUN_ARTIFACT_FORMAT_VERSION = 6
-_READABLE_RUN_ARTIFACT_FORMAT_VERSIONS = (1, 2, 3, 4, 5, 6)
+# 版7: CFL構成だけのcfl_split_check・cfl_assignment表を追加。
+RUN_ARTIFACT_FORMAT_VERSION = 7
+_READABLE_RUN_ARTIFACT_FORMAT_VERSIONS = (1, 2, 3, 4, 5, 6, 7)
 _SUMMARY_FILE_SUFFIX = ".json"
 _RECORD_TABLE_FILE_SUFFIX = ".npz"
 

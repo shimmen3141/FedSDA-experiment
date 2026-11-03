@@ -100,6 +100,17 @@ SMALL_COMMAND_ARGUMENTS = [
 # ---- 構成の名前 ----
 
 
+def test_cfl_window_is_planned_without_a_gamma_sweep_axis():
+    plan = replace(SMALL_SWEEP_PLAN, configuration_names=("feddrift-cfl-window",))
+    runs = build_planned_experiment_runs(sweep_plan=plan)
+    assert len(runs) == len(SMALL_SWEEP_PLAN.random_seeds)
+    assert all(r.configuration_name == "feddrift-cfl-window" for r in runs)
+    assert all(
+        r.run_settings.run_participant_settings.run_client_settings.cfl_split_gamma == 0.1
+        for r in runs
+    )
+
+
 def test_proposed_configuration_builds_final_configuration_run_settings():
     """提案構成の名前は、最終構成の既定値の、完全なrun設定を作る。"""
     assert PROPOSED_FEDSDA_CONFIGURATION_NAME == "fedsda"

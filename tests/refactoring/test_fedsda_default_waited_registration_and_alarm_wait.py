@@ -26,6 +26,22 @@ ADWIN_CONFIGURATION_NAMES = (
 )
 
 
+def test_cfl_window_uses_feddrift_settings_without_fedsda_registration():
+    from federated_learning_experiments.runtime.feddrift_run_settings import FeddriftRunSettings
+
+    conditions = golden.build_case_settings(
+        "feddrift", 3
+    ).execution_settings.experiment_run_conditions
+    actual = build_experiment_run_settings(
+        configuration_name="feddrift-cfl-window", experiment_run_conditions=conditions
+    )
+    assert type(actual) is FeddriftRunSettings
+    assert (
+        actual.run_participant_settings.run_client_settings.model_assignment_policy
+        == "cfl_bipartition_assignment"
+    )
+
+
 def test_every_fedsda_configuration_uses_waited_registration_and_alarm_wait_by_default():
     """全部のFedSDAの構成の組立てが通り、登録は待った後に登録、警報は待つ（ADWINの2構成だけ即時）。"""
     fedsda_configuration_names = []

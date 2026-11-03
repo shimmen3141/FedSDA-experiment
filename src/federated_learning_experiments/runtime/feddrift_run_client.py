@@ -263,7 +263,11 @@ def assemble_feddrift_run_client(
         raise ValueError("初期モデル数は正のbuiltin intが必要です。")
     if (
         run_client_settings.model_assignment_policy
-        in ("detection_batch_assignment", "single_global_model_assignment")
+        in (
+            "detection_batch_assignment",
+            "single_global_model_assignment",
+            "cfl_bipartition_assignment",
+        )
         and initial_model_count != 1
     ):
         raise ValueError("検出バッチの帰属では初期モデルは1つです。")

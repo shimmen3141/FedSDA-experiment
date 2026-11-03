@@ -169,6 +169,7 @@ NPZ・run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変
 | `feddrift-window` | 共通の事前学習モデル1個（ID 0）へ全標本を帰属し、今の時刻だけで学習。optimizer・学習率はデータ別のFedDrift既定。検出・作成・統合なし | Window（[公式との差と記録](differences-from-feddrift.md#windowとadaptive-fedavgの2構成)） |
 | `feddrift-adaptive-fedavg-window` | Windowの局所学習をSGDへ替え、集約後に公式AdaStateの式で次時刻の学習率を決める | Adaptive-FedAvg（[公式との差と記録](differences-from-feddrift.md#windowとadaptive-fedavgの2構成)） |
 | `feddrift-driftsurf` | 全clientの正解率で予測・安定・反応の役割を切り替え、役割ごとの最大10時刻の窓で学習。δ既定0.10、反応3時刻。FedDriftの検出・作成・統合なし | DriftSurf（[公式との差と記録](differences-from-feddrift.md#driftsurfの構成)） |
+| `feddrift-cfl-window` | 1モデルから始め、更新のノルム・余弦類似度による完全連結2分割で最大Kモデルまで増やす。割り当てを保持し、今の時刻だけで学習。γ既定0.1、掃引軸なし | CFL+Window（[公式との差と記録](differences-from-feddrift.md#cflwindowの構成)） |
 | `fedsda` | 提案構成。同期時点と局所更新の結合予測を混ぜる。FIFO容量30・T120。候補を検証せずに採用し、候補の学習では共有部を固定する（基準版7） | `reference`（現在は予測方式・T・候補の採否などに意図した差がある） |
 | `fedsda-every-sample-change-interval-search` | 基準版16から既定の`fedsda`と同じ設定。`change_interval_search=every_sample_with_reverse_prequential_code`で、新しい順の1本の流れの途中和から、最小変化区間以上の全部のkを1件刻みで測る。これまでのコマンドと結果の記録のために残し、識別子は実行済みの結果と同じ（`fedsda`の識別子とは異なる） | 対応なし（[既定を替えるspec](../../.kiro/specs/fedsda-every-sample-change-interval-search-default/design.md)） |
 | `fedsda-minimum-interval-multiples-change-interval-search` | 提案構成の`change_interval_search`だけを`minimum_interval_multiples_with_forward_prequential_code`へ戻す（基準版15までの既定）。kを最小変化区間の倍数に限り、kごとに末尾k件を古い方から一から学習して測る | 対応なし（[spec](../../.kiro/specs/fedsda-every-sample-change-interval-search-default/design.md)） |

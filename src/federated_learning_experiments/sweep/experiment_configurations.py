@@ -96,6 +96,7 @@ FEDDRIFT_IFCA_WINDOW_PRETRAINED_CLUSTER0_CONFIGURATION_NAME = (
 FEDDRIFT_WINDOW_CONFIGURATION_NAME = "feddrift-window"
 FEDDRIFT_DRIFTSURF_CONFIGURATION_NAME = "feddrift-driftsurf"
 FEDDRIFT_ADAPTIVE_FEDAVG_WINDOW_CONFIGURATION_NAME = "feddrift-adaptive-fedavg-window"
+FEDDRIFT_CFL_WINDOW_CONFIGURATION_NAME = "feddrift-cfl-window"
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
@@ -124,6 +125,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     FEDDRIFT_WINDOW_CONFIGURATION_NAME,
     FEDDRIFT_ADAPTIVE_FEDAVG_WINDOW_CONFIGURATION_NAME,
     FEDDRIFT_DRIFTSURF_CONFIGURATION_NAME,
+    FEDDRIFT_CFL_WINDOW_CONFIGURATION_NAME,
 )
 
 
@@ -235,6 +237,7 @@ def build_experiment_run_settings(
             f"(available: {', '.join(EXPERIMENT_CONFIGURATION_NAMES)})"
         )
     if configuration_name in (
+        FEDDRIFT_CFL_WINDOW_CONFIGURATION_NAME,
         FEDDRIFT_DRIFTSURF_CONFIGURATION_NAME,
         FEDDRIFT_WINDOW_CONFIGURATION_NAME,
         FEDDRIFT_ADAPTIVE_FEDAVG_WINDOW_CONFIGURATION_NAME,
@@ -251,6 +254,8 @@ def build_experiment_run_settings(
                     participant.run_client_settings,
                     model_assignment_policy="driftsurf_global_role_assignment"
                     if configuration_name == FEDDRIFT_DRIFTSURF_CONFIGURATION_NAME
+                    else "cfl_bipartition_assignment"
+                    if configuration_name == FEDDRIFT_CFL_WINDOW_CONFIGURATION_NAME
                     else "single_global_model_assignment",
                     training_sample_window="role_timestep_window"
                     if configuration_name == FEDDRIFT_DRIFTSURF_CONFIGURATION_NAME

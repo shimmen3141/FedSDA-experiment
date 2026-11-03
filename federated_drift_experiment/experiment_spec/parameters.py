@@ -27,6 +27,14 @@ class ParameterSpec:
 
 PARAMETERS = (
     ParameterSpec(
+        id="cfl_split_gamma",
+        code_name="run_client_settings.cfl_split_gamma",
+        paper_symbol="γ_CFL",
+        cli_name=None,
+        methods=("FedDrift",),
+        configuration_surface="typed_settings",
+    ),
+    ParameterSpec(
         id="driftsurf_accuracy_drop_threshold",
         code_name="driftsurf_settings.accuracy_drop_threshold",
         paper_symbol="δ_DriftSurf",

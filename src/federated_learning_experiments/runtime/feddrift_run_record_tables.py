@@ -76,6 +76,40 @@ def build_feddrift_run_record_tables(
     run_clients = participants.run_clients
     run_server = participants.run_server
     record_tables: dict[str, ndarray] = {}
+    if run_server._cfl_state is not None:
+        rows = run_server._cfl_records
+        for column, values in (
+            ("timestep_index", [t for t, _ in rows]),
+            ("model_id", [r[0] for _, r in rows]),
+            ("new_model_id", [r[9] for _, r in rows]),
+        ):
+            record_tables[f"cfl_split_check.{column}"] = _integer_column(values)
+        for column, index in (("mean_norm", 2), ("max_norm", 3), ("alpha_cross", 7)):
+            record_tables[f"cfl_split_check.{column}"] = _float_column([r[index] for _, r in rows])
+        for suffix, index in (("before", 4), ("after", 5)):
+            for offset, name in enumerate(("cfl_norm", "eps1", "eps2")):
+                record_tables[f"cfl_split_check.{name}_{suffix}"] = _float_column(
+                    [r[index][offset] for _, r in rows]
+                )
+        for column, index in (("checked_bipartition", 6), ("did_split", 8)):
+            record_tables[f"cfl_split_check.{column}"] = _boolean_column(
+                [r[index] for _, r in rows]
+            )
+        for column, index in (("client_ids", 1), ("cl1_client_ids", 10), ("cl2_client_ids", 11)):
+            record_tables[f"cfl_split_check.{column}"] = asarray(
+                [",".join(map(str, r[index])) for _, r in rows], dtype=str_
+            )
+        assignments = sorted(
+            (t, c.client_id, first, mid)
+            for c in run_clients
+            for t, first, mid in c.stream_processor._cfl_assignments
+        )
+        for index, column in enumerate(
+            ("timestep_index", "client_id", "first_sample_index", "model_id")
+        ):
+            record_tables[f"cfl_assignment.{column}"] = _integer_column(
+                [r[index] for r in assignments]
+            )
     if run_server._driftsurf_state is not None:
         records = run_server._driftsurf_records
         if len(records) != run_result.synchronization_interval_count:

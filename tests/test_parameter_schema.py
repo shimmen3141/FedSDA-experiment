@@ -1,4 +1,5 @@
 from dataclasses import fields
+from federated_learning_experiments.runtime.feddrift_run_client_settings import FeddriftRunClientSettings
 
 from federated_learning_experiments.methods.feddrift.driftsurf_state import DriftSurfSettings
 
@@ -26,6 +27,7 @@ def test_parameter_schema_has_unique_stable_identifiers():
         for item in PARAMETERS if item.configuration_surface == "config"
     )
     typed_names_by_settings = {
+        "run_client_settings": {field.name for field in fields(FeddriftRunClientSettings)},
         "adaptive_learning_rate_settings": {field.name for field in fields(AdaptiveFedavgLearningRateSettings)},
         "driftsurf_settings": {field.name for field in fields(DriftSurfSettings)},
     }
@@ -33,7 +35,7 @@ def test_parameter_schema_has_unique_stable_identifiers():
         item for item in PARAMETERS if item.configuration_surface == "typed_settings"
     ]
     assert {item.id for item in typed_parameters} == {
-        "adaptive_fedavg_initial_learning_rate", "adaptive_fedavg_beta", "driftsurf_accuracy_drop_threshold",
+        "adaptive_fedavg_initial_learning_rate", "adaptive_fedavg_beta", "driftsurf_accuracy_drop_threshold", "cfl_split_gamma",
     }
     for item in typed_parameters:
         settings_name, field_names = item.code_name.split(".", 1)

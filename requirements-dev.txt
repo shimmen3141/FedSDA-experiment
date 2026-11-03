@@ -6,3 +6,6 @@ pytest-xdist==3.8.0
 ruff==0.16.10
 pyright==1.1.414
 pre-commit==4.6.2
+
+# CFLのラベル照合用。goldenの再現環境の版固定には含めない。
+scikit-learn==1.9.1

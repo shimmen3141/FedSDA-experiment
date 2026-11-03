@@ -45,7 +45,20 @@ class FeddriftRunClientSettings:
         default=None, metadata={"omit_default_from_saved_settings": True}
     )
 
+    cfl_split_gamma: float = field(default=0.1, metadata={"omit_default_from_saved_settings": True})
+
     def __post_init__(self) -> None:
+        if (
+            type(self.cfl_split_gamma) is not float
+            or not isfinite(self.cfl_split_gamma)
+            or not 0 <= self.cfl_split_gamma <= 1
+        ):
+            raise ValueError("CFLのγは0以上1以下の有限builtin floatが必要です。")
+        if (
+            self.model_assignment_policy != "cfl_bipartition_assignment"
+            and self.cfl_split_gamma != 0.1
+        ):
+            raise ValueError("CFLのγはCFLの帰属だけで有効です。")
         if self.driftsurf_settings is not None:
             if type(self.driftsurf_settings) is not DriftSurfSettings:
                 raise TypeError("exact DriftSurfSettingsが必要です。")
@@ -69,6 +82,7 @@ class FeddriftRunClientSettings:
                     "minimum_loss_cluster_assignment",
                     "single_global_model_assignment",
                     "driftsurf_global_role_assignment",
+                    "cfl_bipartition_assignment",
                 ),
             ),
             (
@@ -106,7 +120,10 @@ class FeddriftRunClientSettings:
                 or self.cluster_model_initialization != "all_pretrained"
             ):
                 raise ValueError("DriftSurfは役割の窓と共通の初期値が必要です。")
-        elif self.model_assignment_policy == "single_global_model_assignment":
+        elif self.model_assignment_policy in (
+            "single_global_model_assignment",
+            "cfl_bipartition_assignment",
+        ):
             if (
                 self.training_sample_window != "current_timestep"
                 or self.cluster_model_initialization != "all_pretrained"

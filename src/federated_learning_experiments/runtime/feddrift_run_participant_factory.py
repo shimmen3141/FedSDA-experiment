@@ -79,7 +79,11 @@ class FeddriftRunParticipantSettings:
             raise ValueError("Oracleは現在のFedDriftの学習・集約規則と組み合わせてください。")
         if (
             client.model_assignment_policy
-            in ("minimum_loss_cluster_assignment", "single_global_model_assignment")
+            in (
+                "minimum_loss_cluster_assignment",
+                "single_global_model_assignment",
+                "cfl_bipartition_assignment",
+            )
             and server.local_training_round_count != 1
         ):
             raise ValueError("IFCA+Windowの選択は1時刻1roundだけに対応します。")
@@ -215,6 +219,7 @@ class FeddriftRunParticipantFactory:
             for client_id in range(experiment_run_conditions.client_count)
         )
         server = FeddriftRunServer(
+            maximum_cfl_model_count=definition.concept_count,
             run_clients=clients,
             server_settings=settings.server_settings,
             initial_parameter_snapshot=snapshot_classifier_parameters(

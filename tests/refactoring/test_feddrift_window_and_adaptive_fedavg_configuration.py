@@ -135,7 +135,7 @@ def test_configuration_registration_defaults_and_identifier(configuration):
             ),
         ),
     )
-    assert configurations.EXPERIMENT_CONFIGURATION_NAMES[-3:-1] == CONFIGURATIONS
+    assert configurations.EXPERIMENT_CONFIGURATION_NAMES[-4:-2] == CONFIGURATIONS
     assert (
         golden.CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN[configuration]
         == "tests/refactoring/test_feddrift_window_and_adaptive_fedavg_configuration.py"

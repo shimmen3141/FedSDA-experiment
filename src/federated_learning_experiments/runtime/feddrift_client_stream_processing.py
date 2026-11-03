@@ -89,9 +89,12 @@ class FeddriftClientStreamProcessor:
             "minimum_loss_cluster_assignment",
             "single_global_model_assignment",
             "driftsurf_global_role_assignment",
+            "cfl_bipartition_assignment",
         ):
             raise ValueError("未対応の割当方式です。")
         self._driftsurf_assignment = model_assignment_policy == "driftsurf_global_role_assignment"
+        self._cfl_assignment = model_assignment_policy == "cfl_bipartition_assignment"
+        self._cfl_assignments: list[tuple[int, int, int]] = []
         self._driftsurf_pending_samples: list[ObservedTrainingSample] = []
         self._driftsurf_timestep_samples = TimestepTrainingSampleStore()
         self._single_global_model_assignment = (
@@ -165,6 +168,16 @@ class FeddriftClientStreamProcessor:
             self._processor._validate_true_concept_observations(indexed_observations)
         fired = False
         for observation in indexed_observations:
+            if self._cfl_assignment and self._processed_count % self._batch_size == 0:
+                # 前の分割後の割当を先に写し、それから前時刻の学習窓を空にする。
+                self._cfl_assignments.append(
+                    (
+                        self._processed_count // self._batch_size,
+                        self._processed_count,
+                        self._processor._assignment.current_training_model_id,
+                    )
+                )
+                self._processor._training_samples.clear_model_training_samples()
             held_model_count = self._processor.held_model_count
             if type(held_model_count) is not int:
                 raise TypeError("予測前保有数はbuiltin intが必要です。")
@@ -213,6 +226,13 @@ class FeddriftClientStreamProcessor:
     def flush_detection_buffer(self) -> FeddriftDetectionBatchTransition | None:
         """残りを一度処理し、既存予測記録へは結果を付加しない。"""
         if not self._buffer:
+            return None
+        if self._cfl_assignment:
+            selected = self._processor._assignment.current_training_model_id
+            self._processor._training_samples.append_model_training_samples(
+                model_id=selected, training_samples=tuple(self._buffer)
+            )
+            self._buffer.clear()
             return None
         if self._driftsurf_assignment:
             # 役割の窓を決めるまで、モデルの学習storeへは追加しない。

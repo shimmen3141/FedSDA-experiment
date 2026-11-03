@@ -58,7 +58,7 @@ def test_save_load_roundtrip_and_nonfinite_summary(monkeypatch, tmp_path, count)
     assert (
         summary["method_name"] == "feddrift"
         and type(summary["format_version"]) is int
-        and summary["format_version"] == 6
+        and summary["format_version"] == 7
     )
     assert summary["record_table_file_name"] == "test-run.npz"
     assert summary["run_provenance"] == convert_run_provenance_to_mapping(TEST_RUN_PROVENANCE)

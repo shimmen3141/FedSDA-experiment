@@ -5,20 +5,58 @@
   "language": "ja",
   "phase": "implementation",
   "approvals": {
-    "requirements": {"generated": true, "approved": true, "approved_by": "ユーザー委任（2026-11-03にCFL+Windowの実装を指示）、独立レビュー3回目（GPT-6 Luna medium）PASS"},
-    "design": {"generated": true, "approved": true, "approved_by": "ユーザー委任、独立レビュー3回目PASS"},
-    "tasks": {"generated": true, "approved": true, "approved_by": "ユーザー委任、独立レビュー3回目PASS"},
-    "naming": {"generated": true, "approved": true, "revision": null, "approved_revision": null, "approved_sha256_lf": null, "approved_by": "ユーザー委任、独立レビュー3回目PASS（実装担当が追記する）"}
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（2026-11-03にCFL+Windowの実装を指示）、独立レビュー3回目（GPT-6 Luna medium）PASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー3回目PASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー3回目PASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": null,
+      "approved_revision": null,
+      "approved_sha256_lf": null,
+      "approved_by": "ユーザー委任、独立レビュー3回目PASS（実装担当が追記する）"
+    }
   },
   "ready_for_implementation": true,
+  "implementation_status": "Task 1のコード・testとTask 2の文書を作成。Task 1は権限で実行できない106件、既存slowの残り14件の検証と、主担当の独立実装レビュー・全pytest待ち。詳細はtasks.mdのImplementation Notes。",
+  "next_action": "主担当が権限のある環境で未実施testを再実行し、独立CLIの実装レビューと全pytestを行う。Task 3は未着手。",
   "base_revision": "573053d8",
   "implementation_assignment": "実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・testの実行・レビューの起動・本規模のコマンドと集計",
   "specification_review": {
     "status": "passed",
     "rounds": [
-      {"round": 1, "result": "FAIL（Major 7）——全部を反映"},
-      {"round": 2, "result": "FAIL（Major 3）——窓の順序、サーバの経路のtest、初期値の明記"},
-      {"round": 3, "result": "PASS（Minor 1、変えない）"}
+      {
+        "round": 1,
+        "result": "FAIL（Major 7）——全部を反映"
+      },
+      {
+        "round": 2,
+        "result": "FAIL（Major 3）——窓の順序、サーバの経路のtest、初期値の明記"
+      },
+      {
+        "round": 3,
+        "result": "PASS（Minor 1、変えない）"
+      }
     ]
-  }
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "target": "5d4598d4の上の未commitの差分",
+    "result": "PASS（Major以上なし）"
+  },
+  "remaining": "Task 3（予備の実行と本規模の実行と集計）"
 }

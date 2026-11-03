@@ -3473,6 +3473,21 @@ def test_feddrift_round_training_rejects_outer_dependencies(source_module_path, 
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "methods/feddrift/cfl_cluster_splitting.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "heapq.heappush",
+            "heapq.heappushpop",
+            "numpy",
+        )
+    if source_module_path == "runtime/cfl_training_round.py":
+        return imported_module_name in (
+            "__future__.annotations",
+            "typing.TYPE_CHECKING",
+            "numpy",
+            "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+            "federated_learning_experiments.runtime.feddrift_run_server.FeddriftRunServer",
+        )
     if source_module_path == "methods/feddrift/driftsurf_state.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -3770,6 +3785,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "federated_learning_experiments.methods.feddrift.driftsurf_state.DriftSurfState",
             "federated_learning_experiments.runtime.driftsurf_timestep_preparation.prepare_driftsurf_timestep",
+            "federated_learning_experiments.methods.feddrift.cfl_cluster_splitting.CflClusterSplittingState",
+            "federated_learning_experiments.runtime.cfl_training_round.split_cfl_training_round",
             "copy.deepcopy",
             "numpy",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
@@ -6004,6 +6021,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "methods/feddrift/detection_batch_assessment.py",
             "methods/feddrift/adaptive_fedavg_learning_rate.py",
             "methods/feddrift/driftsurf_state.py",
+            "methods/feddrift/cfl_cluster_splitting.py",
+            "runtime/cfl_training_round.py",
             "learning/training/timestep_training_sample_store.py",
             "runtime/driftsurf_timestep_preparation.py",
             "methods/fedsda/prediction_combination/all_sample_adahedge_weight_evidence_holder.py",

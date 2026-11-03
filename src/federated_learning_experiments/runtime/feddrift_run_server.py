@@ -58,6 +58,9 @@ from federated_learning_experiments.methods.feddrift.cached_model_cluster_consol
     average_feddrift_cached_cluster_parameters,
     consolidate_feddrift_cached_model_clusters,
 )
+from federated_learning_experiments.methods.feddrift.cfl_cluster_splitting import (
+    CflClusterSplittingState,
+)
 from federated_learning_experiments.methods.feddrift.driftsurf_state import DriftSurfState
 from federated_learning_experiments.methods.feddrift.loss_distance_model_clustering import (
     _loss_increase_distances,
@@ -66,6 +69,7 @@ from federated_learning_experiments.methods.feddrift.loss_distance_model_cluster
 from federated_learning_experiments.methods.fedsda.model_registration.global_model_repository import (
     GlobalModelRepository,
 )
+from federated_learning_experiments.runtime.cfl_training_round import split_cfl_training_round
 from federated_learning_experiments.runtime.client_model_cross_evaluation import (
     _validate_candidate_parameter_snapshot,
     evaluate_candidate_model_on_target_model_samples,
@@ -113,6 +117,7 @@ class FeddriftRunServer:
         initial_parameter_snapshot: dict[str, Tensor],
         initial_loss_statistics: ModelAndClassLossStatistics,
         python_random_generator: Random,
+        maximum_cfl_model_count: int = 1,
     ) -> None:
         if (
             type(server_settings) is not FeddriftServerSettings
@@ -132,6 +137,17 @@ class FeddriftRunServer:
         if any(not isfinite(value).all().item() for value in initial_parameter_snapshot.values()):
             raise ValueError("初期parameterは有限値が必要です。")
         statistics = _copy_model_and_class_loss_statistics(loss_statistics=initial_loss_statistics)
+        self._cfl_state = (
+            CflClusterSplittingState()
+            if run_clients[0]._settings.model_assignment_policy == "cfl_bipartition_assignment"
+            else None
+        )
+        if type(maximum_cfl_model_count) is not int or maximum_cfl_model_count < 1:
+            raise ValueError("CFLの上限は正のbuiltin intが必要です。")
+        self._maximum_cfl_model_count = maximum_cfl_model_count
+        self._cfl_initial_parameters = deepcopy(initial_parameter_snapshot)
+        self._cfl_initial_statistics = statistics
+        self._cfl_records: list[tuple[int, tuple]] = []
         self._true_concept_assignment = (
             run_clients[0]._settings.model_assignment_policy == "true_concept_assignment"
         )
@@ -356,6 +372,11 @@ class FeddriftRunServer:
         eligible = self._current_timestep_training_model_ids()
         if eligible is not None:
             active_ids = tuple(mid for mid in active_ids if mid in eligible)
+        if self._cfl_state is not None:
+            if split_cfl_training_round(
+                run_server=self, timestep_index=timestep_index, active_ids=active_ids
+            ):
+                return
         self._aggregate_and_distribute_models(active_ids=active_ids, update_model_weights=True)
 
     def _current_timestep_training_model_ids(self) -> frozenset[int] | None:

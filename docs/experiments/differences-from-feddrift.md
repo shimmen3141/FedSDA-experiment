@@ -121,3 +121,36 @@ FedDriftのclient別の検出・モデル作成・クラスタリング・統合
 `accuracy_best`、`training_roles`（カンマ区切り）、`prediction_role`、`reactive_counter`（安定状態は−1）、`entered_reactive`、`promoted`、
 役割ごとの`*_model_id`（未登録は−1）・`*_window_timesteps`（カンマ区切り、空窓は空文字）。
 IDと窓は遷移後・学習時の対応で、`prediction_role`は次時刻の予測に使う役割を表す。
+
+## CFL+Windowの構成
+
+`feddrift-cfl-window`は`model_assignment_policy="cfl_bipartition_assignment"`、
+`training_sample_window="current_timestep"`、`cfl_split_gamma=0.1`を使う。γの掃引軸は持たない。
+最初は共通の事前学習モデルID 0に全clientを割り当て、分割したときだけ割り当てを変える。
+各時刻の始めに割り当てを写してから全モデルの学習標本を空にし、時刻末に今の標本を割り当て先へ追加する。
+予測はその時刻の割り当てモデルで行う。モデルの上限は真のコンセプト数K。
+FedDriftの検出・検出による作成・モデル統合は行わない。
+
+公式の`cluster_cfl`と同じく、クラスタIDの昇順で平均更新のノルムの最大値を観測し、
+`eps1=cfl_norm/10`、`eps2=6*eps1`を更新する。平均が`eps1`未満かつ最大が`eps2`超なら、
+更新の余弦類似度の完全連結2分割を調べ、`sqrt((1-alpha_cross)/2)>gamma`と上限を満たせば分割する。
+runtimeはNumPyで近隣鎖・併合の安定ソートと、標準のheapで木の切り方を実装し、
+開発用scikit-learn 1.9.1の`metric="precomputed", linkage="complete"`とラベルまで照合する。
+更新のないクラスタは飛ばす（公式は空列で例外になるが、通常の窓では起きない）。
+分割したroundでは全モデルの集約を省き、clientの学習・上り通信は計上する。
+
+公式・論文との違いは、(a) D12の逐次評価、(b) D11の全手法共通の更新予算で1時刻1round
+（公式の例は200 round・5エポック）、(c) D06の共通の事前学習初期値θ0、
+(d) D04・D05・D11の学習規則である。とくに分割で使う元のモデルと新モデルは両方θ0の写しにする。
+公式は元のモデルを乱数で再初期化し、新モデルは未使用枠の構築時の乱数初期値を使う。
+割り当てを保持する規則、窓1時刻、分割判定、γ=0.1、上限K、分割roundの集約省略、
+割り当てモデルを使う予測は公式に準じる。
+
+保存形式は版7。CFLだけ`cfl_assignment`（時刻・client・最初の標本位置・モデルID）と
+`cfl_split_check`（時刻・元モデルID・更新のあるclient ID・平均/最大ノルム・判定前後の
+`cfl_norm`/`eps1`/`eps2`・2分割を調べたか・`alpha_cross`・分割したか・新モデルID・両群のclient ID）を持つ。
+client IDの列はカンマ区切り文字列、未判定の`alpha_cross`はNaN、新モデルがないときのIDは−1。
+既存構成の設定・識別子・表は変えない。
+
+1時刻1roundで分割が機能するかは、本規模の前に主担当が24 runの予備実行で判断する。
+手順と本規模400 runの条件は[承認済み設計](../../.kiro/specs/feddrift-cfl-window-configuration/design.md)に従う。
