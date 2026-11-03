@@ -7,6 +7,8 @@
 組の数は、少なくしてある。
 重要動作goldenのtestのファイルは、ケースの名前で組へ分ける（同じケースの名前を持つtestは、同じprocessで
 実行し、ケースの実行の結果を使い回す）。
+下に挙げる、ケースどうしで結果を使い回さない重いtestの関数は、parametrizeのケースごとに1組にする（同じ
+ファイルのほかのtestは、ファイルの組のまま）。
 
 pytest-xdistが無い環境（goldenの再現環境）では、配り方のhookは呼ばれない。
 
@@ -46,6 +48,13 @@ GOLDEN_CASE_NAMES_IN_OWN_GROUP = (
 )
 OTHER_GOLDEN_CASE_GROUP_COUNT = 2
 
+# parametrizeのケースごとに1組にする、重いtestの関数（`<ファイル>::<関数>`）。ケースどうしで、moduleの
+# fixtureや計算の結果を使い回さないこと。
+TEST_FUNCTIONS_SPLIT_BY_PARAMETER = (
+    # FedEMの小さい全体run（6ケース、1ケース数分）。ファイルの組のままだと1 processで約28分かかる。
+    "tests/refactoring/test_feddrift_fedem_configuration.py::test_small_full_run",
+)
+
 # 固定旧のtestのうち、重いもの（ファイルを変更しないので、ここでslowの印を付ける）。
 SLOW_FIXED_LEGACY_TEST_NODE_IDS = (
     "tests/test_regression.py::test_regression",
@@ -64,7 +73,10 @@ def select_parallel_test_scope(*, test_node_id, configuration_names=(), golden_c
     test_file_path, _, test_name = test_node_id.partition("::")
     if "[" not in test_name:
         return test_file_path
-    parameter_id = test_name.partition("[")[2].removesuffix("]")
+    test_function_name, _, parameter_id = test_name.partition("[")
+    parameter_id = parameter_id.removesuffix("]")
+    if f"{test_file_path}::{test_function_name}" in TEST_FUNCTIONS_SPLIT_BY_PARAMETER:
+        return test_node_id
     if test_file_path == TEST_FILE_SPLIT_BY_GOLDEN_CASE_NAME:
         return _select_golden_case_scope(test_file_path, parameter_id, golden_case_names)
     if test_file_path not in TEST_FILES_SPLIT_BY_CONFIGURATION_NAME:

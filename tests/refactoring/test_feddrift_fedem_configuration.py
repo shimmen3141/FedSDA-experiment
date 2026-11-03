@@ -416,3 +416,39 @@ def test_small_full_run(dataset, scope, rounds, monkeypatch):
     print(
         f"{configuration}/{dataset}/R={rounds}: pi(client0)={pi[0, [0, 24, 49]].tolist()}, purity={purity:.6f}"
     )
+
+
+def test_small_full_runs_are_distributed_one_case_per_process(request):
+    # 全pytestの並列実行（conftestの配り方）で、小さい全体runの各ケースが別の組になり、
+    # このファイルのほかのtestはファイルの組のままであること。
+    from tests.conftest import select_parallel_test_scope
+
+    file_path = "tests/refactoring/test_feddrift_fedem_configuration.py"
+    case_ids = [
+        f"{dataset}-{scope}-{rounds}"
+        for dataset, scope, rounds in (
+            ("sine2", "window", 1),
+            ("mnist4", "window", 1),
+            ("sine2", "history", 1),
+            ("mnist4", "history", 1),
+            ("sine2", "window", 3),
+            ("sine2", "history", 3),
+        )
+    ]
+    scopes = {
+        select_parallel_test_scope(test_node_id=f"{file_path}::test_small_full_run[{case_id}]")
+        for case_id in case_ids
+    }
+    assert len(scopes) == len(case_ids)
+    assert file_path not in scopes
+    collected = [
+        item
+        for item in request.session.items
+        if item.path.name == "test_feddrift_fedem_configuration.py"
+    ]
+    for item in collected:
+        scope = select_parallel_test_scope(test_node_id=item.nodeid)
+        if item.originalname == "test_small_full_run":
+            assert scope == item.nodeid, item.nodeid
+        else:
+            assert scope == file_path, item.nodeid
