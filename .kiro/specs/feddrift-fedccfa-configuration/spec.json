@@ -1,0 +1,53 @@
+{
+  "feature_name": "feddrift-fedccfa-configuration",
+  "created_at": "2026-11-05T00:00:00Z",
+  "updated_at": "2026-11-05",
+  "language": "ja",
+  "phase": "implementation",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（2026-11-05にFedCCFAを進め、公式の実装との照合と予備の実行のRの軸を含める指示）、独立レビュー4回目（GPT-6 Luna medium）でPASS、Minorを反映"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（2026-11-05にFedCCFAを進め、公式の実装との照合と予備の実行のRの軸を含める指示）、独立レビュー4回目（GPT-6 Luna medium）でPASS、Minorを反映"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（2026-11-05にFedCCFAを進め、公式の実装との照合と予備の実行のRの軸を含める指示）、独立レビュー4回目（GPT-6 Luna medium）でPASS、Minorを反映"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（2026-11-05にFedCCFAを進め、公式の実装との照合と予備の実行のRの軸を含める指示）、独立レビュー4回目（GPT-6 Luna medium）でPASS、Minorを反映"
+    }
+  },
+  "ready_for_implementation": true,
+  "base_revision": "54334156",
+  "implementation_assignment": "実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・testの実行・レビューの起動・実行のコマンドと集計",
+  "specification_review": {
+    "status": "passed",
+    "rounds": [
+      {
+        "round": 1,
+        "result": "FAIL（Major 2: γの既定値と`lambda`の分岐、照合と挙動の確認の合格条件。Minor 2）——反映"
+      },
+      {
+        "round": 2,
+        "result": "FAIL（Major 4: 不均衡な入力での照合、欠けたクラスの扱い、整合の開始の境界、最初の集約の窓。Minor 3）——反映"
+      },
+      {
+        "round": 3,
+        "result": "FAIL（Major 3: 挙動の確認の水準、整合の開始が保つ量、通信の数え方。Minor 3）——反映"
+      },
+      {
+        "round": 4,
+        "result": "PASS（Minor 1: 行の参照）——文面を直し、再レビューは省く"
+      }
+    ]
+  }
+}
