@@ -51,7 +51,7 @@ OTHER_GOLDEN_CASE_GROUP_COUNT = 2
 # parametrizeのケースごとに1組にする、重いtestの関数（`<ファイル>::<関数>`）。ケースどうしで、moduleの
 # fixtureや計算の結果を使い回さないこと。
 TEST_FUNCTIONS_SPLIT_BY_PARAMETER = (
-    # FedEMの小さい全体run（6ケース、1ケース数分）。ファイルの組のままだと1 processで約28分かかる。
+    # FedEMの小さい全体run（6ケース）。ケースどうしで結果を使い回さないので、別のprocessへ配る。
     "tests/refactoring/test_feddrift_fedem_configuration.py::test_small_full_run",
 )
 

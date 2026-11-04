@@ -265,10 +265,10 @@ def test_configuration_initialization_and_round_axis(configuration, monkeypatch)
     assert len({run.run_identifier for run in runs}) == 2
 
 
-# 小さい全体runの規模（client数、clientごとの標本数）。既定は他のFedDrift系の全体runと同じ`settings()`の
-# 10 client×2,500標本。MNIST4の2ケースは重いので、検査が全部働く最小の規模にする（3時刻でhistoryの
-# 学習storeが増え、間隔50が学習のバッチ32標本以上、client 3つで集約）。この検査は概念の変化を使わない。
-SMALL_FULL_RUN_SCALES = {("mnist4", "window", 1): (3, 150), ("mnist4", "history", 1): (3, 150)}
+# 小さい全体runの規模。検査が全部働く最小の規模にする（3時刻でhistoryの学習storeが増え、間隔50が
+# 学習のバッチ32標本以上、client 3つで集約）。この検査は概念の変化を使わない。
+SMALL_FULL_RUN_CLIENT_COUNT = 3
+SMALL_FULL_RUN_SAMPLE_COUNT = 150
 SMALL_FULL_RUN_INTERVAL = 50
 
 
@@ -286,9 +286,8 @@ SMALL_FULL_RUN_INTERVAL = 50
 @pytest.mark.slow
 def test_small_full_run(dataset, scope, rounds, monkeypatch):
     configuration = f"feddrift-fedem-{scope}"
-    clients, samples = SMALL_FULL_RUN_SCALES.get((dataset, scope, rounds), (10, 2500))
+    clients, samples = SMALL_FULL_RUN_CLIENT_COUNT, SMALL_FULL_RUN_SAMPLE_COUNT
     interval = SMALL_FULL_RUN_INTERVAL
-    # 既定の規模では、`settings()`と同じ条件になる。
     run_settings = build_experiment_run_settings(
         configuration_name=configuration,
         experiment_run_conditions=ExperimentRunConditions(
