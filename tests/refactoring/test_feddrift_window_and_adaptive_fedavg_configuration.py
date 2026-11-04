@@ -29,7 +29,13 @@ from federated_learning_experiments.sweep.experiment_sweep_plan import (
 )
 from tests.refactoring import behavior_golden_cases as golden
 from tests.refactoring.test_feddrift_experiment_sweep import plan
-from tests.refactoring.test_feddrift_oracle_concept_assignment_configuration import settings
+from tests.refactoring.test_feddrift_oracle_concept_assignment_configuration import (
+    SMALL_FULL_RUN_CLIENT_COUNT,
+    SMALL_FULL_RUN_SAMPLE_COUNT,
+    SMALL_FULL_RUN_TIMESTEP_COUNT,
+    settings,
+    small_full_run_settings,
+)
 
 CONFIGURATIONS = ("feddrift-window", "feddrift-adaptive-fedavg-window")
 
@@ -241,13 +247,15 @@ def test_full_run_window_optimizer_learning_rates_and_single_model(
     monkeypatch.setattr(
         FeddriftRunServer, "aggregate_and_distribute_training_round", inspect_aggregation
     )
-    run = execute_feddrift_experiment_run(run_settings=settings(dataset, configuration))
+    run = execute_feddrift_experiment_run(
+        run_settings=small_full_run_settings(dataset, configuration)
+    )
     tables = build_feddrift_run_record_tables(experiment_run=run)
     concepts = tables["sample_prediction.observed_concept_id"]
     changes = int(np.count_nonzero(concepts[:, 1:] != concepts[:, :-1]))
     assert changes > 0
     streams = run.measured_run.run_result.observed_client_streams
-    assert len(windows) == 25000
+    assert len(windows) == SMALL_FULL_RUN_CLIENT_COUNT * SMALL_FULL_RUN_SAMPLE_COUNT
     for client_id, index, features, label in windows:
         sample = streams[client_id].observed_samples[index]
         torch.testing.assert_close(
@@ -275,12 +283,13 @@ def test_full_run_window_optimizer_learning_rates_and_single_model(
             atol=0,
         )
         np.testing.assert_array_equal(
-            tables["adaptive_learning_rate.aggregation_count"], np.arange(1, 51)
+            tables["adaptive_learning_rate.aggregation_count"],
+            np.arange(1, SMALL_FULL_RUN_TIMESTEP_COUNT + 1),
         )
         changed_timesteps = (
             np.flatnonzero(np.any(concepts[:, 1:] != concepts[:, :-1], axis=0)) // 50
         )
-        after_first_change = np.arange(1, 50) > changed_timesteps.min()
+        after_first_change = np.arange(1, SMALL_FULL_RUN_TIMESTEP_COUNT) > changed_timesteps.min()
         increases = int(np.count_nonzero((np.diff(rates) > 0) & after_first_change))
         extra = f", eta_min={min(rates)}, eta_max={max(rates)}, increases_after_change={increases}"
     print(

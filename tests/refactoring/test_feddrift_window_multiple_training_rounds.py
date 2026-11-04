@@ -28,7 +28,13 @@ from federated_learning_experiments.sweep.experiment_sweep_plan import (
     build_planned_experiment_runs,
     make_run_identifier,
 )
-from tests.refactoring.test_feddrift_oracle_concept_assignment_configuration import settings
+from tests.refactoring.test_feddrift_oracle_concept_assignment_configuration import (
+    SMALL_FULL_RUN_CLIENT_COUNT,
+    SMALL_FULL_RUN_SAMPLE_COUNT,
+    SMALL_FULL_RUN_TIMESTEP_COUNT,
+    settings,
+    small_full_run_settings,
+)
 
 WINDOWS = ("feddrift-window", "feddrift-cfl-window")
 
@@ -241,12 +247,12 @@ def test_fedavg_window_three_rounds_reuse_window_and_triple_parameter_communicat
         return original(client, eligible_model_ids=eligible_model_ids)
 
     monkeypatch.setattr(FeddriftRunClient, "train_local_round", inspect)
-    base = settings(configuration=WINDOWS[0])
+    base = small_full_run_settings(configuration=WINDOWS[0])
     once = execute_feddrift_experiment_run(run_settings=base)
     calls.clear()
     seen.clear()
     three = execute_feddrift_experiment_run(run_settings=with_rounds(base, 3))
-    assert len(calls) == 50 * 10 * 3
+    assert len(calls) == SMALL_FULL_RUN_TIMESTEP_COUNT * SMALL_FULL_RUN_CLIENT_COUNT * 3
     assert all(calls.count(key) == 3 for key in seen)
     streams = three.measured_run.run_result.observed_client_streams
     for (cid, end), samples in seen.items():
@@ -465,16 +471,17 @@ def test_cfl_three_round_small_full_run(monkeypatch, dataset, limit):
 
     monkeypatch.setattr(FeddriftRunClient, "train_local_round", inspect)
     run = execute_feddrift_experiment_run(
-        run_settings=with_rounds(settings(dataset, WINDOWS[1]), 3)
+        run_settings=with_rounds(small_full_run_settings(dataset, WINDOWS[1]), 3)
     )
+    clients, timesteps = SMALL_FULL_RUN_CLIENT_COUNT, SMALL_FULL_RUN_TIMESTEP_COUNT
     tables = build_feddrift_run_record_tables(experiment_run=run)
-    assigned = tables["cfl_assignment.model_id"].reshape(50, 10)
+    assigned = tables["cfl_assignment.model_id"].reshape(timesteps, clients)
     np.testing.assert_array_equal(
         tables["sample_prediction.prediction_model_id"], np.repeat(assigned.T, 50, axis=1)
     )
-    expected = dict.fromkeys(range(10), 0)
+    expected = dict.fromkeys(range(clients), 0)
     next_id = 1
-    for t in range(50):
+    for t in range(timesteps):
         assert assigned[t].tolist() == list(expected.values())
         indices = np.flatnonzero(tables["cfl_split_check.timestep_index"] == t)
         assert set(tables["cfl_split_check.round_index"][indices]) == {0, 1, 2}
@@ -500,7 +507,7 @@ def test_cfl_three_round_small_full_run(monkeypatch, dataset, limit):
                 assert get("new_model_id") == next_id
                 expected.update({int(cid): next_id for cid in get("cl2_client_ids").split(",")})
                 next_id += 1
-    assert len(windows) == 25000 * 3
+    assert len(windows) == clients * SMALL_FULL_RUN_SAMPLE_COUNT * 3
     streams = run.measured_run.run_result.observed_client_streams
     for cid, index, sample in windows:
         observed = streams[cid].observed_samples[index]

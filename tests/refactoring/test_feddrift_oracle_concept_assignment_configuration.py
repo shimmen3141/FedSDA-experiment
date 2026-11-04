@@ -121,15 +121,44 @@ def test_split_batches_training_eligibility_threshold_rounds_and_weights(monkeyp
     assert server.global_model_repository.global_model_ids == (0, 1)
 
 
-def settings(dataset="sine2", configuration=CONFIGURATION):
+def settings(dataset="sine2", configuration=CONFIGURATION, *, client_count=10, sample_count=2500):
     return configurations.build_experiment_run_settings(
         configuration_name=configuration,
         experiment_run_conditions=ExperimentRunConditions(
             dataset_name=dataset,
             random_seed=0,
-            client_count=10,
-            per_client_sample_count=2500,
+            client_count=client_count,
+            per_client_sample_count=sample_count,
             server_aggregation_interval_per_client_samples=50,
+        ),
+    )
+
+
+# FedDrift系の小さい全体runの共通の規模。4 client×500標本（間隔50で10時刻）。既定の変化の規則
+# （300標本の後、標本ごと0.0015）では短い列でほとんど変化しないので、間隔100・確率0.01に縮める。
+# seed 0で変化は計8回、MNIST4の4概念がすべて現れる（変化の規則の形と乱数の順は既定と同じ）。
+SMALL_FULL_RUN_CLIENT_COUNT = 4
+SMALL_FULL_RUN_SAMPLE_COUNT = 500
+SMALL_FULL_RUN_TIMESTEP_COUNT = SMALL_FULL_RUN_SAMPLE_COUNT // 50
+
+
+def small_full_run_settings(dataset="sine2", configuration=CONFIGURATION):
+    base = settings(
+        dataset,
+        configuration,
+        client_count=SMALL_FULL_RUN_CLIENT_COUNT,
+        sample_count=SMALL_FULL_RUN_SAMPLE_COUNT,
+    )
+    execution = base.execution_settings
+    return replace(
+        base,
+        execution_settings=replace(
+            execution,
+            concept_schedule_settings=replace(
+                execution.concept_schedule_settings,
+                minimum_sample_index_gap_before_change_trial=100,
+                per_eligible_sample_concept_change_probability=0.01,
+            ),
         ),
     )
 
@@ -191,13 +220,17 @@ def test_configuration_changes_only_assignment_policy():
 @pytest.mark.slow
 @pytest.mark.parametrize("dataset,concept_count", (("sine2", 2), ("mnist4", 4)))
 def test_full_run_assigns_each_sample_and_predicts_from_previous_label(dataset, concept_count):
-    run = execute_feddrift_experiment_run(run_settings=settings(dataset))
+    run = execute_feddrift_experiment_run(run_settings=small_full_run_settings(dataset))
     tables = build_feddrift_run_record_tables(experiment_run=run)
     concepts = tables["sample_prediction.observed_concept_id"]
     changes = int(np.count_nonzero(concepts[:, 1:] != concepts[:, :-1]))
     assert changes > 0
+    # 小さい規模でも全概念のモデルへ帰属し学習することを確かめる前提。
+    assert set(np.unique(concepts).tolist()) == set(range(concept_count))
     np.testing.assert_array_equal(tables["sample_prediction.training_model_id"], concepts)
-    expected_predictions = np.column_stack((np.zeros(10, dtype=int), concepts[:, :-1]))
+    expected_predictions = np.column_stack(
+        (np.zeros(SMALL_FULL_RUN_CLIENT_COUNT, dtype=int), concepts[:, :-1])
+    )
     np.testing.assert_array_equal(
         tables["sample_prediction.prediction_model_id"], expected_predictions
     )

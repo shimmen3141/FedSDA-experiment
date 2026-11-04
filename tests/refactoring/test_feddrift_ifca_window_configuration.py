@@ -30,8 +30,12 @@ from federated_learning_experiments.sweep import experiment_configurations as co
 from federated_learning_experiments.sweep.experiment_sweep_plan import make_run_identifier
 from tests.refactoring import behavior_golden_cases as golden
 from tests.refactoring.test_feddrift_oracle_concept_assignment_configuration import (
+    SMALL_FULL_RUN_CLIENT_COUNT,
+    SMALL_FULL_RUN_SAMPLE_COUNT,
+    SMALL_FULL_RUN_TIMESTEP_COUNT,
     observe,
     settings,
+    small_full_run_settings,
 )
 from tests.refactoring.test_feddrift_run_client import build_assembly_inputs
 
@@ -258,20 +262,27 @@ def test_full_run_selection_window_and_fixed_model_pool(
         return original(client, eligible_model_ids=eligible_model_ids)
 
     monkeypatch.setattr(FeddriftRunClient, "train_local_round", inspect_training)
-    run = execute_feddrift_experiment_run(run_settings=settings(dataset, configuration))
+    run = execute_feddrift_experiment_run(
+        run_settings=small_full_run_settings(dataset, configuration)
+    )
     tables = build_feddrift_run_record_tables(experiment_run=run)
     concepts = tables["sample_prediction.observed_concept_id"]
     changes = int(np.count_nonzero(concepts[:, 1:] != concepts[:, :-1]))
     assert changes > 0
-    selected = tables["cluster_selection.selected_model_id"].reshape(10, 50)
-    losses = tables["cluster_selection.model_mean_bounded_losses"].reshape(10, 50, concept_count)
+    clients, timesteps = SMALL_FULL_RUN_CLIENT_COUNT, SMALL_FULL_RUN_TIMESTEP_COUNT
+    selected = tables["cluster_selection.selected_model_id"].reshape(clients, timesteps)
+    losses = tables["cluster_selection.model_mean_bounded_losses"].reshape(
+        clients, timesteps, concept_count
+    )
     np.testing.assert_array_equal(selected[:, 0], 0)
     assert np.all(np.isnan(losses[:, 0]))  # 最初の時刻は比較しない。
     np.testing.assert_array_equal(selected[:, 1:], np.argmin(losses[:, 1:], axis=2))
-    predicted = np.repeat(np.column_stack((np.zeros(10, dtype=int), selected[:, :-1])), 50, axis=1)
+    predicted = np.repeat(
+        np.column_stack((np.zeros(clients, dtype=int), selected[:, :-1])), 50, axis=1
+    )
     np.testing.assert_array_equal(tables["sample_prediction.prediction_model_id"], predicted)
     streams = run.measured_run.run_result.observed_client_streams
-    assert len(training_windows) == 25000
+    assert len(training_windows) == clients * SMALL_FULL_RUN_SAMPLE_COUNT
     for client_id, index, features, label in training_windows:
         sample = streams[client_id].observed_samples[index]
         torch.testing.assert_close(

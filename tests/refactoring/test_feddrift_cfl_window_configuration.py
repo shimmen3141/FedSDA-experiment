@@ -19,7 +19,13 @@ from federated_learning_experiments.runtime.feddrift_run_record_tables import (
     build_feddrift_run_record_tables,
 )
 from federated_learning_experiments.runtime.feddrift_run_server import FeddriftRunServer
-from tests.refactoring.test_feddrift_oracle_concept_assignment_configuration import settings
+from tests.refactoring.test_feddrift_oracle_concept_assignment_configuration import (
+    SMALL_FULL_RUN_CLIENT_COUNT,
+    SMALL_FULL_RUN_SAMPLE_COUNT,
+    SMALL_FULL_RUN_TIMESTEP_COUNT,
+    settings,
+    small_full_run_settings,
+)
 
 CONFIGURATION = "feddrift-cfl-window"
 
@@ -369,17 +375,20 @@ def test_small_full_run_assignment_window_prediction_and_checks(monkeypatch, dat
         return original(client, eligible_model_ids=eligible_model_ids)
 
     monkeypatch.setattr(FeddriftRunClient, "train_local_round", inspect)
-    run = execute_feddrift_experiment_run(run_settings=settings(dataset, CONFIGURATION))
+    client_count, timesteps = SMALL_FULL_RUN_CLIENT_COUNT, SMALL_FULL_RUN_TIMESTEP_COUNT
+    run = execute_feddrift_experiment_run(
+        run_settings=small_full_run_settings(dataset, CONFIGURATION)
+    )
     server = run.measured_run.participants.run_server
     tables = build_feddrift_run_record_tables(experiment_run=run)
-    assigned = tables["cfl_assignment.model_id"].reshape(50, 10).T
+    assigned = tables["cfl_assignment.model_id"].reshape(timesteps, client_count).T
     np.testing.assert_array_equal(assigned[:, 0], 0)
     np.testing.assert_array_equal(
         tables["sample_prediction.prediction_model_id"], np.repeat(assigned, 50, axis=1)
     )
-    expected = dict.fromkeys(range(10), 0)
+    expected = dict.fromkeys(range(client_count), 0)
     next_model_id = 1
-    for t in range(50):
+    for t in range(timesteps):
         assert assigned[:, t].tolist() == list(expected.values())
         for timestep, row in server._cfl_records:
             if timestep != t:
@@ -396,7 +405,7 @@ def test_small_full_run_assignment_window_prediction_and_checks(monkeypatch, dat
                 expected.update(dict.fromkeys(one, mid))
                 expected.update(dict.fromkeys(two, new))
     streams = run.measured_run.run_result.observed_client_streams
-    assert len(windows) == 25000
+    assert len(windows) == client_count * SMALL_FULL_RUN_SAMPLE_COUNT
     for cid, index, sample in windows:
         expected_sample = streams[cid].observed_samples[index]
         torch.testing.assert_close(

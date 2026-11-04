@@ -266,9 +266,9 @@ def test_configuration_initialization_and_round_axis(configuration, monkeypatch)
 
 
 # 小さい全体runの規模（client数、clientごとの標本数）。既定は他のFedDrift系の全体runと同じ`settings()`の
-# 10 client×2,500標本。historyはE-stepと学習の対象が時刻とともに増え重いので、mnist4-historyは、検査が
-# 全部働く最小の規模にする（3時刻で学習storeが増え、間隔50が学習のバッチ32標本以上、client 3つで集約）。
-SMALL_FULL_RUN_SCALES = {("mnist4", "history", 1): (3, 150)}
+# 10 client×2,500標本。MNIST4の2ケースは重いので、検査が全部働く最小の規模にする（3時刻でhistoryの
+# 学習storeが増え、間隔50が学習のバッチ32標本以上、client 3つで集約）。この検査は概念の変化を使わない。
+SMALL_FULL_RUN_SCALES = {("mnist4", "window", 1): (3, 150), ("mnist4", "history", 1): (3, 150)}
 SMALL_FULL_RUN_INTERVAL = 50
 
 

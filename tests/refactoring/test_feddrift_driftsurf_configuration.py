@@ -32,7 +32,11 @@ from federated_learning_experiments.sweep.experiment_sweep_plan import (
     make_run_identifier,
 )
 from tests.refactoring.test_feddrift_experiment_sweep import plan
-from tests.refactoring.test_feddrift_oracle_concept_assignment_configuration import settings
+from tests.refactoring.test_feddrift_oracle_concept_assignment_configuration import (
+    SMALL_FULL_RUN_TIMESTEP_COUNT,
+    settings,
+    small_full_run_settings,
+)
 
 CONFIGURATION = "feddrift-driftsurf"
 
@@ -413,7 +417,7 @@ def test_small_full_run(monkeypatch, dataset, delta):
     monkeypatch.setattr(
         FeddriftRunServer, "aggregate_and_distribute_training_round", inspect_aggregation
     )
-    configured = settings(dataset, CONFIGURATION)
+    configured = small_full_run_settings(dataset, CONFIGURATION)
     participant = configured.run_participant_settings
     configured = replace(
         configured,
@@ -437,7 +441,7 @@ def test_small_full_run(monkeypatch, dataset, delta):
     assert np.all(tables["server_timestep.global_model_count_after_synchronization"] <= 3)
     assert len(tables["model_clustering.model_id"]) == 0
     assert len(tables["detection_batch.client_id"]) == 0
-    assert len(tables["driftsurf.timestep_index"]) == 50
+    assert len(tables["driftsurf.timestep_index"]) == SMALL_FULL_RUN_TIMESTEP_COUNT
     streams = run.measured_run.run_result.observed_client_streams
     for client in active_server[0].run_clients:
         store = client.stream_processor._driftsurf_timestep_samples
