@@ -265,6 +265,13 @@ def test_configuration_initialization_and_round_axis(configuration, monkeypatch)
     assert len({run.run_identifier for run in runs}) == 2
 
 
+# 小さい全体runの規模（client数、clientごとの標本数）。既定は他のFedDrift系の全体runと同じ`settings()`の
+# 10 client×2,500標本。historyはE-stepと学習の対象が時刻とともに増え重いので、mnist4-historyは、検査が
+# 全部働く最小の規模にする（3時刻で学習storeが増え、間隔50が学習のバッチ32標本以上、client 3つで集約）。
+SMALL_FULL_RUN_SCALES = {("mnist4", "history", 1): (3, 150)}
+SMALL_FULL_RUN_INTERVAL = 50
+
+
 @pytest.mark.parametrize(
     "dataset,scope,rounds",
     (
@@ -279,7 +286,20 @@ def test_configuration_initialization_and_round_axis(configuration, monkeypatch)
 @pytest.mark.slow
 def test_small_full_run(dataset, scope, rounds, monkeypatch):
     configuration = f"feddrift-fedem-{scope}"
-    base = with_rounds(settings(dataset, configuration), rounds)
+    clients, samples = SMALL_FULL_RUN_SCALES.get((dataset, scope, rounds), (10, 2500))
+    interval = SMALL_FULL_RUN_INTERVAL
+    # 既定の規模では、`settings()`と同じ条件になる。
+    run_settings = build_experiment_run_settings(
+        configuration_name=configuration,
+        experiment_run_conditions=ExperimentRunConditions(
+            dataset_name=dataset,
+            random_seed=0,
+            client_count=clients,
+            per_client_sample_count=samples,
+            server_aggregation_interval_per_client_samples=interval,
+        ),
+    )
+    base = with_rounds(run_settings, rounds)
     m = 2 if dataset == "sine2" else 4
     train = FeddriftRunClient.train_local_round
     aggregate = FeddriftRunServer.aggregate_and_distribute_training_round
@@ -292,7 +312,7 @@ def test_small_full_run(dataset, scope, rounds, monkeypatch):
         index = prediction_counts.get(id(fedem), 0)
         # flushされるのは予測→ラベル観測後。現在の標本は学習storeにもE-stepにもまだない。
         assert all(i < index for i in fedem.sample_indices)
-        t = index // 50
+        t = index // interval
         assert fedem._timestep_index == t - 1
         expected_pi = (
             torch.full((m,), 1 / m)
@@ -303,7 +323,7 @@ def test_small_full_run(dataset, scope, rounds, monkeypatch):
         probabilities = []
         states = fedem._registry.snapshot_ordered_held_model_training_states()
         handles = []
-        if index % 50 == 0:
+        if index % interval == 0:
             handles = [
                 s.classifier.register_forward_hook(
                     lambda module, inputs, output: probabilities.append(output.detach().clone())
@@ -315,7 +335,7 @@ def test_small_full_run(dataset, scope, rounds, monkeypatch):
         finally:
             for handle in handles:
                 handle.remove()
-        if index % 50 == 0:
+        if index % interval == 0:
             with torch.no_grad():
                 if states[0].classifier.class_count > 2:
                     probabilities = [p.softmax(1) for p in probabilities]
@@ -332,19 +352,21 @@ def test_small_full_run(dataset, scope, rounds, monkeypatch):
         end = client.stream_processor.processed_sample_count
         collections = client.owners.training_sample_store.snapshot_ordered_model_training_samples()
         assert {c.model_id for c in collections} == set(range(m))
-        expected_count = 50 if scope == "window" else end
+        expected_count = interval if scope == "window" else end
         assert all(len(c.training_samples) == expected_count for c in collections)
         assert len(fedem.sample_indices) == expected_count
         assert fedem.sample_indices == list(range(end - expected_count, end))
         before = fedem.mixture_weights.clone()
         result = train(client, **kwargs)
-        torch.testing.assert_close(fedem.mixture_weights, fedem.responsibilities[-50:].mean(0))
+        torch.testing.assert_close(
+            fedem.mixture_weights, fedem.responsibilities[-interval:].mean(0)
+        )
         calls.append((client.client_id, end, before, fedem.mixture_weights.clone()))
         order.append(client.client_id)
         return result
 
     def inspect_aggregate(server, **kwargs):
-        assert order[-10:] == list(range(10))  # 全clientのE/π/Mの後で集約。
+        assert order[-clients:] == list(range(clients))  # 全clientのE/π/Mの後で集約。
         participants = [
             c.owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
             for c in server.run_clients
@@ -372,11 +394,12 @@ def test_small_full_run(dataset, scope, rounds, monkeypatch):
         aggregate(server, **kwargs)
         after_transfers = server.communication_volume_record_store.get_state_snapshot()
         assert (
-            after_transfers.uploaded_model_count - before_transfers.uploaded_model_count == 10 * m
+            after_transfers.uploaded_model_count - before_transfers.uploaded_model_count
+            == clients * m
         )
         assert (
             after_transfers.downloaded_model_count - before_transfers.downloaded_model_count
-            == 10 * m
+            == clients * m
         )
         for mid in range(m):
             for key, value in server.global_model_repository.get_global_model_parameters(
@@ -395,13 +418,13 @@ def test_small_full_run(dataset, scope, rounds, monkeypatch):
     monkeypatch.setattr(FedemClientMixture, "predict", inspect_prediction)
     run = execute_feddrift_experiment_run(run_settings=base)
     tables = build_feddrift_run_record_tables(experiment_run=run)
-    assert len(calls) == 50 * 10 * rounds
-    pi = tables["fedem_client_mixture.mixture_weight"].reshape(10, 50, m)
+    assert len(calls) == samples // interval * clients * rounds
+    pi = tables["fedem_client_mixture.mixture_weight"].reshape(clients, samples // interval, m)
     np.testing.assert_allclose(pi.sum(2), 1, atol=1e-6)
-    assert len(tables["fedem_sample_responsibility.sample_index"]) == 25000
+    assert len(tables["fedem_sample_responsibility.sample_index"]) == clients * samples
     np.testing.assert_array_equal(
-        tables["fedem_sample_responsibility.sample_index"].reshape(10, 2500),
-        np.tile(np.arange(2500), (10, 1)),
+        tables["fedem_sample_responsibility.sample_index"].reshape(clients, samples),
+        np.tile(np.arange(samples), (clients, 1)),
     )
     assert len(tables["model_clustering.model_id"]) == 0
     assert len(tables["model_registration.model_id"]) == m
@@ -414,7 +437,7 @@ def test_small_full_run(dataset, scope, rounds, monkeypatch):
         np.bincount(concepts[qmax == mid], minlength=m).max(initial=0) for mid in range(m)
     ) / len(qmax)
     print(
-        f"{configuration}/{dataset}/R={rounds}: pi(client0)={pi[0, [0, 24, 49]].tolist()}, purity={purity:.6f}"
+        f"{configuration}/{dataset}/R={rounds}: pi(client0)={pi[0, [0, pi.shape[1] // 2, -1]].tolist()}, purity={purity:.6f}"
     )
 
 
