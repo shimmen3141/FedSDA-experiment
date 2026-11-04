@@ -174,6 +174,10 @@ NPZ・run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変
 | `feddrift-fedem-window-pretrained-component0` | 上と同じで、ID 0だけ共通の事前学習モデルの写し | 初期化の比較 |
 | `feddrift-fedem-history` | 全M成分を独立の乱数で初期化し、初めからの全標本で学習。予測のπは今の時刻のqの平均 | 学習標本の範囲の比較 |
 | `feddrift-fedem-history-pretrained-component0` | 上と同じで、ID 0だけ共通の事前学習モデルの写し | 初期化と標本範囲の比較 |
+| `feddrift-fedccfa-window` | 表現部を全clientで共有し、個人の分類層をクラスごとの組で平均。窓は今の時刻のI標本、整合は通算20 round以降 | FedCCFA（[公式との差](differences-from-feddrift.md#fedccfaの4構成)） |
+| `feddrift-fedccfa-window-scaled-alignment` | 上と同じで、整合はrunの全roundの10%以降 | 整合の開始の比較 |
+| `feddrift-fedccfa-window200` | 観測済みの直近max(I,200)標本で学習し、整合は通算20 round以降 | 窓の比較 |
+| `feddrift-fedccfa-window200-scaled-alignment` | 上と同じで、整合はrunの全roundの10%以降 | 窓と整合の開始の比較 |
 | `fedsda` | 提案構成。同期時点と局所更新の結合予測を混ぜる。FIFO容量30・T120。候補を検証せずに採用し、候補の学習では共有部を固定する（基準版7） | `reference`（現在は予測方式・T・候補の採否などに意図した差がある） |
 | `fedsda-every-sample-change-interval-search` | 基準版16から既定の`fedsda`と同じ設定。`change_interval_search=every_sample_with_reverse_prequential_code`で、新しい順の1本の流れの途中和から、最小変化区間以上の全部のkを1件刻みで測る。これまでのコマンドと結果の記録のために残し、識別子は実行済みの結果と同じ（`fedsda`の識別子とは異なる） | 対応なし（[既定を替えるspec](../../.kiro/specs/fedsda-every-sample-change-interval-search-default/design.md)） |
 | `fedsda-minimum-interval-multiples-change-interval-search` | 提案構成の`change_interval_search`だけを`minimum_interval_multiples_with_forward_prequential_code`へ戻す（基準版15までの既定）。kを最小変化区間の倍数に限り、kごとに末尾k件を古い方から一から学習して測る | 対応なし（[spec](../../.kiro/specs/fedsda-every-sample-change-interval-search-default/design.md)） |
@@ -357,7 +361,11 @@ Windowは調整しない。Adaptive-FedAvgは評価に使わないseed 100〜102
 ### FedAvg+Window・CFL+Windowのround数の掃引
 
 `--feddrift-local-training-round-counts 1 3`で1時刻のround数Rを指定する。
-正の整数、重複不可。省略時は1。既定以外のRは`feddrift-window`と`feddrift-cfl-window`、FedEMの4構成で許す。
+正の整数、重複不可。省略時は1。既定以外のRは`feddrift-window`と`feddrift-cfl-window`、FedEM・FedCCFAの各4構成で許す。
 同じ時刻の窓をR回学習し、計算とパラメータ通信を各roundで数える。
 CFLは各roundの学習後・集約前に分割を判定し、分割後の残りのroundは新しい割り当てで学習する。
 公式との違いは[比較資料](differences-from-feddrift.md#cflwindowの構成)を参照する。
+
+### FedCCFAのDBSCANのε
+
+`--fedccfa-dbscan-eps 0.05 0.1 0.15 0.2`で4構成のεを掃引できる（省略時0.1、正の有限float、重複不可）。FedCCFAを含まない計画では拒否する。他の構成が混ざる計画では、その構成のrunをεごとに複製しない。`--feddrift-local-training-round-counts`とも直積になる。γは20、対照の整合の温度は0.1で、型付き設定の`fedccfa_alignment_gamma`・`fedccfa_alignment_temperature`から指定する。予備の実行は[spec](../../.kiro/specs/feddrift-fedccfa-configuration/design.md)の別工程。

@@ -49,5 +49,17 @@
         "result": "PASS（Minor 1: 行の参照）——文面を直し、再レビューは省く"
       }
     ]
+  },
+  "implementation_status": {
+    "tasks": [
+      1,
+      2
+    ],
+    "status": "Task 1・2完了。実装レビュー（GPT-6 Luna）2回目PASS、全pytestの結果はtasks.mdの主担当の確認",
+    "next_action": "Task 3（予備の実行192 run）のコマンドを渡し、集計する"
+  },
+  "implementation_review": {
+    "reviewer": "GPT-6 Luna（effort medium）",
+    "result": "1回目FAIL（事実の読み違い2）、根拠を示した2回目PASS"
   }
 }

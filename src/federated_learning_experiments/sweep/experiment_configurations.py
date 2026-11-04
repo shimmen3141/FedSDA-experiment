@@ -112,6 +112,20 @@ FEDEM_CONFIGURATION_NAMES = (
     FEDDRIFT_FEDEM_HISTORY_PRETRAINED_COMPONENT0_CONFIGURATION_NAME,
 )
 # コマンドで指定できる構成の名前。
+FEDDRIFT_FEDCCFA_WINDOW_CONFIGURATION_NAME = "feddrift-fedccfa-window"
+FEDDRIFT_FEDCCFA_WINDOW_SCALED_ALIGNMENT_CONFIGURATION_NAME = (
+    "feddrift-fedccfa-window-scaled-alignment"
+)
+FEDDRIFT_FEDCCFA_WINDOW200_CONFIGURATION_NAME = "feddrift-fedccfa-window200"
+FEDDRIFT_FEDCCFA_WINDOW200_SCALED_ALIGNMENT_CONFIGURATION_NAME = (
+    "feddrift-fedccfa-window200-scaled-alignment"
+)
+FEDCCFA_CONFIGURATION_NAMES = (
+    FEDDRIFT_FEDCCFA_WINDOW_CONFIGURATION_NAME,
+    FEDDRIFT_FEDCCFA_WINDOW_SCALED_ALIGNMENT_CONFIGURATION_NAME,
+    FEDDRIFT_FEDCCFA_WINDOW200_CONFIGURATION_NAME,
+    FEDDRIFT_FEDCCFA_WINDOW200_SCALED_ALIGNMENT_CONFIGURATION_NAME,
+)
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
     PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME,
@@ -141,6 +155,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     FEDDRIFT_DRIFTSURF_CONFIGURATION_NAME,
     FEDDRIFT_CFL_WINDOW_CONFIGURATION_NAME,
     *FEDEM_CONFIGURATION_NAMES,
+    *FEDCCFA_CONFIGURATION_NAMES,
 )
 
 
@@ -250,6 +265,27 @@ def build_experiment_run_settings(
         raise ValueError(
             f"unknown experiment configuration: {configuration_name!r} "
             f"(available: {', '.join(EXPERIMENT_CONFIGURATION_NAMES)})"
+        )
+    if configuration_name in FEDCCFA_CONFIGURATION_NAMES:
+        feddrift = build_default_feddrift_run_settings(
+            experiment_run_conditions=experiment_run_conditions
+        )
+        participant = feddrift.run_participant_settings
+        return replace(
+            feddrift,
+            run_participant_settings=replace(
+                participant,
+                run_client_settings=replace(
+                    participant.run_client_settings,
+                    model_assignment_policy="fedccfa_classifier_clustering",
+                    training_sample_window="recent_observed_samples"
+                    if "window200" in configuration_name
+                    else "current_timestep",
+                    fedccfa_alignment_start="scaled_to_run_rounds"
+                    if configuration_name.endswith("scaled-alignment")
+                    else "fixed_round_20",
+                ),
+            ),
         )
     if configuration_name in FEDEM_CONFIGURATION_NAMES:
         feddrift = build_default_feddrift_run_settings(

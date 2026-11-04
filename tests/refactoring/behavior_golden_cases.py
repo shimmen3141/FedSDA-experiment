@@ -313,6 +313,10 @@ BASELINE_CONFIGURATION_CASE_NAMES = (
 )
 # goldenの事例にしない構成の名前と、その構成を守る専用のtestのファイル（リポジトリの根からの位置）。
 CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN: dict[str, str] = {
+    "feddrift-fedccfa-window": "tests/refactoring/test_feddrift_fedccfa_configuration.py",
+    "feddrift-fedccfa-window-scaled-alignment": "tests/refactoring/test_feddrift_fedccfa_configuration.py",
+    "feddrift-fedccfa-window200": "tests/refactoring/test_feddrift_fedccfa_configuration.py",
+    "feddrift-fedccfa-window200-scaled-alignment": "tests/refactoring/test_feddrift_fedccfa_configuration.py",
     "feddrift-fedem-window": "tests/refactoring/test_feddrift_fedem_configuration.py",
     "feddrift-fedem-window-pretrained-component0": "tests/refactoring/test_feddrift_fedem_configuration.py",
     "feddrift-fedem-history": "tests/refactoring/test_feddrift_fedem_configuration.py",

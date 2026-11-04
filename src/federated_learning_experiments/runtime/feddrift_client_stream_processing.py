@@ -19,6 +19,7 @@ from federated_learning_experiments.learning.training.model_training_sample_reco
 from federated_learning_experiments.learning.training.timestep_training_sample_store import (
     TimestepTrainingSampleStore,
 )
+from federated_learning_experiments.runtime.fedccfa_classifier_clustering import FedccfaClientState
 from federated_learning_experiments.runtime.feddrift_detection_batch_processing import (
     FeddriftDetectionBatchProcessor,
     FeddriftDetectionBatchTransition,
@@ -92,6 +93,7 @@ class FeddriftClientStreamProcessor:
             "driftsurf_global_role_assignment",
             "cfl_bipartition_assignment",
             "fedem_responsibility_assignment",
+            "fedccfa_classifier_clustering",
         ):
             raise ValueError("未対応の割当方式です。")
         self._driftsurf_assignment = model_assignment_policy == "driftsurf_global_role_assignment"
@@ -111,6 +113,7 @@ class FeddriftClientStreamProcessor:
             "current_timestep",
             "role_timestep_window",
             "all_observed_history",
+            "recent_observed_samples",
         ):
             raise ValueError("未対応の学習窓です。")
         self._current_timestep_window = training_sample_window == "current_timestep"
@@ -121,6 +124,14 @@ class FeddriftClientStreamProcessor:
                 current_timestep_window=self._current_timestep_window,
             )
             if model_assignment_policy == "fedem_responsibility_assignment"
+            else None
+        )
+        self._fedccfa = (
+            FedccfaClientState(
+                classifier=detection_batch_processor.current_training_model_state.classifier,
+                recent_window=training_sample_window == "recent_observed_samples",
+            )
+            if model_assignment_policy == "fedccfa_classifier_clustering"
             else None
         )
         self._indexed_buffer: list[IndexedObservedTrainingSample] = []
@@ -180,6 +191,14 @@ class FeddriftClientStreamProcessor:
             self._processor._validate_true_concept_observations(indexed_observations)
         fired = False
         for observation in indexed_observations:
+            if (
+                self._fedccfa is not None
+                and not self._fedccfa.recent_window
+                and self._processed_count % self._batch_size == 0
+            ):
+                self._fedccfa.samples.clear()
+                self._fedccfa.sample_indices.clear()
+                self._processor._training_samples.clear_model_training_samples()
             if self._cfl_assignment and self._processed_count % self._batch_size == 0:
                 # 前の分割後の割当を先に写し、それから前時刻の学習窓を空にする。
                 self._cfl_assignments.append(
@@ -199,7 +218,9 @@ class FeddriftClientStreamProcessor:
             sample = observation.training_sample
             with no_grad():
                 scores = (
-                    self._fedem.predict(sample.input_features)
+                    self._fedccfa.predict(sample.input_features)
+                    if self._fedccfa is not None
+                    else self._fedem.predict(sample.input_features)
                     if self._fedem is not None
                     else current.classifier(sample.input_features)
                 )
@@ -223,6 +244,10 @@ class FeddriftClientStreamProcessor:
                 ),
             )
             self._processed_count += 1
+            if self._fedccfa is not None:
+                self._fedccfa.append_timestep_samples(
+                    (sample,), self._processed_count, self._batch_size
+                )
             self._buffer.append(sample)
             if self._driftsurf_assignment:
                 self._driftsurf_pending_samples.append(sample)
@@ -242,6 +267,14 @@ class FeddriftClientStreamProcessor:
     def flush_detection_buffer(self) -> FeddriftDetectionBatchTransition | None:
         """残りを一度処理し、既存予測記録へは結果を付加しない。"""
         if not self._buffer:
+            return None
+        if self._fedccfa is not None:
+            store = self._processor._training_samples
+            store.clear_model_training_samples()
+            store.append_model_training_samples(
+                model_id=0, training_samples=tuple(self._fedccfa.samples)
+            )
+            self._buffer.clear()
             return None
         if self._fedem is not None:
             self._fedem.append_timestep_samples(

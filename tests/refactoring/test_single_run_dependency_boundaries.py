@@ -3455,6 +3455,8 @@ def test_feddrift_client_stream_processing_rejects_outer_dependencies(forbidden_
     (
         "runtime/feddrift_client_round_training.py",
         "runtime/fedem_mixture.py",
+        "runtime/fedccfa_classifier_clustering.py",
+        "runtime/fedccfa_training_round.py",
         "learning/training/independent_model_parameter_update.py",
     ),
 )
@@ -3474,6 +3476,50 @@ def test_feddrift_round_training_rejects_outer_dependencies(source_module_path, 
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    fedccfa_imports = {
+        "runtime/fedccfa_classifier_clustering.py": (
+            "copy.deepcopy",
+            "math.ceil",
+            "random.Random",
+            "numpy",
+            "torch",
+            "sklearn.cluster.DBSCAN",
+            "torch.nn.functional.cosine_similarity",
+            "torch.nn.functional.cross_entropy",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+        ),
+        "runtime/fedccfa_training_round.py": (
+            "typing.TYPE_CHECKING",
+            "numpy",
+            "torch",
+            "federated_learning_experiments.runtime.fedccfa_classifier_clustering._label_groups",
+            "federated_learning_experiments.runtime.fedccfa_classifier_clustering._weighted_mean",
+            "federated_learning_experiments.runtime.feddrift_run_server.FeddriftRunServer",
+        ),
+        "runtime/feddrift_run_client.py": (
+            "federated_learning_experiments.runtime.fedccfa_classifier_clustering._convert_binary_classifier",
+        ),
+        "runtime/feddrift_client_stream_processing.py": (
+            "federated_learning_experiments.runtime.fedccfa_classifier_clustering.FedccfaClientState",
+        ),
+        "runtime/feddrift_run_participant_factory.py": (
+            "federated_learning_experiments.runtime.fedccfa_classifier_clustering._alignment_start_round",
+        ),
+        "runtime/feddrift_run_server.py": (
+            "federated_learning_experiments.runtime.fedccfa_training_round.aggregate_fedccfa_training_round",
+        ),
+        "sweep/experiment_sweep_plan.py": (
+            "federated_learning_experiments.sweep.experiment_configurations.FEDCCFA_CONFIGURATION_NAMES",
+        ),
+    }
+    if source_module_path in (
+        "runtime/fedccfa_classifier_clustering.py",
+        "runtime/fedccfa_training_round.py",
+    ):
+        return imported_module_name in fedccfa_imports[source_module_path]
+    if imported_module_name in fedccfa_imports.get(source_module_path, ()):
+        return True
     fedem_imports = {
         "runtime/fedem_mixture.py": (
             "torch",
@@ -6044,6 +6090,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/feddrift_run_client_settings.py",
             "runtime/feddrift_client_round_training.py",
             "runtime/fedem_mixture.py",
+            "runtime/fedccfa_classifier_clustering.py",
+            "runtime/fedccfa_training_round.py",
             "learning/training/independent_model_parameter_update.py",
             "runtime/feddrift_client_stream_processing.py",
             "runtime/feddrift_detection_batch_processing.py",

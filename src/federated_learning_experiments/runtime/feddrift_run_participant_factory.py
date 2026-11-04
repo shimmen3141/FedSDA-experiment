@@ -26,6 +26,9 @@ from federated_learning_experiments.learning.models.model_architecture_settings 
 from federated_learning_experiments.learning.training.initial_model_pretraining_settings import (
     InitialModelPretrainingSettings,
 )
+from federated_learning_experiments.runtime.fedccfa_classifier_clustering import (
+    _alignment_start_round,
+)
 from federated_learning_experiments.runtime.feddrift_run_client import (
     FeddriftRunClient,
     assemble_feddrift_run_client,
@@ -228,12 +231,29 @@ class FeddriftRunParticipantFactory:
             )
             for client_id in range(experiment_run_conditions.client_count)
         )
+        for client in clients:
+            if client.stream_processor._fedccfa is not None:
+                client.stream_processor._fedccfa.alignment_start_round = _alignment_start_round(
+                    settings.run_client_settings.fedccfa_alignment_start,
+                    experiment_run_conditions.per_client_sample_count,
+                    experiment_run_conditions.server_aggregation_interval_per_client_samples,
+                    settings.server_settings.local_training_round_count,
+                )
         server = FeddriftRunServer(
             maximum_cfl_model_count=definition.concept_count,
             run_clients=clients,
             server_settings=settings.server_settings,
             initial_parameter_snapshot=snapshot_classifier_parameters(
-                classifier=initial.classifier
+                classifier=(
+                    clients[0]
+                    .owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()[
+                        0
+                    ]
+                    .classifier
+                    if settings.run_client_settings.model_assignment_policy
+                    == "fedccfa_classifier_clustering"
+                    else initial.classifier
+                )
             ),
             initial_loss_statistics=initial.loss_statistics,
             python_random_generator=run_random_sources.python_random_generator,

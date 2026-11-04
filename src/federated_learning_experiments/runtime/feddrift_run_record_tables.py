@@ -525,4 +525,58 @@ def build_feddrift_run_record_tables(
                 record_tables[f"{table}.{column}"] = (
                     _float_column(values) if index == len(columns) - 1 else _integer_column(values)
                 )
+    if run_clients[0]._settings.model_assignment_policy == "fedccfa_classifier_clustering":
+        for table, columns, attribute in (
+            (
+                "fedccfa_round",
+                (
+                    "timestep_index",
+                    "round_index",
+                    "client_id",
+                    "alignment_active",
+                    "alignment_weight",
+                    "window_sample_count",
+                    "window_missing_class_count",
+                ),
+                "round_records",
+            ),
+            (
+                "fedccfa_label_cluster",
+                (
+                    "timestep_index",
+                    "round_index",
+                    "client_id",
+                    "class_label",
+                    "cluster_index",
+                    "window_class_sample_count",
+                ),
+                "cluster_records",
+            ),
+        ):
+            rows = [
+                (row[0], row[1], client.client_id, *row[2:])
+                for client in run_clients
+                if client.stream_processor._fedccfa is not None
+                for row in getattr(client.stream_processor._fedccfa, attribute)
+            ]
+            for index, column in enumerate(columns):
+                values = [row[index] for row in rows]
+                record_tables[f"{table}.{column}"] = (
+                    _float_column(values)
+                    if column == "alignment_weight"
+                    else _boolean_column(values)
+                    if column == "alignment_active"
+                    else _integer_column(values)
+                )
+        rows = measured_run.participants.run_server._fedccfa_communication_records
+        for index, column in enumerate(
+            ("timestep_index", "round_index", "component", "direction", "parameter_value_count")
+        ):
+            values = [row[index] for row in rows]
+            record_tables[f"fedccfa_communication.{column}"] = (
+                asarray(values, dtype=str) if index in (2, 3) else _integer_column(values)
+            )
+        record_tables["fedccfa_communication.byte_count"] = (
+            record_tables["fedccfa_communication.parameter_value_count"] * 4
+        )
     return record_tables

@@ -104,6 +104,7 @@ class ModelArchitectureClassifier(Module):
         super().__init__()
         self.model_architecture_settings = validated_model_architecture_settings
         self.class_count = class_count
+        self.binary_softmax_output = False
         self.input_feature_count = input_feature_count
         self.hidden_layer_widths = hidden_layer_widths
         models_are_independent = (
@@ -170,6 +171,8 @@ class ModelArchitectureClassifier(Module):
     def forward_from_shared_features(self, shared_features: torch.Tensor) -> torch.Tensor:
         transformed_features = self.model_owned_feature_transform(shared_features)
         classification_scores = self.classification_layer(transformed_features)
+        if self.binary_softmax_output:
+            return classification_scores.softmax(dim=1)[:, 1:]
         return self.output_activation(classification_scores)
 
     def forward(self, input_features: torch.Tensor) -> torch.Tensor:

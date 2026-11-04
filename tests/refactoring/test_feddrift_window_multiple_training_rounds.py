@@ -115,7 +115,7 @@ def test_sweep_cli_defaults_and_distinct_identifiers():
     [
         n
         for n in EXPERIMENT_CONFIGURATION_NAMES
-        if n not in WINDOWS and not n.startswith("feddrift-fedem-")
+        if n not in WINDOWS and not n.startswith(("feddrift-fedem-", "feddrift-fedccfa-"))
     ],
 )
 def test_sweep_rejects_nonwindow_rounds(name):
@@ -167,7 +167,7 @@ def test_round_axis_declarations_and_artifact_version():
     assert any(c.option_id == name and c.requires_selections for c in CHOICE_CONSTRAINTS)
     assert FEDDRIFT_LOCAL_TRAINING_ROUND_COUNT_AXIS.parameter_id == name
     assert FEDDRIFT_LOCAL_TRAINING_ROUND_COUNT_AXIS.values == (1,)
-    assert RUN_ARTIFACT_FORMAT_VERSION == SWEEP_RECORD_FORMAT_VERSION == 9
+    assert RUN_ARTIFACT_FORMAT_VERSION == SWEEP_RECORD_FORMAT_VERSION == 10
 
 
 def test_cfl_reassignment_destination_is_checked_before_state_updates(monkeypatch):

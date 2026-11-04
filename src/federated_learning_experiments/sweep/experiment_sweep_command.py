@@ -163,7 +163,14 @@ def _build_argument_parser() -> ArgumentParser:
         type=int,
         nargs="+",
         default=None,
-        help="FedAvg+WindowとCFL+Windowの1時刻のround数（正の整数、省略時1）",
+        help="FedAvg+Window・CFL+Window・FedEM・FedCCFAの1時刻のround数（正の整数、省略時1）",
+    )
+    argument_parser.add_argument(
+        "--fedccfa-dbscan-eps",
+        type=float,
+        nargs="+",
+        default=None,
+        help="FedCCFAのDBSCANのε（既定0.1）",
     )
     argument_parser.add_argument(
         "--driftsurf-accuracy-drop-thresholds",
@@ -267,6 +274,9 @@ def _build_sweep_plan(parsed_arguments: Namespace) -> ExperimentSweepPlan:
             if parsed_arguments.feddrift_local_training_round_counts is not None
             else None
         ),
+        fedccfa_dbscan_eps=tuple(parsed_arguments.fedccfa_dbscan_eps)
+        if parsed_arguments.fedccfa_dbscan_eps is not None
+        else None,
         driftsurf_accuracy_drop_thresholds=tuple(
             parsed_arguments.driftsurf_accuracy_drop_thresholds
         )

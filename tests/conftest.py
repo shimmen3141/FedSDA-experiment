@@ -53,6 +53,8 @@ OTHER_GOLDEN_CASE_GROUP_COUNT = 2
 TEST_FUNCTIONS_SPLIT_BY_PARAMETER = (
     # FedEMの小さい全体run（6ケース）。ケースどうしで結果を使い回さないので、別のprocessへ配る。
     "tests/refactoring/test_feddrift_fedem_configuration.py::test_small_full_run",
+    "tests/refactoring/test_feddrift_fedccfa_configuration.py::test_small_full_run",
+    "tests/refactoring/test_feddrift_fedccfa_configuration.py::test_original_mnist_behavior",
 )
 
 # 固定旧のtestのうち、重いもの（ファイルを変更しないので、ここでslowの印を付ける）。
@@ -71,12 +73,13 @@ def pytest_collection_modifyitems(items):
 def select_parallel_test_scope(*, test_node_id, configuration_names=(), golden_case_names=()):
     """testのidから、同じprocessで実行する組の名前を返す。"""
     test_file_path, _, test_name = test_node_id.partition("::")
+    test_function_name = test_name.partition("[")[0]
+    if f"{test_file_path}::{test_function_name}" in TEST_FUNCTIONS_SPLIT_BY_PARAMETER:
+        return test_node_id
     if "[" not in test_name:
         return test_file_path
     test_function_name, _, parameter_id = test_name.partition("[")
     parameter_id = parameter_id.removesuffix("]")
-    if f"{test_file_path}::{test_function_name}" in TEST_FUNCTIONS_SPLIT_BY_PARAMETER:
-        return test_node_id
     if test_file_path == TEST_FILE_SPLIT_BY_GOLDEN_CASE_NAME:
         return _select_golden_case_scope(test_file_path, parameter_id, golden_case_names)
     if test_file_path not in TEST_FILES_SPLIT_BY_CONFIGURATION_NAME:

@@ -20,6 +20,7 @@ from federated_learning_experiments.runtime.feddrift_run_settings import Feddrif
 from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
 from federated_learning_experiments.sweep.experiment_configurations import (
     EXPERIMENT_CONFIGURATION_NAMES,
+    FEDCCFA_CONFIGURATION_NAMES,
     FEDEM_CONFIGURATION_NAMES,
     build_experiment_run_settings,
 )
@@ -55,6 +56,7 @@ class ExperimentSweepPlan:
     per_client_sample_count: int
     server_aggregation_intervals_per_client_samples: tuple[int, ...]
     feddrift_loss_increase_thresholds: tuple[float, ...] | None = None
+    fedccfa_dbscan_eps: tuple[float, ...] | None = None
     driftsurf_accuracy_drop_thresholds: tuple[float, ...] | None = None
     feddrift_local_training_round_counts: tuple[int, ...] | None = None
     adaptive_fedavg_initial_learning_rates: tuple[float, ...] | None = None
@@ -96,13 +98,27 @@ class ExperimentSweepPlan:
             if any(value < 1 for value in self.feddrift_local_training_round_counts):
                 raise ValueError("feddrift_local_training_round_counts must be positive")
             if any(value != 1 for value in self.feddrift_local_training_round_counts) and any(
-                name not in ("feddrift-window", "feddrift-cfl-window", *FEDEM_CONFIGURATION_NAMES)
+                name
+                not in (
+                    "feddrift-window",
+                    "feddrift-cfl-window",
+                    *FEDEM_CONFIGURATION_NAMES,
+                    *FEDCCFA_CONFIGURATION_NAMES,
+                )
                 for name in self.configuration_names
             ):
                 raise ValueError(
                     "feddrift_local_training_round_counts other than 1 requires only "
-                    "feddrift-window, feddrift-cfl-window or FedEM configurations"
+                    "feddrift-window, feddrift-cfl-window, FedEM or FedCCFA configurations"
                 )
+        if self.fedccfa_dbscan_eps is not None:
+            _validate_distinct_values(
+                values=self.fedccfa_dbscan_eps, value_type=float, field_name="fedccfa_dbscan_eps"
+            )
+            if not any(name in FEDCCFA_CONFIGURATION_NAMES for name in self.configuration_names):
+                raise ValueError("fedccfa_dbscan_eps requires FedCCFA configuration")
+            if any(not isfinite(value) or value <= 0 for value in self.fedccfa_dbscan_eps):
+                raise ValueError("fedccfa_dbscan_eps must be positive finite")
         if self.driftsurf_accuracy_drop_thresholds is not None:
             _validate_distinct_values(
                 values=self.driftsurf_accuracy_drop_thresholds,
@@ -286,7 +302,22 @@ def build_planned_experiment_runs(
                             ),
                         ),
                     )
-                    if (
+                    if configuration_name in FEDCCFA_CONFIGURATION_NAMES:
+                        assert type(run_settings) is FeddriftRunSettings
+                        participant = run_settings.run_participant_settings
+                        settings_variants = tuple(
+                            replace(
+                                run_settings,
+                                run_participant_settings=replace(
+                                    participant,
+                                    run_client_settings=replace(
+                                        participant.run_client_settings, fedccfa_dbscan_eps=eps
+                                    ),
+                                ),
+                            )
+                            for eps in (sweep_plan.fedccfa_dbscan_eps or (0.1,))
+                        )
+                    elif (
                         type(run_settings) is FeddriftRunSettings
                         and configuration_name == "feddrift-driftsurf"
                     ):
@@ -368,6 +399,7 @@ def build_planned_experiment_runs(
                         "feddrift-window",
                         "feddrift-cfl-window",
                         *FEDEM_CONFIGURATION_NAMES,
+                        *FEDCCFA_CONFIGURATION_NAMES,
                     ):
                         settings_variants = tuple(
                             _replace_feddrift_training_round_count(variant, round_count)

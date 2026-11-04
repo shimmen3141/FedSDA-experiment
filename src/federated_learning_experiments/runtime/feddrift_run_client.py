@@ -65,6 +65,9 @@ from federated_learning_experiments.methods.fedsda.model_registration.pending_mo
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
+from federated_learning_experiments.runtime.fedccfa_classifier_clustering import (
+    _convert_binary_classifier,
+)
 from federated_learning_experiments.runtime.feddrift_client_round_training import (
     train_feddrift_held_models_for_round,
 )
@@ -111,6 +114,7 @@ class FeddriftRunClient:
         detection_batch_processor: FeddriftDetectionBatchProcessor,
         stream_processor: FeddriftClientStreamProcessor,
     ) -> None:
+        self._fedccfa_round_index = 0
         self._client_id = client_id
         self._owners = owners
         self._settings = run_client_settings
@@ -225,6 +229,25 @@ class FeddriftRunClient:
     ) -> tuple[float, ...]:
         """旧の検出batch件数を倍率として、一roundだけ連続更新する。"""
         owners = self._owners
+        fedccfa = self._stream_processor._fedccfa
+        if fedccfa is not None:
+            result = fedccfa.train_round(
+                settings=self._settings,
+                rng=self._random,
+                timestep_index=(self._stream_processor.processed_sample_count - 1)
+                // self._settings.detection_batch_sample_count,
+                round_index=self._fedccfa_round_index,
+            )
+            owners.model_training_and_assignment_counts_store.record_completed_model_training(
+                model_id=0,
+                trained_sample_count=(
+                    fedccfa.completed_stage_updates[0] * len(fedccfa.balanced_sample_indices)
+                    + sum(fedccfa.completed_stage_updates[1:])
+                    * self._settings.local_training_batch_sample_count
+                ),
+                parameter_update_step_count=sum(fedccfa.completed_stage_updates),
+            )
+            return result
         fedem = self._stream_processor._fedem
         responsibilities = fedem.expectation_step() if fedem is not None else None
         return train_feddrift_held_models_for_round(
@@ -270,6 +293,7 @@ def assemble_feddrift_run_client(
             "detection_batch_assignment",
             "single_global_model_assignment",
             "cfl_bipartition_assignment",
+            "fedccfa_classifier_clustering",
         )
         and initial_model_count != 1
     ):
@@ -309,6 +333,12 @@ def assemble_feddrift_run_client(
         copied_classifier, copied_optimizer = deepcopy(
             (initial_classifier, initial_parameter_optimizer_state)
         )
+        if run_client_settings.model_assignment_policy == "fedccfa_classifier_clustering":
+            _convert_binary_classifier(copied_classifier)
+            copied_optimizer = ParameterOptimizerState(
+                parameters=tuple(copied_classifier.parameters()),
+                optimizer_settings=run_client_settings.new_model_optimizer_settings,
+            )
         initialization = run_client_settings.cluster_model_initialization
         if initialization == "all_random" or (
             initialization == "pretrained_cluster0" and model_id != 0

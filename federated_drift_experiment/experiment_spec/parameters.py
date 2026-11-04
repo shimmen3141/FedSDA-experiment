@@ -26,6 +26,10 @@ class ParameterSpec:
 
 
 PARAMETERS = (
+    ParameterSpec(id="fedccfa_dbscan_eps", code_name="run_client_settings.fedccfa_dbscan_eps", paper_symbol="ε_CCFA", cli_name='fedccfa-dbscan-eps', methods=("FedDrift",), configuration_surface="typed_settings"),
+    ParameterSpec(id="fedccfa_alignment_gamma", code_name="run_client_settings.fedccfa_alignment_gamma", paper_symbol="γ_CCFA", cli_name=None, methods=("FedDrift",), configuration_surface="typed_settings"),
+    ParameterSpec(id="fedccfa_alignment_temperature", code_name="run_client_settings.fedccfa_alignment_temperature", paper_symbol="τ_CCFA", cli_name=None, methods=("FedDrift",), configuration_surface="typed_settings"),
+
     ParameterSpec(
         id="feddrift_local_training_round_count",
         code_name="server_settings.local_training_round_count",

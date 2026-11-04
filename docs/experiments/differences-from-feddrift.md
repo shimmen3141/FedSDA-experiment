@@ -153,7 +153,7 @@ client IDの列はカンマ区切り文字列、未判定の`alpha_cross`はNaN�
 既存構成の設定・識別子・表は変えない。
 
 `--feddrift-local-training-round-counts`は正の整数の列（省略時1）で、
-`feddrift-window`と`feddrift-cfl-window`、FedEMの4構成を掃引する。ほかの構成を含む計画は既定以外のRを拒否する。
+`feddrift-window`と`feddrift-cfl-window`、FedEM・FedCCFAの各4構成を掃引する。ほかの構成を含む計画は既定以外のRを拒否する。
 FedAvg+Windowも、同じ時刻の窓をR回学習する対照となる。R=1の保存設定・識別子は変えない。
 
 各roundは、その時点の割り当てから学習対象を作り、学習後・集約前にCFLを判定する。
@@ -185,3 +185,20 @@ Rの予備実行と本規模へ進む判断は[今回の設計](../../.kiro/spec
 各成分にFedDriftの1モデル分の学習予算を与えるため、局所学習とパラメータ通信はおおむねM倍になる。予算をMで割らず、精度と通信・計算量を対で比較する。E-stepの全標本のforwardも推論計数へ含める。historyは保持とE-stepの費用が時刻とともに増える。
 
 保存形式9は`fedem_client_mixture`（`timestep_index, client_id, model_id, mixture_weight`）と`fedem_sample_responsibility`（`timestep_index, client_id, sample_index, max_responsibility_model_id, max_responsibility`）を保存する。いずれも最後のroundのE-stepを記録し、後者はhistoryでもその時刻の標本だけである。最大qの成分は診断用で、学習は全成分で行う。予備実験と本規模の構成選択は別工程で行う。
+
+
+## FedCCFAの4構成
+
+`feddrift-fedccfa-window`・`feddrift-fedccfa-window-scaled-alignment`・`feddrift-fedccfa-window200`・`feddrift-fedccfa-window200-scaled-alignment`は、Chen et al.（NeurIPS 2024）の公式`Chen-Junbao/FedCCFA`（647d8b0、MIT）に準じる。グローバルなモデルはID 0だけ。分類層の前の表現部は全clientで共有し、初期の分類層はサーバで固定する。clientごとの個人の分類層で予測し、診断用の分類層の行（重みとバイアス）のMADDから、クラスごとにDBSCAN（min_samples=1、既定ε=0.1）で組を作る。2 client以上の組だけで個人の行とクラスのアンカーを等重み平均する。ドリフト検出・新モデル作成・統合・過去の分類器の保管庫は使わない。
+
+各roundでは窓のラベル分布→初期分類層から診断5更新→個人の分類層の復元と学習→表現部の学習→窓のクラス別アンカー→件数重みの表現部の平均と配布→クラスごとの組の行・アンカーの平均と配布、の順。表現部の予算は共通のupdates_per_sample×I、個人の分類層はその1/5を切り上げる。診断は均衡の部分集合の全体を1バッチにし、個人と表現部は窓から32標本ずつ非復元抽出する。段ごと・roundごとにAdam（AMSGrad、weight decay 0.001）を作り直し、分類層の学習率は表現部の10倍。表現部の損失は教師ありCE＋(窓のラベル分布のエントロピー/γ)×CE(cos(特徴,アンカー)/温度,ラベル)。γは正の値だけ。
+
+公式との共通条件による違いは、ラベル観測前の逐次評価、共通の事前学習の初期モデル・ネットワーク、Adamと更新回数の予算（公式はSGD momentum 0.9・weight decay 1e-5とエポック数）。分類層:表現部の段の比率1:5、診断5回、分類層の学習率10倍は公式に準じる。公式の最初の空のp_clf_paramsは診断後の値を残すが、評価runの個人の分類層は要求1.2に従い初回から事前学習の初期値を使う（照合専用入口では公式に合わせる）。
+
+ストリームへの接続による違いは、学習窓（その時刻I標本、または観測済み直近max(I,200)標本）、1時刻R round、整合の開始、欠けたクラス、2クラスの2出力、全client参加。scaledの開始はceil(N×R/(10×I))の通算round番号で、全roundの10%まで整合を待つ割合を保つ。固定は通算20、どちらも初回はアンカーがなく整合しない。2クラスは(w,b)からクラス0を−(w,b)/2、クラス1を(w,b)/2にしてsoftmaxを使うので、初期の予測確率が共通sigmoidと一致する。
+
+窓に無いクラスは診断の均衡抽出・エントロピー・そのクラスの組から除き、個人の行と直前のアンカーを保つ。直前にもアンカーのないクラスは対照のロジットから除く。初めて現れたクラスの標本は、そのアンカーを得るまで対照損失の標本からも除く。対象clientが2人以下のクラスではMADDの比較相手が無いため距離0とする。ゼロベクトルのcos類似度も0とする（公式の前提外の有限値への拡張）。表現部は全clientで平均する。
+
+通信は表現部の上り・下り、診断用分類層の上り、個人の分類層全体の上り、現在の窓にあるクラスのアンカーの上りを毎round数える。下りの個人の行・アンカーは2 client以上の組に含まれるクラスだけ。初期の分類層はrunの最初の配布で一度だけ、表現部と合わせて1モデル分。時刻境界の追加送受信は無い。学習の各段とアンカーの順伝播は共通の計算量hookで計測する。保存形式10では`fedccfa_label_cluster`・`fedccfa_round`と部品別の`fedccfa_communication`（個数・byte、float32）を追加する。
+
+公式の全roundとの照合には未解消の差がある。公式の`aggregate_protos`（299–332行）と`aggregate_label_protos`（448–476行）は先頭clientのlocal_protosとTensorを共有したままin-placeで平均するため、そのclientのアンカーが変化し、設計の等重み平均とは一致しない。手元では入力アンカーを変更しない平均を採用している。実測と判定は[Implementation Notes](../../.kiro/specs/feddrift-fedccfa-configuration/tasks.md)を参照。公式との照合の合格とは扱わず、主担当の判断・独立レビュー待ち。

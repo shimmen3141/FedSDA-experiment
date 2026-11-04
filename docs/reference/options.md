@@ -50,7 +50,7 @@ flowchart LR
     new_model_creation_policy["<b>新規モデル作成方針</b><br/>immediate | validated | forward_validated | forward_requalified | forward_requalified_current_first | forward_persistent | shadow_tournament"]
     new_model_training["<b>新規モデル初期学習</b><br/>none | fixed | early_stopping"]
     new_model_initialization["<b>新規モデル初期値</b><br/>current | best_candidate | average"]
-    feddrift_model_assignment_policy["<b>FedDriftのモデルへの帰属</b><br/>detection_batch_assignment | true_concept_assignment | minimum_loss_cluster_assignment | single_global_model_assignment | driftsurf_global_role_assignment | cfl_bipartition_assignment | fedem_responsibility_assignment"]
+    feddrift_model_assignment_policy["<b>FedDriftのモデルへの帰属</b><br/>detection_batch_assignment | true_concept_assignment | minimum_loss_cluster_assignment | single_global_model_assignment | driftsurf_global_role_assignment | cfl_bipartition_assignment | fedem_responsibility_assignment | fedccfa_classifier_clustering"]
     cfl_split_gamma["<b>CFLの分割の閾値γ</b><br/>number in [0, 1]"]
     driftsurf_accuracy_drop_threshold["<b>DriftSurfの正解率低下の閾値δ</b><br/>positive number"]
   end
@@ -80,8 +80,12 @@ flowchart LR
   end
   subgraph group_training[training]
     feddrift_local_training_round_count["<b>1時刻の学習round数</b><br/>positive integer"]
-    feddrift_training_sample_window["<b>FedDriftの学習標本の窓</b><br/>all_timesteps | current_timestep | role_timestep_window | all_observed_history"]
+    feddrift_training_sample_window["<b>FedDriftの学習標本の窓</b><br/>all_timesteps | current_timestep | role_timestep_window | all_observed_history | recent_observed_samples"]
     feddrift_cluster_model_initialization["<b>FedDriftのクラスタモデルの初期化</b><br/>all_pretrained | all_random | pretrained_cluster0"]
+    fedccfa_alignment_start["<b>FedCCFAの整合の開始</b><br/>fixed_round_20 | scaled_to_run_rounds"]
+    fedccfa_dbscan_eps["<b>FedCCFAのDBSCANのε</b><br/>positive number"]
+    fedccfa_alignment_gamma["<b>FedCCFAの整合のγ</b><br/>positive number"]
+    fedccfa_alignment_temperature["<b>FedCCFAの対照の整合の温度</b><br/>positive number"]
     feddrift_adaptive_learning_rate["<b>FedDriftの学習率の調整</b><br/>fixed | adaptive_fedavg"]
     adaptive_fedavg_initial_learning_rate["<b>Adaptive-FedAvgの初期学習率</b><br/>positive number"]
     adaptive_fedavg_beta["<b>Adaptive-FedAvgの移動平均の係数</b><br/>0.5"]
@@ -121,11 +125,19 @@ flowchart LR
   feddrift_adaptive_learning_rate -->|"学習率固定の構成だけで有効"| feddrift_local_training_round_count
   method -->|"FedDriftだけで有効"| feddrift_training_sample_window
   method -->|"FedDriftだけで有効"| feddrift_cluster_model_initialization
+  feddrift_model_assignment_policy -->|"FedCCFAだけで有効"| fedccfa_alignment_start
+  feddrift_model_assignment_policy -->|"FedCCFAだけで有効"| fedccfa_dbscan_eps
+  feddrift_model_assignment_policy -->|"FedCCFAだけで有効"| fedccfa_alignment_gamma
+  feddrift_model_assignment_policy -->|"FedCCFAだけで有効"| fedccfa_alignment_temperature
   feddrift_model_assignment_policy -->|"CFLの帰属だけで有効"| cfl_split_gamma
   feddrift_model_assignment_policy -->|"DriftSurfの役割の帰属だけで有効"| driftsurf_accuracy_drop_threshold
   method -->|"FedDriftだけで有効"| feddrift_adaptive_learning_rate
   feddrift_adaptive_learning_rate -->|"学習率の調整のときだけ"| adaptive_fedavg_initial_learning_rate
   feddrift_adaptive_learning_rate -->|"学習率の調整のときだけ"| adaptive_fedavg_beta
+  feddrift_training_sample_window -.->|"fedccfa_classifier_clustering: 観測済みの窓"| feddrift_model_assignment_policy
+  feddrift_cluster_model_initialization -.->|"fedccfa_classifier_clustering: 共通の事前学習の初期値"| feddrift_model_assignment_policy
+  feddrift_model_assignment_policy -.->|"recent_observed_samples: FedCCFAだけ"| feddrift_training_sample_window
+  feddrift_model_assignment_policy -.->|"fixed_round_20, scaled_to_run_rounds: FedCCFAだけ"| fedccfa_alignment_start
   feddrift_training_sample_window -.->|"fedem_responsibility_assignment: FedEMの標本の範囲"| feddrift_model_assignment_policy
   feddrift_cluster_model_initialization -.->|"fedem_responsibility_assignment: 成分ごとの初期化"| feddrift_model_assignment_policy
   feddrift_model_assignment_policy -.->|"all_observed_history: FedEMだけで有効"| feddrift_training_sample_window
@@ -203,10 +215,14 @@ flowchart LR
 | `clustering_confidence` | config | 実装済み | 理論上のみ | 対象外 | 対象外 | confidence系・クラス条件付き機能判定と非劣性制約付きマージの信頼水準 |
 | `cluster_linkage` | cli: `--cluster-linkage` | 実装済み | 対象外 | 対象外 | 対象外 | モデル対判定からクラスタを構成する方法 |
 | `fedsda_distance_threshold` | cli: `--fedsda-distance-threshold` | 実装済み | 対象外 | 対象外 | 対象外 | モデル適合・再利用および距離ベース統合の閾値 |
-| `feddrift_model_assignment_policy` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのFeddriftRunClientSettings.model_assignment_policy。既定は検出バッチの帰属。真概念の帰属は初期Kモデルへ標本ごとに振り分け、直前のラベルの概念で予測する。最小損失の帰属は最初の時刻はID 0、以後はバッチの平均有界損失が最小のモデルを選ぶ。単一モデルの帰属は全標本をID 0へ割り当てる。DriftSurfの帰属はサーバが決めた予測の役割を全clientが使う。CFLの帰属は最初はID 0で、サーバの2分割時だけ変える。FedEMは全成分をqで学習し、その時刻のqの平均πで予測を混ぜる。旧CLIでは切り替えず、新APIのOracle・IFCA・Window・DriftSurf・CFL・FedEM構成で指定する。 |
-| `feddrift_local_training_round_count` | config: `--feddrift-local-training-round-counts` | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのserver_settings.local_training_round_count。既定1。掃引はfeddrift-window・feddrift-cfl-windowとFedEMの4構成。ほかの構成は既定以外を拒否。 |
-| `feddrift_training_sample_window` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのFeddriftRunClientSettings.training_sample_window。既定は全時刻。IFCA+Window・単一モデルのWindow・CFL+Windowは、全モデルの標本を空にして今の時刻のバッチだけを割り当てたモデルに追加する。役割の時刻窓は直近10時刻を保管し、全モデルの標本を空にして役割の窓の標本だけを追加する。FedEMのcurrent_timestepはその時刻だけ、all_observed_historyは初めからの全標本を全成分へ渡す。 |
+| `feddrift_model_assignment_policy` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのFeddriftRunClientSettings.model_assignment_policy。既定は検出バッチの帰属。真概念の帰属は初期Kモデルへ標本ごとに振り分け、直前のラベルの概念で予測する。最小損失の帰属は最初の時刻はID 0、以後はバッチの平均有界損失が最小のモデルを選ぶ。単一モデルの帰属は全標本をID 0へ割り当てる。DriftSurfの帰属はサーバが決めた予測の役割を全clientが使う。CFLの帰属は最初はID 0で、サーバの2分割時だけ変える。FedEMは全成分をqで学習し、その時刻のqの平均πで予測を混ぜる。FedCCFAは表現部を共有し、個人の分類層をクラスごとに平均する。旧CLIでは切り替えず、新APIのOracle・IFCA・Window・DriftSurf・CFL・FedEM構成で指定する。 |
+| `feddrift_local_training_round_count` | config: `--feddrift-local-training-round-counts` | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのserver_settings.local_training_round_count。既定1。掃引はfeddrift-window・feddrift-cfl-windowとFedEM・FedCCFAの各4構成。ほかの構成は既定以外を拒否。 |
+| `feddrift_training_sample_window` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのFeddriftRunClientSettings.training_sample_window。既定は全時刻。IFCA+Window・単一モデルのWindow・CFL+Windowは、全モデルの標本を空にして今の時刻のバッチだけを割り当てたモデルに追加する。役割の時刻窓は直近10時刻を保管し、全モデルの標本を空にして役割の窓の標本だけを追加する。FedEMのcurrent_timestepはその時刻だけ、all_observed_historyは初めからの全標本を全成分へ渡す。FedCCFAのrecent_observed_samplesは観測済みの直近max(I,200)標本。 |
 | `feddrift_cluster_model_initialization` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのFeddriftRunClientSettings.cluster_model_initialization。既定は全モデルを事前学習から複写。IFCA・FedEMの全乱数初期化、またはID 0だけ共通の事前学習モデルを使う初期化。 |
+| `fedccfa_alignment_start` | config | 対象外 | 実装済み | 対象外 | 対象外 | 通算20 roundまたはrunの全roundの10%以降。初回は整合しない。 |
+| `fedccfa_dbscan_eps` | config: `--fedccfa-dbscan-eps` | 対象外 | 実装済み | 対象外 | 対象外 | 有限の正の値。既定0.1。 |
+| `fedccfa_alignment_gamma` | config | 対象外 | 実装済み | 対象外 | 対象外 | 有限の正の値。既定20。 |
+| `fedccfa_alignment_temperature` | config | 対象外 | 実装済み | 対象外 | 対象外 | 有限の正の値。既定0.1。 |
 | `cfl_split_gamma` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのcfl_split_gamma。既定0.1、CFLの分割だけで有効。掃引軸は持たない。 |
 | `driftsurf_accuracy_drop_threshold` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのdriftsurf_settings.accuracy_drop_threshold。既定0.10、有限で正。反応3時刻、窓10時刻に固定。 |
 | `feddrift_adaptive_learning_rate` | config | 対象外 | 実装済み | 対象外 | 対象外 | 新APIのadaptive_learning_rate_settings。既定None（fixed）。adaptive_fedavgはSGDと公式AdaStateを使う。 |
@@ -231,9 +247,12 @@ flowchart LR
 
 | オプション値 | 実装済みmode | 追加前提 | 備考 |
 |---|---|---|---|
+| `feddrift_model_assignment_policy` = `fedccfa_classifier_clustering` | `FedDrift` | 観測済みの窓<br/>共通の事前学習の初期値 |  |
+| `feddrift_training_sample_window` = `recent_observed_samples` | `FedDrift` | FedCCFAだけ |  |
+| `fedccfa_alignment_start` = `fixed_round_20`, `scaled_to_run_rounds` | `FedDrift` | FedCCFAだけ |  |
 | `feddrift_model_assignment_policy` = `fedem_responsibility_assignment` | `FedDrift` | FedEMの標本の範囲<br/>成分ごとの初期化 |  |
 | `feddrift_training_sample_window` = `all_observed_history` | `FedDrift` | FedEMだけで有効 |  |
-| `feddrift_local_training_round_count` = `positive integer` | `FedDrift` | 同じ学習標本でroundを反復する<br/>FedAvg+Window・CFL+Window・FedEMだけ<br/>Adaptive-FedAvgは対象外 | 掃引の既定1は全構成で不変。既定以外はWindowの2構成とFedEMの4構成。FedDrift本体の既存のround設定は変えない。 |
+| `feddrift_local_training_round_count` = `positive integer` | `FedDrift` | 同じ学習標本でroundを反復する<br/>FedAvg+Window・CFL+Window・FedEMだけ<br/>Adaptive-FedAvgは対象外 | 掃引の既定1は全構成で不変。既定以外はWindowの2構成とFedEM・FedCCFAの各4構成。FedDrift本体の既存のround設定は変えない。 |
 | `feddrift_model_assignment_policy` = `cfl_bipartition_assignment` | `FedDrift` | CFLは1時刻の窓が必要<br/>共通の事前学習初期値が必要 |  |
 | `feddrift_model_assignment_policy` = `single_global_model_assignment` | `FedDrift` | 単一モデルには1時刻の窓が必要<br/>共通の事前学習モデルが必要 |  |
 | `feddrift_model_assignment_policy` = `driftsurf_global_role_assignment` | `FedDrift` | DriftSurfの役割の窓が必要<br/>共通の事前学習初期値が必要 |  |

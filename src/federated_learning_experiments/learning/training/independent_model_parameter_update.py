@@ -43,6 +43,10 @@ def _validate_linear_layer(layer: object, input_width: int, output_width: int) -
 
 
 def _validate_independent_model_structure(classifier: ModelArchitectureClassifier) -> None:
+    if type(classifier.binary_softmax_output) is not bool or (
+        classifier.binary_softmax_output and classifier.class_count != 2
+    ):
+        raise ValueError("2出力の二値softmaxは2クラスの分類器だけで有効です。")
     _validate_classifier_inputs(
         model_architecture_settings=classifier.model_architecture_settings,
         input_feature_count=classifier.input_feature_count,
@@ -74,7 +78,9 @@ def _validate_independent_model_structure(classifier: ModelArchitectureClassifie
     _validate_linear_layer(
         classifier.classification_layer,
         width,
-        1 if classifier.class_count == 2 else classifier.class_count,
+        1
+        if classifier.class_count == 2 and not classifier.binary_softmax_output
+        else classifier.class_count,
     )
     if type(classifier.output_activation) is not (
         Sigmoid if classifier.class_count == 2 else Identity

@@ -37,6 +37,8 @@ class SweepAxis:
         return False
 
 
+FEDCCFA_DBSCAN_EPS_AXIS = SweepAxis(parameter_id="fedccfa_dbscan_eps", values=(0.1,), applies_to="feddrift")
+
 # 新APIの掃引軸の宣言。旧SweepPlanへ渡さず、実行は新APIの型付き計画が担う。
 FEDDRIFT_LOCAL_TRAINING_ROUND_COUNT_AXIS = SweepAxis(
     parameter_id="feddrift_local_training_round_count",

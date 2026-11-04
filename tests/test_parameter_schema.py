@@ -37,6 +37,7 @@ def test_parameter_schema_has_unique_stable_identifiers():
         item for item in PARAMETERS if item.configuration_surface == "typed_settings"
     ]
     assert {item.id for item in typed_parameters} == {
+        "fedccfa_dbscan_eps", "fedccfa_alignment_gamma", "fedccfa_alignment_temperature",
         "feddrift_local_training_round_count",
         "adaptive_fedavg_initial_learning_rate", "adaptive_fedavg_beta", "driftsurf_accuracy_drop_threshold", "cfl_split_gamma",
     }

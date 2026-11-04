@@ -37,8 +37,10 @@ from federated_learning_experiments.runtime.feddrift_run_record_tables import (
 # 版6: DriftSurf構成だけのdriftsurf表を追加。
 # 版7: CFL構成だけのcfl_split_check・cfl_assignment表を追加。
 # 版8: CFLの分割判定へ時刻内のround_indexを追加。
-RUN_ARTIFACT_FORMAT_VERSION = 9
-_READABLE_RUN_ARTIFACT_FORMAT_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9)
+# 版9: FedEMの混合と標本の責任度の表を追加。
+# 版10: FedCCFAのクラスの組・整合と窓・部品別の通信の表を追加。
+RUN_ARTIFACT_FORMAT_VERSION = 10
+_READABLE_RUN_ARTIFACT_FORMAT_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 _SUMMARY_FILE_SUFFIX = ".json"
 _RECORD_TABLE_FILE_SUFFIX = ".npz"
 

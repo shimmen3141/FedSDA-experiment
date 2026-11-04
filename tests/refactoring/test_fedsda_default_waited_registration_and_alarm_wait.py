@@ -77,7 +77,8 @@ def test_sweep_command_arguments_are_only_extended_by_the_artifact_organization(
     `--study`・`--purpose`が、fedsda-pending-assignment-fifo-capacity-axisで`--fedsda-pending-assignment-fifo-capacities`が、
     fedsda-fixed-share-time-scale-axisで`--fedsda-fixed-share-time-scales`が、
     experiment-sweep-resumptionで`--new-output`が、
-    feddrift-window-and-adaptive-fedavg-configurationで`--adaptive-fedavg-initial-learning-rates`が増えた
+    feddrift-window-and-adaptive-fedavg-configurationで`--adaptive-fedavg-initial-learning-rates`が、
+    feddrift-fedccfa-configurationで`--fedccfa-dbscan-eps`が増えた
     （held-model-training-sample-recencyで足した`--fedsda-training-sample-selections`は、2026-10-15に外した）。"""
     argument_parser = _build_argument_parser()
     assert sorted(
@@ -91,6 +92,7 @@ def test_sweep_command_arguments_are_only_extended_by_the_artifact_organization(
         "--configurations",
         "--datasets",
         "--driftsurf-accuracy-drop-thresholds",
+        "--fedccfa-dbscan-eps",
         "--feddrift-local-training-round-counts",
         "--feddrift-loss-increase-thresholds",
         "--fedsda-fixed-share-time-scales",

@@ -936,6 +936,10 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         "feddrift-fedem-window-pretrained-component0",
         "feddrift-fedem-history",
         "feddrift-fedem-history-pretrained-component0",
+        "feddrift-fedccfa-window",
+        "feddrift-fedccfa-window-scaled-alignment",
+        "feddrift-fedccfa-window200",
+        "feddrift-fedccfa-window200-scaled-alignment",
     )
     assert INDEPENDENT_MODELS_CONFIGURATION_NAME == "fedsda-independent-models"
     assert WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME == (
@@ -979,6 +983,10 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         "feddrift-fedem-window-pretrained-component0",
         "feddrift-fedem-history",
         "feddrift-fedem-history-pretrained-component0",
+        "feddrift-fedccfa-window",
+        "feddrift-fedccfa-window-scaled-alignment",
+        "feddrift-fedccfa-window200",
+        "feddrift-fedccfa-window200-scaled-alignment",
     }
     experiment_run_conditions = ExperimentRunConditions(
         dataset_name="sine2",

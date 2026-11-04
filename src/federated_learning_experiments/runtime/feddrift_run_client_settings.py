@@ -47,7 +47,38 @@ class FeddriftRunClientSettings:
 
     cfl_split_gamma: float = field(default=0.1, metadata={"omit_default_from_saved_settings": True})
 
+    fedccfa_dbscan_eps: float = field(
+        default=0.1, metadata={"omit_default_from_saved_settings": True}
+    )
+    fedccfa_alignment_gamma: float = field(
+        default=20.0, metadata={"omit_default_from_saved_settings": True}
+    )
+    fedccfa_alignment_temperature: float = field(
+        default=0.1, metadata={"omit_default_from_saved_settings": True}
+    )
+    fedccfa_alignment_start: str = field(
+        default="fixed_round_20", metadata={"omit_default_from_saved_settings": True}
+    )
+
     def __post_init__(self) -> None:
+        for name, default in (
+            ("fedccfa_dbscan_eps", 0.1),
+            ("fedccfa_alignment_gamma", 20.0),
+            ("fedccfa_alignment_temperature", 0.1),
+        ):
+            value = getattr(self, name)
+            if type(value) is not float or not isfinite(value) or value <= 0:
+                raise ValueError(f"{name}は正の有限builtin floatが必要です。")
+            if self.model_assignment_policy != "fedccfa_classifier_clustering" and value != default:
+                raise ValueError(f"{name}はFedCCFAだけで有効です。")
+        if self.fedccfa_alignment_start not in ("fixed_round_20", "scaled_to_run_rounds"):
+            raise ValueError("FedCCFAの整合の開始が未対応です。")
+        if (
+            self.model_assignment_policy != "fedccfa_classifier_clustering"
+            and self.fedccfa_alignment_start != "fixed_round_20"
+        ):
+            raise ValueError("整合の開始はFedCCFAだけで有効です。")
+
         if (
             type(self.cfl_split_gamma) is not float
             or not isfinite(self.cfl_split_gamma)
@@ -84,6 +115,7 @@ class FeddriftRunClientSettings:
                     "driftsurf_global_role_assignment",
                     "cfl_bipartition_assignment",
                     "fedem_responsibility_assignment",
+                    "fedccfa_classifier_clustering",
                 ),
             ),
             (
@@ -93,6 +125,7 @@ class FeddriftRunClientSettings:
                     "current_timestep",
                     "role_timestep_window",
                     "all_observed_history",
+                    "recent_observed_samples",
                 ),
             ),
             (
@@ -114,7 +147,13 @@ class FeddriftRunClientSettings:
                 raise TypeError(f"{name}はbuiltin strが必要です。")
             if value not in choices:
                 raise ValueError(f"{name}が未対応です。")
-        if self.model_assignment_policy == "fedem_responsibility_assignment":
+        if self.model_assignment_policy == "fedccfa_classifier_clustering":
+            if (
+                self.training_sample_window not in ("current_timestep", "recent_observed_samples")
+                or self.cluster_model_initialization != "all_pretrained"
+            ):
+                raise ValueError("FedCCFAは観測済みの窓と共通の事前学習の初期値が必要です。")
+        elif self.model_assignment_policy == "fedem_responsibility_assignment":
             if (
                 self.training_sample_window not in ("current_timestep", "all_observed_history")
                 or self.cluster_model_initialization == "all_pretrained"

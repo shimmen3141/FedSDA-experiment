@@ -77,6 +77,9 @@ from federated_learning_experiments.runtime.client_model_cross_evaluation import
 from federated_learning_experiments.runtime.driftsurf_timestep_preparation import (
     prepare_driftsurf_timestep,
 )
+from federated_learning_experiments.runtime.fedccfa_training_round import (
+    aggregate_fedccfa_training_round,
+)
 from federated_learning_experiments.runtime.feddrift_run_client import FeddriftRunClient
 from federated_learning_experiments.runtime.feddrift_server_settings import FeddriftServerSettings
 from federated_learning_experiments.runtime.held_model_registration_confirmation import (
@@ -203,6 +206,38 @@ class FeddriftRunServer:
             else None
         )
         self.communication_volume_record_store = CommunicationVolumeRecordStore()
+        self._fedccfa_communication_records: list[tuple] = []
+        if run_clients[0].stream_processor._fedccfa is not None:
+            self._record_parameter_transfer(
+                "download", initial_parameter_snapshot, len(run_clients)
+            )
+            for component, values in (
+                (
+                    "representation",
+                    {
+                        k: v
+                        for k, v in initial_parameter_snapshot.items()
+                        if not k.startswith("classification_layer.")
+                    },
+                ),
+                (
+                    "initial_classifier",
+                    {
+                        k: v
+                        for k, v in initial_parameter_snapshot.items()
+                        if k.startswith("classification_layer.")
+                    },
+                ),
+            ):
+                self._fedccfa_communication_records.append(
+                    (
+                        -1,
+                        -1,
+                        component,
+                        "download",
+                        sum(v.numel() for v in values.values()) * len(run_clients),
+                    )
+                )
         self.cross_evaluation_record_store = CrossEvaluationRecordStore()
         self.model_clustering_record_store = ModelClusteringRecordStore()
         self._synchronized_timestep_model_counts: list[FeddriftSynchronizedTimestepModelCounts] = []
@@ -361,6 +396,9 @@ class FeddriftRunServer:
     def aggregate_and_distribute_training_round(self, *, timestep_index: int) -> None:
         """学習済みclientをID順・client順に集約し、全モデルを配布する。"""
         self._validate_operation(timestep_index)
+        if self.run_clients[0].stream_processor._fedccfa is not None:
+            aggregate_fedccfa_training_round(run_server=self, timestep_index=timestep_index)
+            return
         active_ids = tuple(
             sorted(
                 {
@@ -382,6 +420,9 @@ class FeddriftRunServer:
         self._aggregate_and_distribute_models(active_ids=active_ids, update_model_weights=True)
 
     def _current_timestep_training_model_ids(self) -> frozenset[int] | None:
+        if self.run_clients[0].stream_processor._fedccfa is not None:
+            # 全clientの唯一のモデルを毎round学習する。時刻の境目に対象IDを通知しない。
+            return None
         if (
             self.run_clients[0]._settings.model_assignment_policy
             == "fedem_responsibility_assignment"
@@ -553,6 +594,7 @@ class FeddriftRunServer:
                 )
             eligible = current_eligible
             for client in self.run_clients:
+                client._fedccfa_round_index = round_index
                 client.train_local_round(eligible_model_ids=eligible)
             self.aggregate_and_distribute_training_round(timestep_index=timestep_index)
         self._synchronized_timestep_model_counts.append(
@@ -830,6 +872,8 @@ class FeddriftRunServer:
         for client in self.run_clients:
             if any(mid not in _client_parameters(client) for mid in ids):
                 raise ValueError("全clientがグローバルモデルを保有することが必要です。")
+        if self.run_clients[0].stream_processor._fedccfa is not None:
+            return
         self.communication_volume_record_store.record_messages(
             transfer_direction="upload", message_count=len(self.run_clients)
         )
