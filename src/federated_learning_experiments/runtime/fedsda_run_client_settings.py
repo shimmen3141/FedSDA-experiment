@@ -172,7 +172,38 @@ class FedsdaRunClientSettings:
     scalar_settings: FedsdaRunClientScalarSettings
     loss_monitor_betting_fractions: tuple[float, ...]
 
+    training_assignment_strategy: str = field(
+        default="single_model_assignment",
+        metadata={
+            "omit_default_from_saved_settings": True,
+            "allowed_parameter_values": (
+                "single_model_assignment",
+                "responsibility_weighted_training",
+            ),
+        },
+    )
+    record_training_mass_by_concept: bool = field(
+        default=False, metadata={"omit_default_from_saved_settings": True}
+    )
+
     def __post_init__(self) -> None:
+        if type(
+            self.training_assignment_strategy
+        ) is not str or self.training_assignment_strategy not in (
+            "single_model_assignment",
+            "responsibility_weighted_training",
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="training_assignment_strategy",
+                specified_parameter_value=self.training_assignment_strategy,
+                validation_failure_reason="登録された学習の割当方式を指定してください。",
+            )
+        if type(self.record_training_mass_by_concept) is not bool:
+            raise RunSettingsValidationError(
+                configuration_parameter_name="record_training_mass_by_concept",
+                specified_parameter_value=self.record_training_mass_by_concept,
+                validation_failure_reason="builtin boolを指定してください。",
+            )
         for settings_field_name, required_types in _REQUIRED_SETTINGS_TYPES_BY_FIELD_NAME.items():
             component_settings = getattr(self, settings_field_name)
             if type(component_settings) not in required_types:
@@ -186,6 +217,17 @@ class FedsdaRunClientSettings:
                 )
             # frozenを回避して組み立てた値も拒否できるよう、各設定の検査をもう一度行う。
             component_settings.__post_init__()
+        if self.training_assignment_strategy == "responsibility_weighted_training" and (
+            self.prediction_combination_settings.prediction_combination_strategy
+            != "fixed_share_weighted_prediction"
+            or self.local_training_settings.local_model_parameter_update_strategy
+            != "joint_backbone_adapter_and_head_training"
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="training_assignment_strategy",
+                specified_parameter_value=self.training_assignment_strategy,
+                validation_failure_reason="責任度の学習はFixed-Shareの予測と共同更新で有効です。",
+            )
         betting_fractions = self.loss_monitor_betting_fractions
         if (
             type(betting_fractions) is not tuple

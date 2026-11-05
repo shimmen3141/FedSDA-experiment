@@ -1,7 +1,7 @@
 """クロス評価の結果から、グローバルモデルをクラスタリングし、同じクラスタのモデルを1つへ統合する。"""
 
 from dataclasses import dataclass
-from math import inf, sqrt
+from math import inf, isfinite, sqrt
 
 from torch import Tensor
 
@@ -77,7 +77,7 @@ def _validate_clustering_and_consolidation_inputs(
     *,
     run_clients: tuple[FedsdaRunClient, ...],
     model_cross_evaluation: ModelCrossEvaluation,
-    aggregated_training_sample_counts_by_model_id: dict[int, int],
+    aggregated_training_sample_counts_by_model_id: dict[int, int | float],
     global_model_repository: GlobalModelRepository,
     model_clustering_record_store: ModelClusteringRecordStore,
     model_clustering_criteria: ModelClusteringCriteria,
@@ -135,9 +135,12 @@ def _validate_clustering_and_consolidation_inputs(
     if type(aggregated_training_sample_counts_by_model_id) is not dict:
         raise TypeError("aggregated_training_sample_counts_by_model_id must be builtin dict")
     for model_id in clustered_model_ids:
-        if type(aggregated_training_sample_counts_by_model_id.get(model_id)) is not int:
+        if type(aggregated_training_sample_counts_by_model_id.get(model_id)) not in (
+            int,
+            float,
+        ) or not isfinite(aggregated_training_sample_counts_by_model_id[model_id]):
             raise ValueError(
-                "aggregated_training_sample_counts_by_model_id must hold a builtin int count "
+                "aggregated_training_sample_counts_by_model_id must hold a finite builtin int/float count "
                 "of every clustered model"
             )
 
@@ -243,7 +246,7 @@ def _compute_sample_weighted_mean_parameters(
     *,
     model_cluster: tuple[int, ...],
     parameter_snapshots_by_model_id: dict[int, dict[str, Tensor]],
-    aggregated_training_sample_counts_by_model_id: dict[int, int],
+    aggregated_training_sample_counts_by_model_id: dict[int, int | float],
     keeps_identical_shared_features: bool = False,
 ) -> tuple[dict[str, Tensor], int]:
     """クラスタのメンバーのパラメータの、集約の件数での加重平均。件数がすべて0なら、代表のパラメータ。
@@ -367,7 +370,7 @@ def cluster_and_consolidate_global_models(
     *,
     run_clients: tuple[FedsdaRunClient, ...],
     model_cross_evaluation: ModelCrossEvaluation,
-    aggregated_training_sample_counts_by_model_id: dict[int, int],
+    aggregated_training_sample_counts_by_model_id: dict[int, int | float],
     global_model_repository: GlobalModelRepository,
     model_clustering_record_store: ModelClusteringRecordStore,
     model_clustering_criteria: ModelClusteringCriteria,

@@ -51,6 +51,8 @@ OTHER_GOLDEN_CASE_GROUP_COUNT = 2
 # parametrizeのケースごとに1組にする、重いtestの関数（`<ファイル>::<関数>`）。ケースどうしで、moduleの
 # fixtureや計算の結果を使い回さないこと。
 TEST_FUNCTIONS_SPLIT_BY_PARAMETER = (
+    "tests/refactoring/test_fedsda_soft_training_configuration.py::test_small_soft_run_uses_all_eligible_models_and_preserves_store_mass",
+    "tests/refactoring/test_fedsda_soft_training_configuration.py::test_small_run_diagnostics_only_preserves_every_existing_table",
     # FedEMの小さい全体run（6ケース）。ケースどうしで結果を使い回さないので、別のprocessへ配る。
     "tests/refactoring/test_feddrift_fedem_configuration.py::test_small_full_run",
     "tests/refactoring/test_feddrift_fedccfa_configuration.py::test_small_full_run",

@@ -1,0 +1,142 @@
+{
+  "fedsda": [
+    "fe2923d906a6b2aeb63aafcea63f93bc79b37fad2e6705f2084f41d6ab94de1f",
+    "sine2_interval50_seed0_e79315e51b25"
+  ],
+  "fedsda-without-prediction-weight-recalibration": [
+    "9e9b4339910bb6149bf5393612f7f1053a7473f7c5f142c64a01ef516acbcd8c",
+    "sine2_interval50_seed0_0c8140e5e737"
+  ],
+  "fedsda-without-candidate-validation": [
+    "38f4bd122d9f47f7211e2c0e3c36f9618d9e968f5627a8663557bb340ca56064",
+    "sine2_interval50_seed0_9ff6835c4fb8"
+  ],
+  "fedsda-loss-distance-clustering": [
+    "7ed4a95c160ef95c4d7d7da8529fbfc99846650d05204771cff5110a733f9ef0",
+    "sine2_interval50_seed0_47270d0e5d93"
+  ],
+  "fedsda-overall-loss-esr-detection": [
+    "e101794e220abc17ca90eb57ef33fe0d940dd28ebcd906a7a19c1319d417a4fa",
+    "sine2_interval50_seed0_1822009d8dba"
+  ],
+  "fedsda-adahedge-prediction-weights": [
+    "f1add608f2ac04145bac6d7531995c4aba8ea8a477236f93bc48605cdd5d356c",
+    "sine2_interval50_seed0_42aa9caf32a1"
+  ],
+  "fedsda-single-model-prediction": [
+    "761ebd67ac08d5f980efead093bb920eac6e6d9bb01c40249f54470e399302ff",
+    "sine2_interval50_seed0_6431a319d790"
+  ],
+  "fedsda-classwise-adwin-detection": [
+    "1ce5e780ead1e33ecb6f2af0e0d8e2f36b86e8aba7d92f3d968ea5b7e5b2e887",
+    "sine2_interval50_seed0_01ed7ee55a46"
+  ],
+  "fedsda-overall-loss-adwin-detection": [
+    "1d0cded77445266c8fff10e995ad911d4e49a99c58665355fffc322bbc9a405a",
+    "sine2_interval50_seed0_23086d770897"
+  ],
+  "fedsda-without-concept-specific-adapter": [
+    "4e18a9720e22e938fc9888ad6cb441867e56f54e86ac9aebc11f1a5f13895c8d",
+    "sine2_interval50_seed0_34c7b986b97d"
+  ],
+  "fedsda-independent-models": [
+    "9fd4b63b152f2be8bf09199ab9cafb59ce7b87b388e9b8cfdd350045282af9d9",
+    "sine2_interval50_seed0_e01bb6703030"
+  ],
+  "feddrift": [
+    "6b7c3740078bc78c71d2739f06b61189ab83cfb409463fea99970b8644464ab6",
+    "sine2_interval50_seed0_141fcd51b30e"
+  ],
+  "fedavg": [
+    "b38263ada4524a685b29c5e3c41b84b8ff62ce8c42cf980dfe18327acb8c4163",
+    "sine2_interval50_seed0_9e7eb1d35a2d"
+  ],
+  "fedavg-local-updates-per-aggregation": [
+    "26feff530aec915a42a049d7b300d2db7fbd165b40059aa43c6b203975fef76c",
+    "sine2_interval50_seed0_94fcc7a52f99"
+  ],
+  "fedsda-synchronized-model-prediction": [
+    "af9b5a081ad6f878c354771e128f30b7eb7e5ba0c4cf19889843e188aa3d9194",
+    "sine2_interval50_seed0_cb204c897bde"
+  ],
+  "fedsda-synchronized-local-mixture-prediction": [
+    "fe2923d906a6b2aeb63aafcea63f93bc79b37fad2e6705f2084f41d6ab94de1f",
+    "sine2_interval50_seed0_19ed044e49f0"
+  ],
+  "fedsda-local-parameter-prediction": [
+    "4c37f6334815b6ab0386160f764adcec8fd7dda24f494c88782df44602ea740c",
+    "sine2_interval50_seed0_555e44b755a2"
+  ],
+  "fedsda-every-sample-change-interval-search": [
+    "fe2923d906a6b2aeb63aafcea63f93bc79b37fad2e6705f2084f41d6ab94de1f",
+    "sine2_interval50_seed0_4e084ba01474"
+  ],
+  "fedsda-minimum-interval-multiples-change-interval-search": [
+    "39d0a3a9fa15af1a7f6cda822f793fa9245339723aeea3a31303bf01e5048a08",
+    "sine2_interval50_seed0_4686c450ac9f"
+  ],
+  "fedsda-without-warm-started-learner": [
+    "51b2fc590959cdcd47401a91a1820375c9411dc733b8d9dd25ea9b7bcb7bffc6",
+    "sine2_interval50_seed0_b50414415434"
+  ],
+  "feddrift-oracle-concept-assignment": [
+    "cff0a4d1ce6f6f98d8fb61bdeda19e78af6118535128dea9bbb01c9207cec2a4",
+    "sine2_interval50_seed0_9c3b7d114de6"
+  ],
+  "feddrift-ifca-window": [
+    "410143f9795c740d7ad39ec90824ead35625deccb3ad6ebd571b716ede79bbdf",
+    "sine2_interval50_seed0_231f25c644e3"
+  ],
+  "feddrift-ifca-window-pretrained-cluster0": [
+    "0d858de52d705dcdd97deebe2c392f13e9e5e464a334b2ca4621914ae29bb9ff",
+    "sine2_interval50_seed0_e734a9e6cfea"
+  ],
+  "feddrift-window": [
+    "7bc29a1baf2b9217093edf41e35d0f7f388c2435f1f5a1c5a0e0bb1eea55c794",
+    "sine2_interval50_seed0_ba4e1e1707ee"
+  ],
+  "feddrift-adaptive-fedavg-window": [
+    "875d93f7906d142006571d0eff07540885cc8b26ee9ae715e25a2884c2ff8778",
+    "sine2_interval50_seed0_1b58234dfc9e"
+  ],
+  "feddrift-driftsurf": [
+    "d6da2d8d932fc2e29a6e3ddd4a49309c6382289ee33e03e323094a3800c3af56",
+    "sine2_interval50_seed0_7bbd5cb9c777"
+  ],
+  "feddrift-cfl-window": [
+    "9206d586e705f1a94d36e94909cf45790174fae9e9816e1f4d9b4345e8419746",
+    "sine2_interval50_seed0_3db495ee0c71"
+  ],
+  "feddrift-fedem-window": [
+    "4abb2823b63989e4c00c4f475db8e1cf14d725dbb30aa71c1a953d1f55b5d78b",
+    "sine2_interval50_seed0_ba2d7fa3147e"
+  ],
+  "feddrift-fedem-window-pretrained-component0": [
+    "0bf4877d5e10f6e343e660d18227e130ac4549f2c1b356462f21ebfa36804000",
+    "sine2_interval50_seed0_a9e3bdc8476b"
+  ],
+  "feddrift-fedem-history": [
+    "d54adbfaa55e0119a618b974736b1a2e817222b80cd4329c27e7ce5dd40509b5",
+    "sine2_interval50_seed0_74d36fd9a6ea"
+  ],
+  "feddrift-fedem-history-pretrained-component0": [
+    "7bdc913e6a4c1814b67211979f6f6cbae35f78fbd93ac082bd9e687c19d4d091",
+    "sine2_interval50_seed0_26c401428d43"
+  ],
+  "feddrift-fedccfa-window": [
+    "d47ccb73a86076932471edb2238fa5d80f46795ca62072868321ea914c1fd607",
+    "sine2_interval50_seed0_46d954cdcb81"
+  ],
+  "feddrift-fedccfa-window-scaled-alignment": [
+    "2c10bc37481ab187e5e44c8e28583eee1808f5637aa0734d6fb405dd0c84fd87",
+    "sine2_interval50_seed0_d229645daa94"
+  ],
+  "feddrift-fedccfa-window200": [
+    "c42b9cabf68b737b9e0503f6f269054c65d9f2e61fe822890954888412d1b9de",
+    "sine2_interval50_seed0_ccca809f5a7a"
+  ],
+  "feddrift-fedccfa-window200-scaled-alignment": [
+    "1e36bffc0cab467b06365ddc648245c7649d148f332fa76582b8ab58c53f07e0",
+    "sine2_interval50_seed0_cd5faed0c476"
+  ]
+}

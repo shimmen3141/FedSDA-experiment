@@ -144,6 +144,11 @@ def train_held_models_for_pending_training_requests(
             shared_feature_extractor=shared_feature_extractor,
             shared_parameter_optimizer=shared_parameter_optimizer,
             update_shared_features=True,
+            responsibility_training_store=(
+                training_sample_store.responsibility_training_store
+                if training_sample_store.training_responsibility_provider is not None
+                else None
+            ),
         )
         if not joint_update_losses:
             continue
@@ -153,7 +158,15 @@ def train_held_models_for_pending_training_requests(
         for model_training_samples in ordered_model_training_samples:
             if (
                 model_training_samples.model_id in held_model_ids
-                and len(model_training_samples.training_samples) >= batch_sample_count
+                and (
+                    training_sample_store.responsibility_training_store.support_counts_by_model_id.get(
+                        model_training_samples.model_id, 0
+                    )
+                    if training_sample_store.training_responsibility_provider is not None
+                    and training_sample_store.responsibility_training_store is not None
+                    else len(model_training_samples.training_samples)
+                )
+                >= batch_sample_count
             ):
                 model_training_and_assignment_counts_store.record_completed_model_training(
                     model_id=model_training_samples.model_id,

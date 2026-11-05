@@ -39,6 +39,7 @@ flowchart LR
   subgraph group_diagnostic[diagnostic]
     routing_archive_shadow_diagnostics["<b>ローカルarchive shadow診断</b><br/>off | on"]
     routing_archive_shadow_policy["<b>ローカルarchive shadow方針</b><br/>previous_block | forward_probe | periodic_forward_probe"]
+    record_training_mass_by_concept["<b>コンセプト別の学習量の記録</b><br/>False | True"]
   end
   subgraph group_model[model]
     model_architecture["<b>モデル構造</b><br/>independent | shared_backbone | residual_adapter | shared_classifier_residual_adapter"]
@@ -89,6 +90,7 @@ flowchart LR
     feddrift_adaptive_learning_rate["<b>FedDriftの学習率の調整</b><br/>fixed | adaptive_fedavg"]
     adaptive_fedavg_initial_learning_rate["<b>Adaptive-FedAvgの初期学習率</b><br/>positive number"]
     adaptive_fedavg_beta["<b>Adaptive-FedAvgの移動平均の係数</b><br/>0.5"]
+    training_assignment_strategy["<b>学習の割当方式</b><br/>single_model_assignment | responsibility_weighted_training"]
   end
   subgraph group_federation_parameter[federation_parameter]
     aggregation_interval["<b>集約間隔 A</b><br/>positive integer"]
@@ -134,6 +136,8 @@ flowchart LR
   method -->|"FedDriftだけで有効"| feddrift_adaptive_learning_rate
   feddrift_adaptive_learning_rate -->|"学習率の調整のときだけ"| adaptive_fedavg_initial_learning_rate
   feddrift_adaptive_learning_rate -->|"学習率の調整のときだけ"| adaptive_fedavg_beta
+  method -->|"FedHASPの系統だけで有効"| training_assignment_strategy
+  method -->|"FedHASPの系統だけで有効"| record_training_mass_by_concept
   feddrift_training_sample_window -.->|"fedccfa_classifier_clustering: 観測済みの窓"| feddrift_model_assignment_policy
   feddrift_cluster_model_initialization -.->|"fedccfa_classifier_clustering: 共通の事前学習の初期値"| feddrift_model_assignment_policy
   feddrift_model_assignment_policy -.->|"recent_observed_samples: FedCCFAだけ"| feddrift_training_sample_window
@@ -234,6 +238,8 @@ flowchart LR
 | `feddrift_isolation_timesteps` | cli: `--feddrift-isolation` | 対象外 | 実装済み | 対象外 | 対象外 | 新規FedDriftモデルをマージ対象から外す時刻数 |
 | `experiment_manifest` | cli: `--manifest` | 実装済み | 実装済み | 実装済み | 実装済み | 実験計画・実装由来・完了状態を出力先へ保存する |
 | `duplicate_policy` | cli: `--duplicate-policy` | 実装済み | 実装済み | 実装済み | 実装済み | 一部でも同一設定・同一コード・同一goldenの完了runがある場合の開始前処理 |
+| `training_assignment_strategy` | config | 実装済み | 対象外 | 対象外 | 対象外 | FedHASPの学習を固い割当か、FIFO解放時に固定した責任度で行う。既定値は保存から省く。 |
+| `record_training_mass_by_concept` | config | 実装済み | 対象外 | 対象外 | 対象外 | runの終わりのモデル×真のコンセプトの学習量を記録する。既定Falseは保存から省く。 |
 
 ## 重要な依存関係
 

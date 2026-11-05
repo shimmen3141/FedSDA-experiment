@@ -632,4 +632,45 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
             ],
         )
     )
+    # 真の概念がある解放済み標本の、runの最後の学習量。
+    mass_rows = []
+    diagnostics_enabled = False
+    for client in run_clients:
+        store = client.owners.training_sample_store.responsibility_training_store
+        if store is None or not client.owners.training_sample_store.record_training_mass_by_concept:
+            continue
+        diagnostics_enabled = True
+        for model_id, concepts in sorted(store.mass_by_model_and_concept.items()):
+            for concept_id, mass in sorted(concepts.items()):
+                mass_rows.append((client.client_id, model_id, concept_id, mass))
+    if diagnostics_enabled:
+        for index, column in enumerate(
+            ("client_id", "model_id", "observed_concept_id", "training_mass")
+        ):
+            record_tables[f"training_mass_by_concept.{column}"] = asarray(
+                [row[index] for row in mass_rows], dtype=float64 if index == 3 else int64
+            )
+    for attribute, table in (
+        ("effective_model_counts", "training_responsibility.effective_model_count"),
+        ("participating_model_counts", "soft_training_update.participating_model_count"),
+        ("duplicate_sample_fractions", "soft_training_batch.duplicate_sample_fraction"),
+    ):
+        values = []
+        client_ids = []
+        for client in run_clients:
+            sample_store = client.owners.training_sample_store
+            store = sample_store.responsibility_training_store
+            if sample_store.training_responsibility_provider is None or store is None:
+                continue
+            entries = getattr(store, attribute)
+            values.extend(entries)
+            client_ids.extend([client.client_id] * len(entries))
+        if any(
+            client.owners.training_sample_store.training_responsibility_provider is not None
+            for client in run_clients
+        ):
+            record_tables[table] = asarray(
+                values, dtype=int64 if attribute == "participating_model_counts" else float64
+            )
+            record_tables[table.rsplit(".", 1)[0] + ".client_id"] = asarray(client_ids, dtype=int64)
     return record_tables

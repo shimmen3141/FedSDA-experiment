@@ -36,6 +36,8 @@ from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRun
 
 # 提案構成（docs/overview/proposed-method.mdの「最終提案構成」）。
 PROPOSED_FEDSDA_CONFIGURATION_NAME = "fedsda"
+SOFT_TRAINING_CONFIGURATION_NAME = "fedsda-soft-training"
+TRAINING_MASS_DIAGNOSTICS_CONFIGURATION_NAME = "fedsda-training-mass-diagnostics"
 # 提案構成から、集約後の、予測重みの再較正を外した構成。
 PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME = (
     "fedsda-without-prediction-weight-recalibration"
@@ -156,6 +158,8 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     FEDDRIFT_CFL_WINDOW_CONFIGURATION_NAME,
     *FEDEM_CONFIGURATION_NAMES,
     *FEDCCFA_CONFIGURATION_NAMES,
+    SOFT_TRAINING_CONFIGURATION_NAME,
+    TRAINING_MASS_DIAGNOSTICS_CONFIGURATION_NAME,
 )
 
 
@@ -528,6 +532,26 @@ def build_experiment_run_settings(
         return _replace_prediction_combination_settings(
             run_settings=proposed_run_settings,
             prediction_combination_strategy="adahedge_weighted_prediction",
+        )
+    if configuration_name in (
+        SOFT_TRAINING_CONFIGURATION_NAME,
+        TRAINING_MASS_DIAGNOSTICS_CONFIGURATION_NAME,
+    ):
+        participants = proposed_run_settings.run_participant_settings
+        return replace(
+            proposed_run_settings,
+            run_participant_settings=replace(
+                participants,
+                run_client_settings=replace(
+                    participants.run_client_settings,
+                    training_assignment_strategy=(
+                        "responsibility_weighted_training"
+                        if configuration_name == SOFT_TRAINING_CONFIGURATION_NAME
+                        else "single_model_assignment"
+                    ),
+                    record_training_mass_by_concept=True,
+                ),
+            ),
         )
     if configuration_name == SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME:
         # 重みを持たないので、集約後の、重みの再較正も行わない。混ぜる予測（既定）とは組み合わせられないので、

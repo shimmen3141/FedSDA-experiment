@@ -59,6 +59,9 @@ from federated_learning_experiments.learning.training.model_training_sample_stor
 from federated_learning_experiments.learning.training.parameter_optimizer_state import (
     ParameterOptimizerState,
 )
+from federated_learning_experiments.learning.training.responsibility_weighted_training import (
+    ResponsibilityWeightedTrainingStore,
+)
 from federated_learning_experiments.learning.training.shared_parameter_optimizer_state_holder import (
     SharedParameterOptimizerStateHolder,
 )
@@ -117,6 +120,9 @@ from federated_learning_experiments.runtime.observed_sample_processing import (
 from federated_learning_experiments.runtime.post_aggregation_prediction_recalibration import (
     PostAggregationPredictionRecalibration,
     recalibrate_prediction_state_after_aggregation,
+)
+from federated_learning_experiments.runtime.released_sample_training_responsibilities import (
+    build_released_sample_responsibility_provider,
 )
 
 
@@ -683,6 +689,23 @@ def assemble_fedsda_run_client(
             shared_parameter_optimizer_state=shared_parameter_optimizer_state
         ),
     )
+    owners.training_sample_store.record_training_mass_by_concept = (
+        run_client_settings.record_training_mass_by_concept
+    )
+    if (
+        run_client_settings.record_training_mass_by_concept
+        or run_client_settings.training_assignment_strategy == "responsibility_weighted_training"
+    ):
+        owners.training_sample_store.responsibility_training_store = (
+            ResponsibilityWeightedTrainingStore()
+        )
+    if run_client_settings.training_assignment_strategy == "responsibility_weighted_training":
+        owners.training_sample_store.training_responsibility_provider = (
+            build_released_sample_responsibility_provider(
+                registry=owners.held_model_training_state_registry,
+                weight_controller=owners.fixed_share_weight_controller,
+            )
+        )
     return FedsdaRunClient(
         client_id=client_id,
         owners=owners,

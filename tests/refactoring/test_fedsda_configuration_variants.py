@@ -940,6 +940,8 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         "feddrift-fedccfa-window-scaled-alignment",
         "feddrift-fedccfa-window200",
         "feddrift-fedccfa-window200-scaled-alignment",
+        "fedsda-soft-training",
+        "fedsda-training-mass-diagnostics",
     )
     assert INDEPENDENT_MODELS_CONFIGURATION_NAME == "fedsda-independent-models"
     assert WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME == (
@@ -960,6 +962,8 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         "fedsda-without-candidate-validation"
     )
     assert set(CONFIGURATION_VARIANTS) == set(EXPERIMENT_CONFIGURATION_NAMES) - {
+        "fedsda-soft-training",
+        "fedsda-training-mass-diagnostics",
         PROPOSED_FEDSDA_CONFIGURATION_NAME,
         "feddrift",
         "fedavg",

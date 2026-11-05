@@ -3476,6 +3476,56 @@ def test_feddrift_round_training_rejects_outer_dependencies(source_module_path, 
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    responsibility_dependencies = {
+        "runtime/fedsda_run_client.py": (
+            "federated_learning_experiments.learning.training.responsibility_weighted_training.ResponsibilityWeightedTrainingStore",
+            "federated_learning_experiments.runtime.released_sample_training_responsibilities.build_released_sample_responsibility_provider",
+        ),
+        "runtime/model_clustering_and_consolidation.py": ("math.isfinite",),
+        "runtime/released_sample_training_responsibilities.py": (
+            "collections.abc",
+            "collections.abc.Callable",
+            "torch",
+            "torch.no_grad",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations.convert_model_outputs_to_prediction_probabilities",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.model_training_sample_records",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.learning.training.responsibility_weighted_training",
+            "federated_learning_experiments.learning.training.responsibility_weighted_training.calculate_training_responsibilities",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights.FixedShareWeightController",
+        ),
+        "learning/training/held_model_joint_training_iterations.py": (
+            "federated_learning_experiments.learning.training.responsibility_weighted_training",
+            "federated_learning_experiments.learning.training.responsibility_weighted_training.ResponsibilityWeightedTrainingStore",
+        ),
+        "learning/training/model_training_sample_store.py": (
+            "collections.abc",
+            "collections.abc.Callable",
+            "federated_learning_experiments.learning.training.responsibility_weighted_training",
+            "federated_learning_experiments.learning.training.responsibility_weighted_training.ResponsibilityWeightedTrainingStore",
+        ),
+        "learning/training/responsibility_weighted_training.py": (
+            "math",
+            "math.exp",
+            "math.fsum",
+            "math.isfinite",
+            "math.log",
+            "random",
+            "random.Random",
+            "torch",
+            "torch.cat",
+            "torch.isfinite",
+            "federated_learning_experiments.learning.training.model_training_sample_records",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.learning.training.model_training_sample_records.SampledModelTrainingBatch",
+        ),
+    }
+    if imported_module_name in responsibility_dependencies.get(source_module_path, ()):
+        return True
     fedccfa_imports = {
         "runtime/fedccfa_classifier_clustering.py": (
             "copy.deepcopy",

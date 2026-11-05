@@ -14,6 +14,7 @@ from .joint_model_parameter_update import perform_joint_model_parameter_update
 from .local_training_settings import LocalTrainingSettings
 from .model_training_sample_records import ModelTrainingSampleCollection
 from .participating_model_training_batch import ParticipatingModelTrainingBatch
+from .responsibility_weighted_training import ResponsibilityWeightedTrainingStore
 
 
 def _index_held_model_training_bindings(
@@ -53,6 +54,7 @@ def perform_held_model_joint_training_iterations(
     shared_feature_extractor: SharedFeatureExtractor,
     shared_parameter_optimizer: Optimizer | None,
     update_shared_features: bool,
+    responsibility_training_store: ResponsibilityWeightedTrainingStore | None = None,
 ) -> tuple[float, ...]:
     """完了した共同更新の損失を順に返し、借用した状態を巻き戻さない。"""
     if (
@@ -69,11 +71,19 @@ def perform_held_model_joint_training_iterations(
     )
     completed_joint_update_losses: list[float] = []
     for _joint_update_iteration_index in range(requested_joint_update_iteration_count):
-        sampled_training_batches = sample_training_batches_for_held_models(
-            ordered_model_training_samples=ordered_model_training_samples,
-            held_model_ids=frozenset(bindings_by_model_id),
-            batch_sample_count=batch_sample_count,
-            python_random_generator=python_random_generator,
+        sampled_training_batches = (
+            responsibility_training_store.sample_batches(
+                held_model_ids=frozenset(bindings_by_model_id),
+                batch_sample_count=batch_sample_count,
+                python_random_generator=python_random_generator,
+            )
+            if responsibility_training_store is not None
+            else sample_training_batches_for_held_models(
+                ordered_model_training_samples=ordered_model_training_samples,
+                held_model_ids=frozenset(bindings_by_model_id),
+                batch_sample_count=batch_sample_count,
+                python_random_generator=python_random_generator,
+            )
         )
         if not sampled_training_batches:
             continue

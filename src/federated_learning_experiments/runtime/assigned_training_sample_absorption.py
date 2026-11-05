@@ -136,7 +136,9 @@ def absorb_assigned_training_samples_into_held_model(
         observed_class_ids,
     ):
         training_sample_store.append_model_training_samples(
-            model_id=model_id, training_samples=(training_sample,)
+            model_id=model_id,
+            training_samples=(training_sample,),
+            observed_concept_ids=(observed_concept_id,),
         )
         model_training_and_assignment_counts_store.record_assigned_sample_concept(
             model_id=model_id, observed_concept_id=observed_concept_id

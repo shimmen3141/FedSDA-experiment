@@ -648,11 +648,11 @@ INVALID_CLUSTERING_ARGUMENT_CASES = (
                 if model_id != 2
             }
         ),
-        "sample_counts_float": lambda arguments: dict(
+        "sample_counts_nonfinite": lambda arguments: dict(
             aggregated_training_sample_counts_by_model_id=arguments[
                 "aggregated_training_sample_counts_by_model_id"
             ]
-            | {2: 10.0}
+            | {2: float("nan")}
         ),
     }
     | {

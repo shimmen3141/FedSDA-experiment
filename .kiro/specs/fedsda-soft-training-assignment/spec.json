@@ -61,5 +61,17 @@
         "result": "FAIL——反映"
       }
     ]
+  },
+  "implementation_status": {
+    "tasks": [
+      1,
+      2
+    ],
+    "status": "Task 1・2完了。全pytestの結果はtasks.mdの主担当の確認",
+    "next_action": "Task 3（本規模の実行400 run）のコマンドを渡し、集計する"
+  },
+  "implementation_review": {
+    "reviewer": "GPT-6 Luna（effort medium）",
+    "result": "FAIL（Major 1は事実の確認で不採用、Minor 1）"
   }
 }

@@ -337,6 +337,7 @@ def resolve_alarm_change_interval(
         candidate_trained_sample_count=trained_candidate.candidate_epoch_training_result.candidate_trained_sample_count,
         candidate_parameter_update_step_count=trained_candidate.candidate_epoch_training_result.candidate_parameter_update_step_count,
         pending_assignment_training_samples=change_interval_training_samples,
+        pending_assignment_concept_ids=change_interval_sample_concept_ids,
         held_model_training_state_registry=held_model_training_state_registry,
         loss_statistics_store=loss_statistics_store,
         training_sample_store=training_sample_store,

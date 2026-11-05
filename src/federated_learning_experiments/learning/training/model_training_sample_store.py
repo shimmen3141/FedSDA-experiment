@@ -2,21 +2,35 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from .model_training_sample_records import ModelTrainingSampleCollection, ObservedTrainingSample
+from .responsibility_weighted_training import ResponsibilityWeightedTrainingStore
 
 
 class ModelTrainingSampleStore:
     """モデル初出順と標本追加順を保持し、payload参照を借用する。"""
 
     def __init__(self) -> None:
+        self.record_training_mass_by_concept = False
+        self.responsibility_training_store: ResponsibilityWeightedTrainingStore | None = None
+        self.training_responsibility_provider: (
+            Callable[[int, ObservedTrainingSample], dict[int, float]] | None
+        ) = None
         self._training_samples_by_model_id: dict[int, list[ObservedTrainingSample]] = {}
 
     def clear_model_training_samples(self) -> None:
         """全モデルの標本を空にする。取得済みsnapshotの構造は変更しない。"""
         self._training_samples_by_model_id = {}
+        if self.responsibility_training_store is not None:
+            self.responsibility_training_store = ResponsibilityWeightedTrainingStore()
 
     def append_model_training_samples(
-        self, *, model_id: int, training_samples: tuple[ObservedTrainingSample, ...]
+        self,
+        *,
+        model_id: int,
+        training_samples: tuple[ObservedTrainingSample, ...],
+        observed_concept_ids: tuple[int | None, ...] | None = None,
     ) -> None:
         """全入力を検証してから追加する。空列もモデルを登録する。"""
         if type(model_id) is not int:
@@ -27,6 +41,25 @@ class ModelTrainingSampleStore:
             if type(training_sample) is not ObservedTrainingSample:
                 raise TypeError(
                     "training_samplesの各要素はexact ObservedTrainingSampleが必要です。"
+                )
+        if observed_concept_ids is None:
+            observed_concept_ids = (None,) * len(training_samples)
+        if (
+            type(observed_concept_ids) is not tuple
+            or len(observed_concept_ids) != len(training_samples)
+            or any(c is not None and type(c) is not int for c in observed_concept_ids)
+        ):
+            raise ValueError("概念の列は標本と同じ長さのintまたはNoneのtupleが必要です。")
+        if self.responsibility_training_store is not None:
+            responsibilities = [
+                self.training_responsibility_provider(model_id, sample)
+                if self.training_responsibility_provider is not None
+                else {model_id: 1.0}
+                for sample in training_samples
+            ]
+            for sample, concept, q in zip(training_samples, observed_concept_ids, responsibilities):
+                self.responsibility_training_store.append(
+                    training_sample=sample, responsibilities=q, observed_concept_id=concept
                 )
         self._training_samples_by_model_id.setdefault(model_id, []).extend(training_samples)
 
@@ -40,6 +73,10 @@ class ModelTrainingSampleStore:
         ):
             if type(model_id) is not int:
                 raise TypeError(f"{parameter_name}はbool・派生型以外のbuiltin intが必要です。")
+        if self.responsibility_training_store is not None:
+            self.responsibility_training_store.remap(
+                model_id_mapping={original_model_id: reassigned_model_id}
+            )
         if original_model_id in self._training_samples_by_model_id:
             training_samples = self._training_samples_by_model_id.pop(original_model_id)
             self._training_samples_by_model_id[reassigned_model_id] = training_samples
@@ -66,4 +103,6 @@ class ModelTrainingSampleStore:
             remapped_training_samples_by_model_id.setdefault(mapped_model_id, []).extend(
                 training_samples
             )
+        if self.responsibility_training_store is not None:
+            self.responsibility_training_store.remap(model_id_mapping=model_id_mapping)
         self._training_samples_by_model_id = remapped_training_samples_by_model_id

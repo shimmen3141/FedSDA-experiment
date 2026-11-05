@@ -402,7 +402,10 @@ def test_training_runs_before_counts_are_recorded_and_requests_are_acknowledged(
             "local_training_settings",
             "shared_feature_extractor",
             "shared_parameter_optimizer",
+            "responsibility_training_store",
         }
+        # 固い割り当て（fedsdaの既定）では、柔らかい学習の共有ストアを渡さない。
+        assert joint_training_arguments["responsibility_training_store"] is None
     # 計数への反映は共同更新1回につき1回で、どの時点でも保留は未消化。
     assert pending_request_counts_at_recording == (
         [pending_request_count] * completed_joint_update_count

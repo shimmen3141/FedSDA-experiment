@@ -48,7 +48,7 @@ class ClientModelAggregation:
     """集約1回の結果。件数は、対象のモデルIDごとの、参加した学習データの総件数（参加がなければ0）。"""
 
     aggregated_global_model_ids: tuple[int, ...]
-    aggregated_training_sample_counts_by_model_id: dict[int, int]
+    aggregated_training_sample_counts_by_model_id: dict[int, int | float]
     # 重み付きの和へ足した、パラメータの値の数（値1つの「重みを掛けて足す」を1と数える）。
     # 割り算と、写しは、数えない。
     weighted_parameter_multiply_accumulate_count: int
@@ -171,7 +171,7 @@ def _add_weighted_parameters(
     *,
     weighted_parameter_sum: dict[str, Tensor] | None,
     parameters: dict[str, Tensor],
-    sample_count: int,
+    sample_count: int | float,
 ) -> dict[str, Tensor]:
     """重み付きの和へ足す。最初は「値×重み」、以後は「和＋値×重み」（旧と同じ式の形）。"""
     if weighted_parameter_sum is None:
@@ -189,7 +189,7 @@ def _add_weighted_parameters(
 
 
 def _divide_parameters(
-    *, weighted_parameter_sum: dict[str, Tensor], total_sample_count: int
+    *, weighted_parameter_sum: dict[str, Tensor], total_sample_count: int | float
 ) -> dict[str, Tensor]:
     return {
         parameter_name: parameter_values / total_sample_count
@@ -227,7 +227,9 @@ def aggregate_client_models_into_global_models(
         )
     )
     # (2) clientごとの参加モデルを、重み付きの和へ足す。
-    aggregated_sample_counts_by_model_id = dict.fromkeys(aggregated_global_model_ids, 0)
+    aggregated_sample_counts_by_model_id: dict[int, int | float] = dict.fromkeys(
+        aggregated_global_model_ids, 0
+    )
     concept_specific_parameter_sums_by_model_id: dict[int, dict[str, Tensor] | None] = (
         dict.fromkeys(aggregated_global_model_ids)
     )
@@ -244,10 +246,15 @@ def aggregate_client_models_into_global_models(
             held_model_training_state.model_id: held_model_training_state.classifier
             for held_model_training_state in owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
         }
-        training_sample_counts_by_model_id = {
+        training_sample_counts_by_model_id: dict[int, int | float] = {
             model_training_samples.model_id: len(model_training_samples.training_samples)
             for model_training_samples in owners.training_sample_store.snapshot_ordered_model_training_samples()
         }
+        if (
+            owners.training_sample_store.training_responsibility_provider is not None
+            and owners.training_sample_store.responsibility_training_store is not None
+        ):
+            training_sample_counts_by_model_id = owners.training_sample_store.responsibility_training_store.training_masses_by_model_id
         participating_models = [
             (model_id, training_sample_counts_by_model_id.get(model_id, 0))
             for model_id in aggregated_global_model_ids

@@ -604,6 +604,21 @@ OPTIONS = (
         (FED_SDA, FED_DRIFT, WITHOUT_SERVER, OBLIVIOUS),
         cli_name="duplicate-policy",
     ),
+    OptionSpec(
+        "training_assignment_strategy", "学習の割当方式", "training",
+        ("single_model_assignment", "responsibility_weighted_training"),
+        "FedHASPの学習を固い割当か、FIFO解放時に固定した責任度で行う。既定値は保存から省く。",
+        (FED_SDA,), (FED_SDA,),
+        active_when=(ActivationRule("method", (FED_SDA,), "FedHASPの系統だけで有効"),),
+        configuration_surface="config",
+    ),
+    OptionSpec(
+        "record_training_mass_by_concept", "コンセプト別の学習量の記録", "diagnostic",
+        ("False", "True"), "runの終わりのモデル×真のコンセプトの学習量を記録する。既定Falseは保存から省く。",
+        (FED_SDA,), (FED_SDA,),
+        active_when=(ActivationRule("method", (FED_SDA,), "FedHASPの系統だけで有効"),),
+        configuration_surface="config",
+    ),
 )
 
 CHOICE_CONSTRAINTS = (

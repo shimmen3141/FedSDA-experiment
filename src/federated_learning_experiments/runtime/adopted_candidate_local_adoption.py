@@ -125,6 +125,7 @@ def adopt_candidate_as_current_training_model(
     model_training_and_assignment_counts_store: ModelTrainingAndAssignmentCountsStore,
     current_training_model_assignment: CurrentTrainingModelAssignment,
     pending_model_upload_state: PendingModelUploadState,
+    pending_assignment_concept_ids: tuple[int | None, ...] | None = None,
 ) -> TrainingModelAssignmentChange:
     """登録の完了後に採番を確定し、計数→標本→現在の学習帰属IDを順次更新する。"""
     _validate_adoption_inputs(
@@ -136,6 +137,12 @@ def adopt_candidate_as_current_training_model(
         model_training_and_assignment_counts_store=model_training_and_assignment_counts_store,
         current_training_model_assignment=current_training_model_assignment,
     )
+    if pending_assignment_concept_ids is not None and (
+        type(pending_assignment_concept_ids) is not tuple
+        or len(pending_assignment_concept_ids) != len(pending_assignment_training_samples)
+        or any(c is not None and type(c) is not int for c in pending_assignment_concept_ids)
+    ):
+        raise ValueError("概念の列は標本と同じ長さのintまたはNoneのtupleが必要です。")
     temporary_model_id = temporary_model_id_allocator.next_temporary_model_id
     _reject_temporary_model_id_already_in_use_for_adoption(
         temporary_model_id=temporary_model_id,
@@ -163,7 +170,9 @@ def adopt_candidate_as_current_training_model(
         parameter_update_step_count=candidate_parameter_update_step_count,
     )
     training_sample_store.append_model_training_samples(
-        model_id=temporary_model_id, training_samples=pending_assignment_training_samples
+        model_id=temporary_model_id,
+        training_samples=pending_assignment_training_samples,
+        observed_concept_ids=pending_assignment_concept_ids,
     )
     assignment_change = current_training_model_assignment.assign_model_for_training(
         model_id=temporary_model_id
