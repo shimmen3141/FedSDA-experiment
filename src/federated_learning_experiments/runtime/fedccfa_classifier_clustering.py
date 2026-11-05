@@ -6,7 +6,6 @@ from random import Random
 
 import numpy as np
 import torch
-from sklearn.cluster import DBSCAN
 from torch.nn.functional import cosine_similarity, cross_entropy
 
 from federated_learning_experiments.learning.models.model_architecture_classifier import (
@@ -50,10 +49,35 @@ def _madd(vectors: np.ndarray) -> np.ndarray:
     return result
 
 
+def _dbscan_min_samples_one_labels(distances: np.ndarray, eps: float) -> np.ndarray:
+    """距離行列を与えたDBSCAN（`min_samples=1`）のラベル。公式は`sklearn.cluster.DBSCAN`（`entities/FedCCFA.py:370-371`）。
+
+    `min_samples=1`ではどの点も核になるので、組は「距離がeps以下の点どうしをつないだ連結成分」になる。
+    sklearnと同じく、番号の小さい点から順に走査し、まだ組の無い点から新しい組の番号を付けて広げる
+    （sklearnは実行時の依存に入れていないので、ここで同じ規則を書く。一致はtestでsklearnと照合する）。
+    """
+    count = len(distances)
+    labels = np.full(count, -1, dtype=np.int64)
+    next_label = 0
+    for start in range(count):
+        if labels[start] != -1:
+            continue
+        labels[start] = next_label
+        stack = [start]
+        while stack:
+            point = stack.pop()
+            for neighbor in np.flatnonzero(distances[point] <= eps):
+                if labels[neighbor] == -1:
+                    labels[neighbor] = next_label
+                    stack.append(int(neighbor))
+        next_label += 1
+    return labels
+
+
 def _label_groups(vectors: np.ndarray, eps: float) -> tuple[tuple[int, ...], ...]:
     if len(vectors) < 2:
         return ()
-    labels = DBSCAN(eps=eps, min_samples=1, metric="precomputed").fit(_madd(vectors)).labels_
+    labels = _dbscan_min_samples_one_labels(_madd(vectors), eps)
     return tuple(
         tuple(int(i) for i in np.flatnonzero(labels == label))
         for label in sorted(set(labels))

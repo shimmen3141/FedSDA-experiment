@@ -572,3 +572,23 @@ def test_original_mnist_behavior(monkeypatch):
             if not any(mixed(g) for g in clusters[t][label]):
                 failures.append(f"変化前t={t}, label={label}: 混合の組が無い")
     assert not failures, "\n".join(failures)
+
+
+@pytest.mark.parametrize("seed", range(200))
+def test_dbscan_min_samples_one_matches_sklearn(seed):
+    # 実行時はsklearnに依存しないので、自前のDBSCAN（min_samples=1、距離行列）がsklearnと同じラベルを返すこと。
+    # 距離を0.05刻みにして、ちょうどepsの距離（境界はeps以下で近傍）も含める。
+    from sklearn.cluster import DBSCAN
+
+    from federated_learning_experiments.runtime.fedccfa_classifier_clustering import (
+        _dbscan_min_samples_one_labels,
+    )
+
+    rng = np.random.default_rng(seed)
+    count = int(rng.integers(2, 13))
+    distances = np.round(rng.uniform(0, 0.4, size=(count, count)) / 0.05) * 0.05
+    distances = np.triu(distances, 1)
+    distances = distances + distances.T
+    eps = float(rng.choice([0.05, 0.1, 0.15, 0.2]))
+    expected = DBSCAN(eps=eps, min_samples=1, metric="precomputed").fit(distances).labels_
+    np.testing.assert_array_equal(_dbscan_min_samples_one_labels(distances, eps), expected)

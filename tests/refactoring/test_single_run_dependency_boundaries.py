@@ -3483,7 +3483,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "random.Random",
             "numpy",
             "torch",
-            "sklearn.cluster.DBSCAN",
             "torch.nn.functional.cosine_similarity",
             "torch.nn.functional.cross_entropy",
             "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
