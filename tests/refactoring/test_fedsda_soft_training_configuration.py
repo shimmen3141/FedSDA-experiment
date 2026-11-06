@@ -174,7 +174,7 @@ def test_all_existing_configuration_settings_and_identifiers_keep_fixed_hashes()
     expected = json.loads(
         Path(__file__).with_name("soft_training_existing_configuration_hashes.json").read_text()
     )
-    assert tuple(expected) == EXPERIMENT_CONFIGURATION_NAMES[:-2]
+    assert tuple(expected) == EXPERIMENT_CONFIGURATION_NAMES[: len(expected)]
     for name, (digest, identifier) in expected.items():
         settings = build_settings(name)
         assert (
@@ -231,7 +231,12 @@ def test_small_run_diagnostics_only_preserves_every_existing_table(dataset):
 
 @pytest.mark.slow
 @pytest.mark.parametrize("dataset", ["sine2", "mnist4"])
-def test_small_soft_run_uses_all_eligible_models_and_preserves_store_mass(dataset, monkeypatch):
+@pytest.mark.parametrize(
+    "configuration", ["fedsda-soft-training", "fedsda-soft-training-single-model-prediction"]
+)
+def test_small_soft_run_uses_all_eligible_models_and_preserves_store_mass(
+    dataset, monkeypatch, configuration
+):
     import json
     import math
 
@@ -356,7 +361,7 @@ def test_small_soft_run_uses_all_eligible_models_and_preserves_store_mass(datase
     )
     run = execute_fedsda_experiment_run(
         run_settings=build_settings(
-            "fedsda-soft-training", dataset, count=1500 if dataset == "sine2" else 800
+            configuration, dataset, count=1500 if dataset == "sine2" else 800
         )
     )
     tables = build_fedsda_run_record_tables(experiment_run=run)
@@ -382,6 +387,7 @@ def test_small_soft_run_uses_all_eligible_models_and_preserves_store_mass(datase
         assert 0 <= baseline <= purity <= 1 + 1e-12
         purities.append((purity, baseline))
     evidence = {
+        "configuration": configuration,
         "dataset": dataset,
         "participating_mean": float(participants.mean()),
         "participating_max": int(participants.max()),
@@ -392,6 +398,12 @@ def test_small_soft_run_uses_all_eligible_models_and_preserves_store_mass(datase
         "purity": purities,
         "checks": checks,
         "alarm_count": len(tables["loss_change_alarm.client_id"]),
+        "candidate_adopted_count": int(
+            (
+                tables["adaptation.adaptation_outcome"]
+                == "alarm_interval_candidate_adopted_as_new_model"
+            ).sum()
+        ),
     }
     print(json.dumps(evidence))
 
@@ -554,6 +566,7 @@ def test_prediction_alarm_selection_prefix_matches_before_first_update(dataset, 
     [
         "learning/training/responsibility_weighted_training.py",
         "runtime/released_sample_training_responsibilities.py",
+        "runtime/training_responsibility_weight_updates.py",
     ],
 )
 def test_new_modules_reject_outer_dependencies(source):

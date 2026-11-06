@@ -185,8 +185,28 @@ class FedsdaRunClientSettings:
     record_training_mass_by_concept: bool = field(
         default=False, metadata={"omit_default_from_saved_settings": True}
     )
+    training_responsibility_weight_update_policy: str = field(
+        default="prediction_weight_updates",
+        metadata={
+            "omit_default_from_saved_settings": True,
+            "allowed_parameter_values": (
+                "prediction_weight_updates",
+                "independent_fixed_share_weight_updates",
+            ),
+        },
+    )
 
     def __post_init__(self) -> None:
+        policy = self.training_responsibility_weight_update_policy
+        if type(policy) is not str or policy not in (
+            "prediction_weight_updates",
+            "independent_fixed_share_weight_updates",
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="training_responsibility_weight_update_policy",
+                specified_parameter_value=policy,
+                validation_failure_reason="宣言された学習用重みの更新方針を指定してください。",
+            )
         if type(
             self.training_assignment_strategy
         ) is not str or self.training_assignment_strategy not in (
@@ -217,16 +237,32 @@ class FedsdaRunClientSettings:
                 )
             # frozenを回避して組み立てた値も拒否できるよう、各設定の検査をもう一度行う。
             component_settings.__post_init__()
-        if self.training_assignment_strategy == "responsibility_weighted_training" and (
-            self.prediction_combination_settings.prediction_combination_strategy
-            != "fixed_share_weighted_prediction"
-            or self.local_training_settings.local_model_parameter_update_strategy
-            != "joint_backbone_adapter_and_head_training"
+        prediction = self.prediction_combination_settings
+        independent = policy == "independent_fixed_share_weight_updates"
+        valid_prediction = (
+            (
+                prediction.prediction_combination_strategy == "current_training_model_prediction"
+                and prediction.prediction_model_parameter_source == "current_local_parameters"
+                and prediction.prediction_weight_recalibration_after_aggregation_policy
+                == "keep_weights_without_recalibration"
+            )
+            if independent
+            else (prediction.prediction_combination_strategy == "fixed_share_weighted_prediction")
+        )
+        if (
+            independent and self.training_assignment_strategy != "responsibility_weighted_training"
+        ) or (
+            self.training_assignment_strategy == "responsibility_weighted_training"
+            and (
+                not valid_prediction
+                or self.local_training_settings.local_model_parameter_update_strategy
+                != "joint_backbone_adapter_and_head_training"
+            )
         ):
             raise RunSettingsValidationError(
                 configuration_parameter_name="training_assignment_strategy",
                 specified_parameter_value=self.training_assignment_strategy,
-                validation_failure_reason="責任度の学習はFixed-Shareの予測と共同更新で有効です。",
+                validation_failure_reason="責任度の共同更新には予測用Fixed-Share、または局所単体予測と独立した学習用Fixed-Shareを指定してください。",
             )
         betting_fractions = self.loss_monitor_betting_fractions
         if (

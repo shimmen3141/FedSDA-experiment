@@ -3,7 +3,7 @@
   "created_at": "2026-11-07T00:00:00+09:00",
   "updated_at": "2026-11-07T00:00:00+09:00",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -50,13 +50,13 @@
     ]
   },
   "implementation_progress": {
-    "completed": 0,
+    "completed": 4,
     "total": 7
   },
   "handoff": {
-    "execution_status": "spec_approved_awaiting_user_go_for_implementation",
-    "next_step": "D1・D2は案Aでユーザーが確定済み（2026-11-07）。仕様書群は主担当の判断で承認した。実装（GPT-6.1-sol）はユーザーの指示を受けてから始める。",
-    "constraints": "この依頼では実装・commit・push・stash・実験は行わない。"
+    "execution_status": "implemented_and_verified",
+    "next_step": "Task 7: 主担当が本規模の200 runのコマンドをユーザーに渡し、結果を既存の3構成と対にして集計する。",
+    "constraints": "本規模の実行はユーザーがuraniumで行う。"
   },
   "open_decisions": [
     {
@@ -73,5 +73,42 @@
       "selected_option": "A",
       "decision": "主担当の判断（2026-11-07）を、2026-11-07にユーザーが確定（案A）"
     }
-  ]
+  ],
+  "implementation_review": {
+    "status": "approved_by_main",
+    "verdict": "1回目FAIL（Major 2、Minor 1）を実装担当が反映。2回目FAIL（Minor 1: 文書の文字化け）を主担当が直し、主担当の判断で承認",
+    "target": "ccc5a68caab1b77831778cbdbb49036db7f0a2ce上の未コミット実装差分",
+    "selection_reason": "可変状態・数値/RNG・接続を含むためHaiku 5.5 medium、利用不能時Luna medium",
+    "attempts": [
+      {
+        "requested_model": "claude-haiku-5-5",
+        "requested_effort": "medium",
+        "session_id": "d3375f45-8d72-4177-96a3-55c3ec038961",
+        "result": "ECONNREFUSED、is_error=true、modelUsage空",
+        "artifact": ".validation-soft-single/review-haiku.json"
+      },
+      {
+        "requested_model": "gpt-6-luna",
+        "requested_effort": "medium",
+        "result": "app-server初期化でos error 5。実モデル/effort・判定未確認",
+        "artifact": ".validation-soft-single/review-luna.log"
+      }
+    ],
+    "rounds": [
+      {
+        "round": 1,
+        "reviewer": "GPT-6 Luna medium",
+        "result": "FAIL（Major 2、Minor 1）——反映"
+      },
+      {
+        "round": 2,
+        "reviewer": "GPT-6 Luna medium",
+        "result": "FAIL（Minor 1、experiment-sweep.mdの文字化け）——主担当が反映"
+      }
+    ]
+  },
+  "main_verification": {
+    "full_pytest": "tests/を対象に13790 passed、11 skipped（環境による既定のskip）、0 failed。OMP/MKL/OPENBLAS_NUM_THREADS=1、12並列、2026-11-07",
+    "note": "実装担当がPowerShell経由で書いたtasks.md・spec.json・experiment-sweep.mdの日本語が文字化けしたので、主担当が実行ログから戻した（experiment-sweep.mdは書き直した）"
+  }
 }

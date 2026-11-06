@@ -124,6 +124,9 @@ from federated_learning_experiments.runtime.post_aggregation_prediction_recalibr
 from federated_learning_experiments.runtime.released_sample_training_responsibilities import (
     build_released_sample_responsibility_provider,
 )
+from federated_learning_experiments.runtime.training_responsibility_weight_updates import (
+    recalibrate_training_responsibility_weights_after_aggregation,
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -191,6 +194,22 @@ class FedsdaRunClient:
         self._synchronized_prediction_model_snapshot = synchronized_prediction_model_snapshot
         # 2つの結合予測（同期の時点・局所）を混ぜる重み（予測に使うパラメータが混ぜる値のときだけ使う）。
         self._synchronized_and_local_prediction_mixture = synchronized_and_local_prediction_mixture
+        self._training_responsibility_weight_controller = None
+        self._training_responsibility_model_snapshot = None
+        if (
+            run_client_settings.training_responsibility_weight_update_policy
+            == "independent_fixed_share_weight_updates"
+        ):
+            self._training_responsibility_weight_controller = FixedShareWeightController(
+                prediction_combination_settings=run_client_settings.prediction_combination_settings
+            )
+            self._training_responsibility_model_snapshot = SynchronizedPredictionModelSnapshot()
+            owners.training_sample_store.training_responsibility_provider = (
+                build_released_sample_responsibility_provider(
+                    registry=owners.held_model_training_state_registry,
+                    weight_controller=self._training_responsibility_weight_controller,
+                )
+            )
 
     def _get_current_training_classifier(self) -> ModelArchitectureClassifier:
         owners = self._owners
@@ -269,6 +288,8 @@ class FedsdaRunClient:
             owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
         )
         sample_processing = process_observed_sample(
+            training_responsibility_weight_controller=self._training_responsibility_weight_controller,
+            training_responsibility_model_snapshot=self._training_responsibility_model_snapshot,
             indexed_observation=IndexedObservedTrainingSample(
                 sample_index=sample_index,
                 training_sample=ObservedTrainingSample(
@@ -414,6 +435,10 @@ class FedsdaRunClient:
             self._synchronized_prediction_model_snapshot.capture_held_models(
                 held_model_training_state_registry=owners.held_model_training_state_registry
             )
+        if self._training_responsibility_model_snapshot is not None:
+            self._training_responsibility_model_snapshot.capture_held_models(
+                held_model_training_state_registry=owners.held_model_training_state_registry
+            )
         return distribution_application
 
     def get_model_assigned_sample_concept_counts(self, *, model_id: int) -> dict[int, int]:
@@ -488,6 +513,14 @@ class FedsdaRunClient:
 
         再較正の方針が「再較正しない」のときは、何も変えず、Noneを返す。
         """
+        if self._training_responsibility_weight_controller is not None:
+            # 単体予測のownerと固定済みqは触らず、学習用だけを局所の保留損失で再生する。
+            # 同期の計測終了点より前で実行し、追加推論をsynchronizationとrun総計へ含める。
+            recalibrate_training_responsibility_weights_after_aggregation(
+                held_model_training_state_registry=self._owners.held_model_training_state_registry,
+                pending_sample_observation_store=self._owners.pending_sample_observation_store,
+                fixed_share_weight_controller=self._training_responsibility_weight_controller,
+            )
         if (
             self._run_client_settings.prediction_combination_settings.prediction_weight_recalibration_after_aggregation_policy
             == "keep_weights_without_recalibration"

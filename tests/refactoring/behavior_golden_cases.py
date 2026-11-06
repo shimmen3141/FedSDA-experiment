@@ -313,6 +313,7 @@ BASELINE_CONFIGURATION_CASE_NAMES = (
 )
 # goldenの事例にしない構成の名前と、その構成を守る専用のtestのファイル（リポジトリの根からの位置）。
 CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN: dict[str, str] = {
+    "fedsda-soft-training-single-model-prediction": "tests/refactoring/test_soft_training_single_model_prediction.py",
     "fedsda-soft-training": "tests/refactoring/test_fedsda_soft_training_configuration.py",
     "fedsda-training-mass-diagnostics": "tests/refactoring/test_fedsda_soft_training_configuration.py",
     "feddrift-fedccfa-window": "tests/refactoring/test_feddrift_fedccfa_configuration.py",

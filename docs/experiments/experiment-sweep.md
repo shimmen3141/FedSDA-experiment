@@ -196,6 +196,7 @@ NPZ・run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変
 | `fedsda-synchronized-local-mixture-prediction` | 提案構成の予測を、同期の時点のモデルの結合予測（上の構成と同じ）と、局所更新した今のモデルを同じ重みで結合した予測の、2つを混ぜて行う。混ぜる重みはclientごとに(同期, 局所)＝(0.5, 0.5)から始め、予測の後に、それぞれの損失（1−真のクラスの確率）で`exp(−2·損失)`を掛けて正規化し、Fixed-Shareの時間尺度Tの逆数1/Tを分け合う（学習率2は固定）。予測の記録の`combined_prediction_is_correct`と`any_model_or_combined_prediction_is_correct`は混ぜた予測の側、ほかの項目は同期の側。現在のモデルだけで予測する設定とは組み合わせられない。学習・検出ほかは、局所更新した現在のモデルのまま | なし（新実装だけ。手元の診断の差し替えと、予測の記録が一致することを確かめた） |
 | `fedsda-local-parameter-prediction` | 提案構成から、予測に使うパラメータだけを局所更新した現在の値へ替える。全モデルの結合は維持し、Tは120。現在の学習帰属モデルだけで予測する構成とは異なる | なし（新実装の専用testで保護） |
 | `fedsda-soft-training` | FIFOから放す時点の局所モデルとFixed-Shareの重みで責任度を固定し、正の責任度がある標本数がbatch以上の各モデルを重み付き復元抽出で共同学習する。サーバの集約も責任度の総量で重み付ける。予測・警報・選択・候補学習・統合の手順は提案構成と同じ | 固い学習とオンラインのEM型の柔らかい学習の比較 |
+| `fedsda-soft-training-single-model-prediction` | 学習は`fedsda-soft-training`と同じ（FIFOから放す時点に責任度を固定し、責任度で重み付けて全モデルを学習する）。責任度に使うFixed-Shareの重みは、予測とは独立に、`fedsda-soft-training`と同じ規則で標本ごとに更新し、集約の後にFIFOの標本で再較正する。予測は`fedsda-single-model-prediction`と同じく、局所のパラメータの現在のモデルだけで行う。監視の損失・警報・選択・候補の学習・統合は提案構成と同じ。補助の評価（同期の写しでの全モデルの評価）と再較正の計算量は、runの計算量に含める | 学習（固い・柔らかい）×予測（柔らかい・固い）の2×2の残りの1マス |
 | `fedsda-training-mass-diagnostics` | 提案構成に、モデル×真のコンセプトの学習量の記録だけを追加する。挙動は`fedsda`と同じ | 純度の比較の基準 |
 
 2026-10-15に予測の設定へ項目（`prediction_model_parameter_source`）を足したので、それより前のFedSDAの結果とは、runの識別子が一致しない（同じ出力先へ実行すると、前のrunは済んだrunとして扱われない）。比べるときは、別の出力先を使う。
@@ -371,3 +372,23 @@ CFLは各roundの学習後・集約前に分割を判定し、分割後の残り
 ### FedCCFAのDBSCANのε
 
 `--fedccfa-dbscan-eps 0.05 0.1 0.15 0.2`で4構成のεを掃引できる（省略時0.1、正の有限float、重複不可）。FedCCFAを含まない計画では拒否する。他の構成が混ざる計画では、その構成のrunをεごとに複製しない。`--feddrift-local-training-round-counts`とも直積になる。γは20、対照の整合の温度は0.1で、型付き設定の`fedccfa_alignment_gamma`・`fedccfa_alignment_temperature`から指定する。予備の実行は[spec](../../.kiro/specs/feddrift-fedccfa-configuration/design.md)の別工程。
+
+### 柔らかい学習＋現在のモデルだけの予測の200 run（2026-11-07）
+
+実装の検証（仕様のTask 6）の後、uranium（Linux）で新しい構成だけを流す。10データ×間隔50・500×seed 0〜9、10 client×5000標本の200 run。既存の3構成（`fedsda`、`fedsda-single-model-prediction`、`fedsda-soft-training`）は流し直さず、既存の結果と対にして集計する。
+
+```bash
+OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+python run_experiment_sweep.py \
+  --configurations fedsda-soft-training-single-model-prediction \
+  --datasets sine2 circle2 sea2 sea4 mnist2 mnist4 fmnist2 fmnist4 rotmnist2 rotmnist4 \
+  --aggregation-intervals 50 500 --seeds 0-9 \
+  --client-count 10 --per-client-sample-count 5000 --workers 64 \
+  --study fedsda-soft-training-single-model-prediction-v16 \
+  --label soft-single-i50-i500-seeds0-9 \
+  --purpose '柔らかい学習と現在のモデルだけの予測を組み合わせた構成を、2×2の比較の残りの1マスとして評価する'
+```
+
+このCLIには`--duplicate-policy`が無い。同じ設定の既存のrunは、出力先のrunの識別子で済んだrunとして飛ばされるので、実行の前に計画を確かめ、200 runが全部未実行（missing）であることを確認する。
+
+集計は`python -m tools.aggregate_soft_training_single_model_prediction`で行う（引数は`--help`）。`--new-root`に新しい構成の結果、`--soft-roots`・`--single-roots`・`--hard-roots`に既存の3構成の結果、`--diagnostic-roots`に記録だけを足した構成の結果を渡す。各結果の`run_summary.csv`・`runs/`の設定・識別子・実行の記録・NPZを照合し、照合の結果を`analysis_pairing_check.csv`に書く。対象外の構成や誤ったフォルダはエラーにし、入力の一致を確かめられない対は未検証として集計を止める。照合が通れば、対の差の表をCSVとMarkdownに書く。

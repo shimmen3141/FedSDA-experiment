@@ -4,6 +4,7 @@
 
 ## 現在地
 
+- 2026-11-07: [柔らかい学習＋単体予測](../specs/fedsda-soft-training-single-model-prediction/tasks.md)はTask 1・2・3・5を実装。Task 4の未達検査とTask 6の独立CLI承認・環境制約を残す。commit・push・stashは禁止、差分は作業ツリー。Task 7の本規模実行と実集計は主担当。詳細と検査証拠は対象spec。
 - 2026-10-29: [fedsda-every-sample-change-interval-search-default](../specs/fedsda-every-sample-change-interval-search-default/tasks.md)はTask 1〜5を完了（実装レビューPASS、全pytest 13,239 passed・失敗0、WSL 472 passed）。同日のユーザー判断で、逆向きの1本の流れで1件刻みに測る扱いを基準版16の既定にする。本規模の640 runで基準版15の既定との精度差は平均+0.01〜+0.02pp（[IMPROVE-032](../../docs/research/improvement-candidates/improve-032-reverse-order-prequential-code-for-all-change-intervals.md)）。
 - **最新の総括・再開順は[研究の引継ぎ（2026-10-26）](../../docs/research/research-handoff-20261026.md)**。Claude交代後の一連の研究、結果の所在、訂正、未着手事項をまとめている。
 - **現在の基準版は16**（版16のgoldenは生成元`810e56f9`、WindowsとWSL）。**候補検証の削除は完了（基準版15）**（[対象spec](../specs/remove-post-alarm-candidate-validation/tasks.md)、2026-10-28）。版15のgoldenは生成元`c13149ea`（WindowsとWSL）。版1〜14の保存済みgoldenと乱数のfixtureは維持する。版14で始めた掃引は、版15のコードでは再開できない（始めたときのコードで再開する）。

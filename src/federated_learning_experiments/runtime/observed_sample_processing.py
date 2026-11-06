@@ -131,6 +131,9 @@ from federated_learning_experiments.runtime.observed_sample_prediction import (
 from federated_learning_experiments.runtime.released_pending_sample_assignment import (
     assign_released_pending_samples_to_current_training_model,
 )
+from federated_learning_experiments.runtime.training_responsibility_weight_updates import (
+    update_training_responsibility_weights_after_label_observation,
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -337,6 +340,8 @@ def process_observed_sample(
     shared_parameter_optimizer: Optimizer | None,
     synchronized_prediction_model_snapshot: SynchronizedPredictionModelSnapshot | None = None,
     synchronized_and_local_prediction_mixture: SynchronizedAndLocalPredictionMixture | None = None,
+    training_responsibility_weight_controller: FixedShareWeightController | None = None,
+    training_responsibility_model_snapshot: SynchronizedPredictionModelSnapshot | None = None,
 ) -> ObservedSampleProcessing:
     """標本1件を、旧の標本処理と同じ順で処理する（最初に予測する）。
 
@@ -350,6 +355,22 @@ def process_observed_sample(
     予測する設定）。省略かNoneなら、今の予測。損失の監視・候補の検証・学習・統計は、どちらでも、保有モデルの
     現在の分類器を使う。
     """
+    if (training_responsibility_weight_controller is None) != (
+        training_responsibility_model_snapshot is None
+    ):
+        raise ValueError("学習用の重みと同期写しは一緒に指定してください。")
+    if (
+        training_responsibility_weight_controller is not None
+        and type(training_responsibility_weight_controller) is not FixedShareWeightController
+    ):
+        raise TypeError("学習用の重みにはFixedShareWeightControllerを指定してください。")
+    if (
+        training_responsibility_model_snapshot is not None
+        and type(training_responsibility_model_snapshot) is not SynchronizedPredictionModelSnapshot
+    ):
+        raise TypeError(
+            "学習用の同期写しにはSynchronizedPredictionModelSnapshotを指定してください。"
+        )
     if (
         synchronized_prediction_model_snapshot is not None
         and type(synchronized_prediction_model_snapshot) is not SynchronizedPredictionModelSnapshot
@@ -436,6 +457,17 @@ def process_observed_sample(
         synchronized_prediction_model_snapshot=synchronized_prediction_model_snapshot,
         synchronized_and_local_prediction_mixture=synchronized_and_local_prediction_mixture,
     )
+    # 実予測の結果を確定した後、監視・FIFO解放・学習より前に学習用の事前重みを進める。
+    if (
+        training_responsibility_weight_controller is not None
+        and training_responsibility_model_snapshot is not None
+    ):
+        update_training_responsibility_weights_after_label_observation(
+            indexed_observation=indexed_observation,
+            held_model_training_state_registry=held_model_training_state_registry,
+            fixed_share_weight_controller=training_responsibility_weight_controller,
+            synchronized_prediction_model_snapshot=training_responsibility_model_snapshot,
+        )
     current_training_model_id = current_training_model_assignment.current_training_model_id
     observed_loss = evaluate_classifier_per_sample_bounded_losses(
         classifier=held_model_training_state_registry.get_held_model_training_state(

@@ -37,6 +37,9 @@ from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRun
 # 提案構成（docs/overview/proposed-method.mdの「最終提案構成」）。
 PROPOSED_FEDSDA_CONFIGURATION_NAME = "fedsda"
 SOFT_TRAINING_CONFIGURATION_NAME = "fedsda-soft-training"
+SOFT_TRAINING_SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME = (
+    "fedsda-soft-training-single-model-prediction"
+)
 TRAINING_MASS_DIAGNOSTICS_CONFIGURATION_NAME = "fedsda-training-mass-diagnostics"
 # 提案構成から、集約後の、予測重みの再較正を外した構成。
 PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME = (
@@ -160,6 +163,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     *FEDCCFA_CONFIGURATION_NAMES,
     SOFT_TRAINING_CONFIGURATION_NAME,
     TRAINING_MASS_DIAGNOSTICS_CONFIGURATION_NAME,
+    SOFT_TRAINING_SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
 )
 
 
@@ -550,6 +554,27 @@ def build_experiment_run_settings(
                         else "single_model_assignment"
                     ),
                     record_training_mass_by_concept=True,
+                ),
+            ),
+        )
+    if configuration_name == SOFT_TRAINING_SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME:
+        participants = proposed_run_settings.run_participant_settings
+        client = participants.run_client_settings
+        return replace(
+            proposed_run_settings,
+            run_participant_settings=replace(
+                participants,
+                run_client_settings=replace(
+                    client,
+                    training_assignment_strategy="responsibility_weighted_training",
+                    record_training_mass_by_concept=True,
+                    training_responsibility_weight_update_policy="independent_fixed_share_weight_updates",
+                    prediction_combination_settings=replace(
+                        client.prediction_combination_settings,
+                        prediction_combination_strategy="current_training_model_prediction",
+                        prediction_model_parameter_source="current_local_parameters",
+                        prediction_weight_recalibration_after_aggregation_policy="keep_weights_without_recalibration",
+                    ),
                 ),
             ),
         )

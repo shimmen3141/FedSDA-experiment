@@ -613,6 +613,14 @@ OPTIONS = (
         configuration_surface="config",
     ),
     OptionSpec(
+        "training_responsibility_weight_update_policy", "学習責任度の重み更新", "training",
+        ("prediction_weight_updates", "independent_fixed_share_weight_updates"),
+        "新実装の責任度の事前重み。独立Fixed-Shareは柔らかい共同学習と局所単体予測だけで有効。同期写しの補助評価と配布後の局所保留損失の再生も総費用に含む。既定値は保存から省く。",
+        (FED_SDA,), (FED_SDA,),
+        active_when=(ActivationRule("training_assignment_strategy", ("responsibility_weighted_training",), "責任度による学習"),),
+        configuration_surface="config",
+    ),
+    OptionSpec(
         "record_training_mass_by_concept", "コンセプト別の学習量の記録", "diagnostic",
         ("False", "True"), "runの終わりのモデル×真のコンセプトの学習量を記録する。既定Falseは保存から省く。",
         (FED_SDA,), (FED_SDA,),

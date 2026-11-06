@@ -91,6 +91,8 @@ def test_legacy_compatible_check_rejects_other_prediction_settings(changes):
 # 構成ごとの、予測に使うパラメータ（既定は混ぜる値。Tは全部の構成で120）。
 _EXPECTED_PARAMETER_SOURCE_BY_CONFIGURATION_NAME = {
     "fedsda-single-model-prediction": "current_local_parameters",
+    # 学習用の同期写しは維持するが、実予測は現在モデルの局所パラメータだけを使う。
+    "fedsda-soft-training-single-model-prediction": "current_local_parameters",
     "fedsda-local-parameter-prediction": "current_local_parameters",
     "fedsda-synchronized-model-prediction": "parameters_at_last_synchronization",
 }

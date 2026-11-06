@@ -1670,6 +1670,22 @@ def main():
     assert fedavg_run.run_metrics.final_global_model_count == 1
     assert tables["sample_prediction.sample_index"].shape == (2, 30)
     print("PASS FedAvg full run, measurement and artifact roundtrip")
+    soft_single_run = execute_fedsda_experiment_run(
+        run_settings=build_experiment_run_settings(
+            configuration_name="fedsda-soft-training-single-model-prediction",
+            experiment_run_conditions=ExperimentRunConditions(
+                dataset_name="sine2",
+                random_seed=0,
+                client_count=2,
+                per_client_sample_count=100,
+                server_aggregation_interval_per_client_samples=50,
+            ),
+        )
+    )
+    for client in soft_single_run.measured_run.participants.client_operations:
+        assert client.owners.training_sample_store.training_responsibility_provider is not None
+        assert client.owners.fixed_share_weight_controller.weights_by_model_id == {}
+    print("PASS 柔らかい学習と単体予測の全体run")
     loaded_forbidden_modules = sorted(
         name
         for name in sys.modules

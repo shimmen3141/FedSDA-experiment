@@ -91,6 +91,7 @@ flowchart LR
     adaptive_fedavg_initial_learning_rate["<b>Adaptive-FedAvgの初期学習率</b><br/>positive number"]
     adaptive_fedavg_beta["<b>Adaptive-FedAvgの移動平均の係数</b><br/>0.5"]
     training_assignment_strategy["<b>学習の割当方式</b><br/>single_model_assignment | responsibility_weighted_training"]
+    training_responsibility_weight_update_policy["<b>学習責任度の重み更新</b><br/>prediction_weight_updates | independent_fixed_share_weight_updates"]
   end
   subgraph group_federation_parameter[federation_parameter]
     aggregation_interval["<b>集約間隔 A</b><br/>positive integer"]
@@ -137,6 +138,7 @@ flowchart LR
   feddrift_adaptive_learning_rate -->|"学習率の調整のときだけ"| adaptive_fedavg_initial_learning_rate
   feddrift_adaptive_learning_rate -->|"学習率の調整のときだけ"| adaptive_fedavg_beta
   method -->|"FedHASPの系統だけで有効"| training_assignment_strategy
+  training_assignment_strategy -->|"責任度による学習"| training_responsibility_weight_update_policy
   method -->|"FedHASPの系統だけで有効"| record_training_mass_by_concept
   feddrift_training_sample_window -.->|"fedccfa_classifier_clustering: 観測済みの窓"| feddrift_model_assignment_policy
   feddrift_cluster_model_initialization -.->|"fedccfa_classifier_clustering: 共通の事前学習の初期値"| feddrift_model_assignment_policy
@@ -239,6 +241,7 @@ flowchart LR
 | `experiment_manifest` | cli: `--manifest` | 実装済み | 実装済み | 実装済み | 実装済み | 実験計画・実装由来・完了状態を出力先へ保存する |
 | `duplicate_policy` | cli: `--duplicate-policy` | 実装済み | 実装済み | 実装済み | 実装済み | 一部でも同一設定・同一コード・同一goldenの完了runがある場合の開始前処理 |
 | `training_assignment_strategy` | config | 実装済み | 対象外 | 対象外 | 対象外 | FedHASPの学習を固い割当か、FIFO解放時に固定した責任度で行う。既定値は保存から省く。 |
+| `training_responsibility_weight_update_policy` | config | 実装済み | 対象外 | 対象外 | 対象外 | 新実装の責任度の事前重み。独立Fixed-Shareは柔らかい共同学習と局所単体予測だけで有効。同期写しの補助評価と配布後の局所保留損失の再生も総費用に含む。既定値は保存から省く。 |
 | `record_training_mass_by_concept` | config | 実装済み | 対象外 | 対象外 | 対象外 | runの終わりのモデル×真のコンセプトの学習量を記録する。既定Falseは保存から省く。 |
 
 ## 重要な依存関係

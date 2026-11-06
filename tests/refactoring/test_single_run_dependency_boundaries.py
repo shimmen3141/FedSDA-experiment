@@ -3476,6 +3476,37 @@ def test_feddrift_round_training_rejects_outer_dependencies(source_module_path, 
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "runtime/training_responsibility_weight_updates.py":
+        return imported_module_name in (
+            "torch",
+            "torch.no_grad",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations.compute_model_mean_bounded_losses_after_label_observation",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations.convert_model_outputs_to_prediction_probabilities",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations.normalize_model_prediction_weights",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.indexed_observed_training_sample",
+            "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights.FixedShareWeightController",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_prediction_model_snapshot",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_prediction_model_snapshot.SynchronizedPredictionModelSnapshot",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store.PendingSampleObservationStore",
+            "federated_learning_experiments.runtime.post_aggregation_prediction_recalibration",
+            "federated_learning_experiments.runtime.post_aggregation_prediction_recalibration.PostAggregationPredictionRecalibration",
+            "federated_learning_experiments.runtime.post_aggregation_prediction_recalibration._compute_pending_sample_loss_sequence",
+        )
+    if source_module_path in (
+        "runtime/observed_sample_processing.py",
+        "runtime/fedsda_run_client.py",
+    ) and imported_module_name in (
+        "federated_learning_experiments.runtime.training_responsibility_weight_updates",
+        "federated_learning_experiments.runtime.training_responsibility_weight_updates.update_training_responsibility_weights_after_label_observation",
+        "federated_learning_experiments.runtime.training_responsibility_weight_updates.recalibrate_training_responsibility_weights_after_aggregation",
+    ):
+        return True
     responsibility_dependencies = {
         "runtime/fedsda_run_client.py": (
             "federated_learning_experiments.learning.training.responsibility_weighted_training.ResponsibilityWeightedTrainingStore",
@@ -6168,6 +6199,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/global_model_distribution_application.py",
             "runtime/global_model_distribution.py",
             "runtime/post_aggregation_prediction_recalibration.py",
+            "runtime/training_responsibility_weight_updates.py",
             "runtime/client_model_cross_evaluation.py",
             "runtime/model_cross_evaluation.py",
             "runtime/model_clustering_and_consolidation.py",
@@ -6286,6 +6318,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/global_model_distribution_application.py",
                     "runtime/global_model_distribution.py",
                     "runtime/post_aggregation_prediction_recalibration.py",
+                    "runtime/training_responsibility_weight_updates.py",
                     "runtime/client_model_cross_evaluation.py",
                     "runtime/model_cross_evaluation.py",
                     "runtime/model_clustering_and_consolidation.py",
