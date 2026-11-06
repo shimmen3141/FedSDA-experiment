@@ -20,6 +20,10 @@ from multiprocessing import get_context
 from pathlib import Path
 from unittest.mock import patch
 
+from tools.research_provisional_candidate_expert.aggregation_time_decisions import (
+    AGGREGATION_TIME_VARIANTS,
+    aggregation_time_policy,
+)
 from tools.research_provisional_candidate_expert.fixed_value_sensitivity import (
     FIXED_VALUE_SENSITIVITY_VARIANTS,
     FixedValues,
@@ -195,6 +199,8 @@ for _variant_name in _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_
     _VARIANTS[_variant_name] = ("fedsda", False, None)
 # 製品の既定（基準版11以降）を、そのまま使う変種。ほかの変種は、基準版10の既定を基点にする（`_execute_job`）。
 _VARIANTS["product-default"] = ("fedsda", False, None)
+for _variant_name in AGGREGATION_TIME_VARIANTS:
+    _VARIANTS[_variant_name] = ("fedsda", False, None)
 for _variant_name in FIXED_VALUE_SENSITIVITY_VARIANTS:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
 # 製品の構成を設定の差し替えなしで使う、R1との照合用の変種。
@@ -233,6 +239,7 @@ _VARIANTS[CANDIDATE_START_DIAGNOSTICS_VARIANT] = ("fedsda", False, None)
 # 組Eのproduct-default系は、基準版16から新しい探索を使う製品の既定の上で評価する。
 # 版10・版12を基点とする変種とIMPROVE-032の選択の差し替えは、実行時に元の探索へ戻す。
 _PRODUCT_DEFAULT_BASED_VARIANTS = (
+    *AGGREGATION_TIME_VARIANTS,
     *FIXED_VALUE_SENSITIVITY_VARIANTS,
     CANDIDATE_START_DIAGNOSTICS_VARIANT,
     *CANDIDATE_INITIALIZATION_VARIANTS,
@@ -2461,7 +2468,15 @@ def _execute_job(job):
     candidate_initialization = {}
     candidate_start_measurements = {}
     fixed_value_measurements = {}
+    aggregation_time_measurements = {}
     with contextlib.ExitStack() as stack:
+        if job["variant"] in AGGREGATION_TIME_VARIANTS or (
+            job["variant"] == "product-default" and job.get("record_aggregation_time_diagnostics", False)
+        ):
+            stack.enter_context(aggregation_time_policy(
+                variant=job["variant"], diagnostics=aggregation_time_measurements,
+                sample_diagnostics=job.get("aggregation_time_sample_diagnostics", False),
+            ))
         if fixed_values is not None or job["variant"] == "product-default":
             stack.enter_context(observe_fixed_value_consumers(
                 values=fixed_values or FixedValues(), diagnostics=fixed_value_measurements,
@@ -2683,6 +2698,11 @@ def _execute_job(job):
     return dict(
         **{key: job[key] for key in ("variant", "dataset", "interval", "seed", "sample_count", "check")},
         accuracy=metrics.prediction_accuracy,
+        **({"aggregation_time_diagnostics": {
+            **aggregation_time_measurements,
+            "communication_volume": dataclasses.asdict(volume),
+            "model_computation_counts": dataclasses.asdict(metrics.model_computation_counts),
+        }} if aggregation_time_measurements else {}),
         **({"fixed_value_sensitivity": fixed_value_measurements} if fixed_value_measurements else {}),
         **({"prediction_period_accuracies": dataclasses.asdict(metrics.prediction_diagnostic_metrics.combined_prediction_period_accuracies)} if job.get("record_prediction_period_metrics", False) else {}),
         concept_accuracies={
@@ -2847,6 +2867,7 @@ def main():
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--print-plan", action="store_true", help="出力先を作らずrunの構成だけを表示する")
     parser.add_argument("--prediction-period-metrics", action="store_true", help="研究用に回復期・定常期の精度も保存する")
+    parser.add_argument("--aggregation-time-sample-diagnostics", action="store_true", help="検査用に集約時判断の標本単位の記録も保存する（既定は要約とイベントのみ）")
     parser.add_argument("--check", action="store_true", help="仮の専門家の重みを常に0にする（検証ありとの一致の照合）")
     parser.add_argument(
         "--resume",
@@ -2864,6 +2885,8 @@ def main():
             sample_count=arguments.sample_count,
             check=arguments.check and _VARIANTS[v][1],
             **({"record_prediction_period_metrics": True} if arguments.prediction_period_metrics else {}),
+            **({"aggregation_time_sample_diagnostics": True} if arguments.aggregation_time_sample_diagnostics else {}),
+            **({"record_aggregation_time_diagnostics": True} if v == "product-default" and any(name in AGGREGATION_TIME_VARIANTS for name in arguments.variants) else {}),
         )
         for d in arguments.datasets
         for i in arguments.intervals
@@ -2882,6 +2905,11 @@ def main():
     done = {job_key(result) for result in results}
     if arguments.prediction_period_metrics and any("prediction_period_accuracies" not in r for r in results):
         raise ValueError("既存の結果に回復期の指標がありません。別の出力先を指定してください")
+    if any(name in AGGREGATION_TIME_VARIANTS for name in arguments.variants) and any(
+        r["variant"] in ("product-default", *AGGREGATION_TIME_VARIANTS) and "aggregation_time_diagnostics" not in r
+        for r in results
+    ):
+        raise ValueError("既存の結果に集約時判断の診断がありません。別の出力先を指定してください")
     jobs = [job for job in jobs if job_key(job) not in done]
     print(f"skipped {len(done)} completed runs, running {len(jobs)}", flush=True)
     # 重いMNISTから先に投げる。
