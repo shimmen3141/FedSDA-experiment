@@ -1,0 +1,77 @@
+{
+  "feature_name": "fedsda-soft-training-single-model-prediction",
+  "created_at": "2026-11-07T00:00:00+09:00",
+  "updated_at": "2026-11-07T00:00:00+09:00",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "独立レビュー2回（GPT-6 Luna medium）。1回目FAIL（Major 5、Minor 2）を全部反映。2回目は技術面PASS相当、残りのMajor 1（D1・D2の状態の記録の食い違い）を主担当が直し、主担当の判断で承認（2026-11-07）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "独立レビュー2回（GPT-6 Luna medium）。1回目FAIL（Major 5、Minor 2）を全部反映。2回目は技術面PASS相当、残りのMajor 1（D1・D2の状態の記録の食い違い）を主担当が直し、主担当の判断で承認（2026-11-07）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "独立レビュー2回（GPT-6 Luna medium）。1回目FAIL（Major 5、Minor 2）を全部反映。2回目は技術面PASS相当、残りのMajor 1（D1・D2の状態の記録の食い違い）を主担当が直し、主担当の判断で承認（2026-11-07）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "独立レビュー2回（GPT-6 Luna medium）。1回目FAIL（Major 5、Minor 2）を全部反映。2回目は技術面PASS相当、残りのMajor 1（D1・D2の状態の記録の食い違い）を主担当が直し、主担当の判断で承認（2026-11-07）"
+    }
+  },
+  "ready_for_implementation": true,
+  "base_revision": "939489ec24df05dbe6129eedbbac454c590b735e",
+  "specification_review": {
+    "status": "pending",
+    "reviewer": "GPT-6 Luna",
+    "session_id": "01a1b2b7-6d81-7532-b841-de774c639fef",
+    "verdict": "FAIL",
+    "note": "2026-11-07の独立レビューのMajor 1〜5・Minor 1〜2を反映。修正後の再確認・承認は未実施。元レビュー末尾は下書き確認と記しており、承認へ読み替えない。",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "artifact": "results/_sol_prompts/luna-review-soft-training-single-model-spec.out",
+    "target": "939489ec24df05dbe6129eedbbac454c590b735e上の未コミット仕様書群5ファイル",
+    "rounds": [
+      {
+        "round": 1,
+        "result": "FAIL（Major 5、Minor 2）——全部反映"
+      },
+      {
+        "round": 2,
+        "result": "技術面PASS相当、Major 1（状態の記録の食い違い）——主担当が反映"
+      }
+    ]
+  },
+  "implementation_progress": {
+    "completed": 0,
+    "total": 7
+  },
+  "handoff": {
+    "execution_status": "spec_approved_awaiting_user_go_for_implementation",
+    "next_step": "D1・D2は案Aでユーザーが確定済み（2026-11-07）。仕様書群は主担当の判断で承認した。実装（GPT-6.1-sol）はユーザーの指示を受けてから始める。",
+    "constraints": "この依頼では実装・commit・push・stash・実験は行わない。"
+  },
+  "open_decisions": [
+    {
+      "id": "D1",
+      "status": "user_confirmed",
+      "proposal": "実予測は現在モデルだけとし、学習責任度のために既存softと同じ更新則の独立Fixed-Share状態と同期写しを維持する。",
+      "selected_option": "A",
+      "decision": "主担当の判断（2026-11-07）を、2026-11-07にユーザーが確定（案A）"
+    },
+    {
+      "id": "D2",
+      "status": "user_confirmed",
+      "proposal": "予測の再較正は無し、学習用重みだけ既存softと同じ局所保留損失で再較正し、補助費用を総計測へ含める。",
+      "selected_option": "A",
+      "decision": "主担当の判断（2026-11-07）を、2026-11-07にユーザーが確定（案A）"
+    }
+  ]
+}
