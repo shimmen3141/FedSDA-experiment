@@ -4473,8 +4473,8 @@
     "tests/refactoring/behavior_regression_goldens/v8/windows-amd64-python3.13.15-numpy2.4.6-torch2.12.1+cpu.json": "a6639b64f486416eac3b8a4f3681d87c58585b5b63484be0f54267c89db90d0e",
     "tests/refactoring/behavior_regression_goldens/v9/linux-x86_64-python3.14.4-numpy2.4.6-torch2.12.1+cpu.json": "0bc24473313f1c2fb190f48fc9dcbbc1c3a2451a04f90d8d54792df51493e150",
     "tests/refactoring/behavior_regression_goldens/v9/windows-amd64-python3.13.15-numpy2.4.6-torch2.12.1+cpu.json": "9659ce20f7fbf7c854e9ad86f58ccd5a9773e9f8b8d645563760b20c3e003bde",
-    "tests/refactoring/feddrift_regression_goldens/linux-x86_64-python3.14.4-numpy2.4.6-torch2.12.1+cpu.json": "5159a61a2c1c6074fade52acbd3431a619232e9e378cf6c29842b5f3c2d6db1b",
-    "tests/refactoring/golden/fedsda_without_candidate_validation_random_states.json": "8775f9544640dd0bf80e8d7ecee884bd1d200739f377ce5b1adc5afa001e8a9c",
+    "tests/refactoring/feddrift_regression_goldens/linux-x86_64-python3.14.4-numpy2.4.6-torch2.12.1+cpu.json": "45010c57bb76e908d29d3f23b17468fd8b2e15260043bcb389e0b4941e52b797",
+    "tests/refactoring/golden/fedsda_without_candidate_validation_random_states.json": "1c429a7030a44cc5c20a6cb143eb79ede76b7a9057e8db6676a4e3b08910edc8",
     "tests/refactoring/golden/fedsda_without_candidate_validation_random_states_linux.json": "d3dde8b6284ec9e4c07b6f46d1418c2324a9003b3c421091e1bb0ebec0fca030",
     "tests/refactoring/proposed_regression_goldens/linux-x86_64-python3.10.16-numpy2.2.6-torch2.12.1+cpu.json": "23891facf99474354e50de0c7b4198771de72d99170baf94ee6992ec4e8c55fa",
     "tests/refactoring/proposed_regression_goldens/linux-x86_64-python3.14.4-numpy2.4.6-torch2.12.1+cpu.json": "c4f9f30ebccd5713f768e65ed8e48aa8fdfc5d5bb9b9c6025842bdba2f02601a"
