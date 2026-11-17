@@ -40,3 +40,9 @@
   - Minor 2（構成の一覧の先頭を照合する`test_fedsda_soft_training_configuration.py`がtaskに無い）: 採用。task 3の完了条件に足した。
   - 任意 3（FedDrift系のtestの固定の範囲）: 採用。task 3の完了条件に足した。
 - 2回目（同じLuna、session `01a1ea77-5056-7842-b32d-3ba1a232a519`、対象 `f63f0a82..3fa890d2`）: PASS（指摘なし）。
+
+### 実装（主担当）
+- 設計との違い: `derive_client_model_aggregation_weights`の引数の型のため、`ModelTrainingSampleStore`のimportを足した（designの「Allowed Dependencies」は「新しいimportは足さない」としていた）。依存の境界の許可集合（`test_single_run_dependency_boundaries.py`の`runtime/server_model_registration_and_aggregation.py`）へ1件登録し、designの記述を直した。
+- testの順: task 1〜4とも、新しいtestを先に書いてREDを確かめてから実装した（task 3は構成の登録の3件、task 4のrunのtestは実装済みの挙動の確認なので最初から通る）。
+- 要求2.4: 小さいrun（sine2・mnist4）では、どのclientも件数を持たない保有モデルが自然には出なかった（逐次実行の記録で該当0回。件数と学習量が異なる集約はsine2で29回、mnist4で26回）。重みの関数を包んでモデル0の件数を全clientで0にするtestを足し、概念固有部が変わらないことを確かめた。
+- 主担当の実測（Windows、固定venv、OMP/MKL 1 thread）: 新しいtestファイルの全件、関連の既存test（構成一覧の照合、FedDrift系の固定の範囲、柔らかい学習、golden、候補の設定）889件、集約の既存test 139件、依存の境界2287件（新しいtestと合わせて）、fresh process smoke、Ruff。`spec_checks.py names`は未登録なし。

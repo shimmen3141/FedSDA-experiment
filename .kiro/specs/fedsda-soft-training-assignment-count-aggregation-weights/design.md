@@ -28,7 +28,7 @@
 - 記録の表・成果物の形式（`fedsda-soft-training`と同じものがそのまま出る）。
 
 ### Allowed Dependencies
-- `server_model_registration_and_aggregation`は、既にimportしている型と、clientの公開のproperty（新しく足す`model_aggregation_weight_source`）だけを使う。新しいimportは足さない。
+- `server_model_registration_and_aggregation`は、既にimportしている型と、clientの公開のproperty（新しく足す`model_aggregation_weight_source`）に加えて、新しい関数の引数の型として`learning.training.model_training_sample_store.ModelTrainingSampleStore`だけをimportする（実装時に追加。依存の境界の許可集合へ登録する。runtimeからlearningへの向きで、既存の依存の方向と同じ）。
 
 ### Revalidation Triggers
 - 柔らかい学習で固い割り当ての標本の保持の規則が変わったとき（件数の意味が変わる）。
