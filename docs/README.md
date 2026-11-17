@@ -69,9 +69,9 @@ Claude・Codexの交代は[共通引継ぎ手順](../.kiro/steering/agent-handof
 - [主軸・貢献・部品の整理](research/method-positioning.md): 論文で何を主軸・貢献とし、部品をどう分けて説明するかの検討資料（調査報告と実験結果から）。
 - [具体的な改善候補](research/improvement-candidates/README.md): 処理の簡略化、計算・通信の効率化、局所的なアルゴリズム調整を1候補1ファイルで追跡。
 - [実装の不具合・改善事項](research/implementation-findings/README.md): 再現条件・影響・移植時の扱い・将来修正を追跡する入口。
-- [Meta-switchingの先行研究・差分・新規性に関する調査報告](<research/FedSDA Meta-switchingの先行研究・差分・新規性に関する調査報告.pdf>): Meta-switchingを対象とした検討資料。コミット保留のローカル資料。
+- 外部の調査報告（Meta-switchingの先行研究の調査報告PDF、FedHASPの先行研究チェック、概念ドリフト下のエキスパート更新法の調査など）は、Git管理外の`references/surveys/`に置く（2026-11-17に`docs/research/`から移した）。
 
-コミット保留の3資料と`results/`はgit cloneだけでは取得できない。コミット対象は後続のユーザー指示で決める。
+コミット保留の`experiments/experiment-results-audit.md`、`results/`、`references/`はgit cloneだけでは取得できない。コミット対象は後続のユーザー指示で決める。
 リファクタリングworktreeにはこれらを複製していない。該当リンクの資料は元checkoutで参照する。
 
 - [現行FedSDAの構成要素比較・判断基準・最終評価手順](experiments/fedsda-component-ablation-analysis.md)

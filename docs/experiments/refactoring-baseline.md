@@ -167,6 +167,8 @@ WSLでは、次の3件が失敗する。どれも環境差であり、goldenやt
 
 ### mainのcheckoutしかない計算機（研究室サーバ）
 
+2026-11-17に`refactor/architecture`を`main`へ統合した。研究室サーバでも、`main`を取得すれば新実装と下のtestがある（以下のworktreeの手順は、統合前のもの）。
+
 リファクタリングの作業は、ブランチ`refactor/architecture`にある（`main`には、新実装`src/`と、上のtestがない）。
 `main`を切り替えずに、別のディレクトリへworktreeを作って実行する。実行中の実験と、`main`の作業ツリーには、
 影響しない。
@@ -347,12 +349,12 @@ FedDrift・FedAvgの保存の形とrun識別子は変わらない。
 環境差だけで既存goldenを上書きしたり、許容誤差を増やしたりしない。未知環境は数値testだけを理由つきでskipし、
 構造/定義検査は必須にする。CPU型番・数値ビルドの差まで完全一致を保証しないためホストCIは数値診断、固定ローカルは全回帰必須。
 
-照合はworktreeルートで、固定環境・OMP/MKL各1thread・MNIST配置を用意して行う。
+照合はリポジトリのルート（`.worktrees/`の下のworktreeなら、そのルートで`venv/`を`venv/`へ読み替える）で、固定環境・OMP/MKL各1thread・MNIST配置を用意して行う。
 
 ```powershell
 $env:OMP_NUM_THREADS='1'
 $env:MKL_NUM_THREADS='1'
-../../venv/Scripts/python.exe -m pytest tests/refactoring/test_important_behavior_regression_goldens.py -q -p no:cacheprovider
+venv/Scripts/python.exe -m pytest tests/refactoring/test_important_behavior_regression_goldens.py -q -p no:cacheprovider
 ```
 
 生成は通常のpytestから呼ばれない。未使用のGit管理外出力を指定し、候補を確認してから対象版へ追加する。
@@ -360,7 +362,7 @@ $env:MKL_NUM_THREADS='1'
 
 ```powershell
 $goldenSourceCommit=git rev-parse HEAD
-../../venv/Scripts/python.exe tests/refactoring/behavior_golden_cases.py --output ../../venv/refactoring-tests/behavior-candidate-windows.json --source-commit $goldenSourceCommit
+venv/Scripts/python.exe tests/refactoring/behavior_golden_cases.py --output venv/refactoring-tests/behavior-candidate-windows.json --source-commit $goldenSourceCommit
 ```
 
 上の生成コマンドは既定で版15の18 caseを生成する。task 5のsrc変更をcommitした後、そのHEADを指定し、未使用の出力先を使う（生成と配置はtask 6）。

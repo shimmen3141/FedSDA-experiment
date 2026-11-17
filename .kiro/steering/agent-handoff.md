@@ -4,7 +4,7 @@
 
 ## 作業場所と正本
 
-両方のエージェントで、このリファクタリングworktreeを作業フォルダとして開く。元checkoutのmainとは区別する。Claude用に別のspecや進捗台帳を作らない。同じworktreeを編集する主担当は一度に一人とする。
+両方のエージェントで、リポジトリのルート（`main`の元のcheckout。2026-11-17に`refactor/architecture`を統合した）を作業フォルダとして開く。新しい研究を`.worktrees/`の下のworktreeで行うときは、そのworktreeを開く。Claude用に別のspecや進捗台帳を作らない。同じcheckout・worktreeを編集する主担当は一度に一人とする。
 
 | 情報 | 正本・入口 |
 | --- | --- |
@@ -19,7 +19,7 @@ resumeは要約であり、承認状態を単独で決める根拠にしない�
 
 ## 開始時
 
-1. 作業ディレクトリ、ブランチ（期待は`refactor/architecture`）、HEAD、`git status --short`を確認する。別作業の差分を破棄・上書き・一括stageしない。
+1. 作業ディレクトリ、ブランチ（期待は`main`。研究用のworktreeならそのブランチ）、HEAD、`git status --short`を確認する。別作業の差分を破棄・上書き・一括stageしない。
 2. resumeを読み、対象specのspec.json→tasks.md→requirements.md／design.md／naming.mdを読む（2026-10-09までのspecは、README→spec.json/tasks.md→要求/設計/命名→レビュー/検証）。未完了・レビュー待ちがあれば、新しいspecより先に扱う。
 3. 未コミットの差分があれば、どのspecのどの下位taskのものかを、spec.jsonとtasks.mdに照らして確認する。別commitでのテスト成功を流用しない。
 4. 交代前のセッションの編集・子エージェントの処理が終了していることを確認する。thread IDは証拠の来歴であり、再利用できる接続先ではない。
@@ -27,7 +27,7 @@ resumeは要約であり、承認状態を単独で決める根拠にしない�
 開始依頼の文面:
 
 ```text
-このリファクタリングworktreeのAGENTS.md、.kiro/steering/resume.md、
+このリポジトリのAGENTS.md、.kiro/steering/resume.md、
 .kiro/steering/agent-handoff.mdを読み、Gitと対象specから現在地を確認してください。
 未完了・レビュー待ちを優先し、共有規約に従い、実装前の独立CLIによる仕様書群レビューと、全task後の独立CLIによる実装レビューを維持して続けてください。担当モデルは対象の難度に応じてLuna/Haiku 5.5から選び、利用不能時は他方へ代替してください。
 ```
@@ -68,14 +68,14 @@ claude -p $reviewPrompt --model claude-haiku-5-5 --effort medium --output-format
 codex exec -m gpt-6-luna -c 'model_reasoning_effort="medium"' --sandbox read-only --ephemeral $reviewPrompt
 ```
 
-testを実行させるレビュー（通常のレビュー）のHaikuの起動例（Git Bash、worktreeルート。依頼文はファイルに書いて読み込む。応答のJSONの`result`が本文、`session_id`と`modelUsage`を記録する）:
+testを実行させるレビュー（通常のレビュー）のHaikuの起動例（Git Bash、リポジトリのルート。依頼文はファイルに書いて読み込む。応答のJSONの`result`が本文、`session_id`と`modelUsage`を記録する）:
 
 ```bash
 claude -p "$(cat <依頼文.txt>)" --model claude-haiku-5-5 --effort medium --output-format json --no-session-persistence \
   --tools Read,Glob,Grep,Bash --allowedTools "Read" "Glob" "Grep" \
-  "Bash(../../venv/Scripts/python.exe -m pytest:*)" "Bash(../../venv/Scripts/python.exe -m ruff:*)" \
-  "Bash(../../venv/Scripts/python.exe tests/refactoring/fresh_process_smoke.py)" \
-  "Bash(../../venv/Scripts/python.exe .kiro/settings/scripts/spec_checks.py:*)" "Bash(git status:*)" "Bash(git diff:*)" > <応答.json>
+  "Bash(venv/Scripts/python.exe -m pytest:*)" "Bash(venv/Scripts/python.exe -m ruff:*)" \
+  "Bash(venv/Scripts/python.exe tests/refactoring/fresh_process_smoke.py)" \
+  "Bash(venv/Scripts/python.exe .kiro/settings/scripts/spec_checks.py:*)" "Bash(git status:*)" "Bash(git diff:*)" > <応答.json>
 ```
 
 依頼文には、worktreeの絶対パス、対象（未コミットの差分か、対象commit）、実行してよいコマンドをそのまま書く。応答まで数分かかる（対象testを実行させると10分前後）。
@@ -141,20 +141,20 @@ codex execのWindows sandboxでは一時ディレクトリの操作が拒否さ�
 
 研究室サーバでの実験条件は[tech.mdの「研究実験の実行環境とコマンド」](tech.md#研究実験の実行環境とコマンド2026-10-24更新)を参照する。uraniumは256コア・標準64 workersで、下記の手元検証や旧16コア向けの14 workersの目安と区別する。研究CLIは`--workers`を明示し、旧Pareto用wrapperの使用を一律には要求しない。
 
-worktreeルートで実行する（Git Bash）。PowerShellでは`$env:NAME='値'`で同じ環境変数を設定し、`$PY`を`../../venv/Scripts/python.exe`へ読み替える。このPCの共有Pythonは`../../venv/Scripts/python.exe`。日本語ファイルを読むPowerShellでは`Get-Content -Encoding UTF8`を使う。
+リポジトリのルートで実行する（Git Bash）。`.worktrees/`の下のworktreeで実行するときは、`venv/`・`data/`を`../../venv/`・`../../data/`へ読み替える（venvとデータは元のcheckoutにだけある）。PowerShellでは`$env:NAME='値'`で同じ環境変数を設定し、`$PY`を`venv/Scripts/python.exe`へ読み替える。このPCの共有Pythonは`venv/Scripts/python.exe`。日本語ファイルを読むPowerShellでは`Get-Content -Encoding UTF8`を使う。
 
 ```bash
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
-export TMP="$(cd ../../venv/refactoring-tests && pwd -W)"; export TEMP="$TMP"
-export MPLCONFIGDIR="$(cd ../../venv/matplotlib-cache && pwd -W)"
-export FDE_MNIST_DATA_DIR="$(cd ../../data/mnist && pwd -W)"
-PY=../../venv/Scripts/python.exe
+export TMP="$(cd venv/refactoring-tests && pwd -W)"; export TEMP="$TMP"
+export MPLCONFIGDIR="$(cd venv/matplotlib-cache && pwd -W)"
+export FDE_MNIST_DATA_DIR="$(cd data/mnist && pwd -W)"
+PY=venv/Scripts/python.exe
 
 $PY -m pytest tests/refactoring/test_<対象>.py tests/refactoring/test_single_run_dependency_boundaries.py -q -p no:cacheprovider
 $PY -m pytest tests -q -p no:cacheprovider -n 12 --dist loadfile --junitxml="$TMP/<feature名>-full.xml"   # 全pytest。約7分
 $PY -m pytest tests -q -p no:cacheprovider -n 12 --dist loadfile -m "not slow"   # 作業中の確認（重いtestを外す）。約3分半
 $PY -m ruff check src tests/refactoring; $PY -m ruff format --check src tests/refactoring
-$PY -m pyright --pythonpath ../../venv/Scripts/python.exe; $PY -m pip check
+$PY -m pyright --pythonpath venv/Scripts/python.exe; $PY -m pip check
 $PY .kiro/settings/scripts/spec_checks.py identity <feature名> --junit "$TMP/<feature名>-full.xml"
 ```
 
@@ -167,7 +167,7 @@ $PY .kiro/settings/scripts/spec_checks.py identity <feature名> --junit "$TMP/<f
   - 実測（Windows、16コア）: 変更の前は、8 workerで9分36秒〜13分09秒（PCの負荷で変わる）。変更の後は、12 workerで7分03秒、8 workerで7分28秒。軽い組は、12 workerで3分19秒、8 workerで3分27秒（workerごとの、約1万4千件の収集と読込みが、下限になっている）。変更の前（`alarm-wait-for-minimum-change-interval-full.xml`）と、全13957件の合否が一致することを、JUnitの照合で確かめた（増えた1件は、配り方を確かめるtest。構成に固有の経路のtest 8件は、idに構成の名前が付いた）。逐次実行での照合は、していない。結果が逐次と違う疑いがあるときは、`-n`を外して逐次で取り直す。
 - 長い検証の前に、必要な一時ファイル操作と実行環境を短い確認で確かめる。既知の権限エラーがある条件で全suiteを試し直さない。必要な権限は通常の承認手順で扱い、sandbox解除・認証変更を回避策にしない。
 - 待ち時間を減らす（2026-10-10の実測では、作業時間の大半がtoolの待ちだった）: 重いtest（例: `test_observed_sample_processing.py`は全条件で約95秒）は、開発中は`-k`で条件を絞って回し、全条件と全pytest（並列で約11分。2026-10-20）は最後に1回にする。途中の広い確認は、`-m "not slow"`（約3分半）を使う。全pytestや長いコマンドは裏で走らせて、その間に文書を書く。
-- Git Bashでの注意: toolのBashは呼出しごとに作業ディレクトリが元checkoutへ戻ることがあるので、毎回worktreeへ`cd`してから実行する。引用符やbacktick、`\n`を含むscriptをheredocで書くと壊れやすいので、ファイルとして書いてから実行する。変異toolや整形は対象ファイルを書き換えるので、worktreeで実行する前に`pwd`を確かめる。
+- Git Bashでの注意: toolのBashは呼出しごとに作業ディレクトリが元checkoutへ戻ることがあるので、毎回、作業するcheckout・worktreeへ`cd`してから実行する。引用符やbacktick、`\n`を含むscriptをheredocで書くと壊れやすいので、ファイルとして書いてから実行する。変異toolや整形は対象ファイルを書き換えるので、worktreeで実行する前に`pwd`を確かめる。
 - 所要時間を報告するときは、会話記録のtimestampで、モデルの時間・toolの待ち・ユーザーの指示待ちを分けて測る（commitの時刻だけで推定しない）。
 - source hashは、tracked Pythonと2goldenを、パス昇順でLF内容として連結したもの（`spec_checks.py identity`が計算する）。2026-10-09までのspecは、文書ごとの承認hashも持つ。
 - 全pytestの件数は、前specの件数に今回追加したtest数を足した数と一致することを確かめる。
@@ -180,7 +180,7 @@ $PY .kiro/settings/scripts/spec_checks.py identity <feature名> --junit "$TMP/<f
 
 - commit/pushは対象ファイルを明示し、日本語メッセージ・AI coauthorなしで行う。保留中の3資料を自動でstageしない。commit後にGit状態を確認する。
 - pushはcommitの区切りごとに通常pushを1回だけ試す。失敗時は原因探索・連続再試行をせず、次のpush成功時に未送信commitも送る。
-- `../../venv/refactoring-tests/`（元checkoutのvenv配下、このPCだけ、Git管理外）に、各specの変異の`report.json`とlog、全pytestのJUnit、レビューの出力を置く（2026-10-09より前のspecは、個別のfresh CPU smokeと変異scriptもここにある）。別PCでは存在しないので、必要なら対象specのintegration-validation.mdから作り直す。results・保留資料・venvもGitで共有されるとは限らない。
+- `venv/refactoring-tests/`（元checkoutのvenv配下、このPCだけ、Git管理外）に、各specの変異の`report.json`とlog、全pytestのJUnit、レビューの出力を置く（2026-10-09より前のspecは、個別のfresh CPU smokeと変異scriptもここにある）。別PCでは存在しないので、必要なら対象specのintegration-validation.mdから作り直す。results・保留資料・venvもGitで共有されるとは限らない。
 - 中断・交代の前に、spec.jsonへ未完了の状態（進行中／レビュー待ち／検証待ち）と次の一手を記録し、resumeを更新する。
 
 ## cc-sdd

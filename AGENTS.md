@@ -1,11 +1,12 @@
-# リファクタリングworktreeの規約
+# FedSDA-experimentの規約
 
 - 承認は、実装担当と独立したレビュー担当（日常的・分量の多いレビューはGPT-6 Luna、やや複雑・難易度の高い実装のレビューはClaude Haiku 5.5を優先。利用不能時は他方。effortはどちらも`medium`を明示）と、主担当による有用な指摘の反映で行う。自己レビューで代替しない。
 - 進め方とレビューの回数（実装前の仕様書群レビューと、全task後の実装レビューを各1回）、モデルの選択と起動コマンド、記録するもの、検証コマンド、specの進め方の正本は[共通引継ぎ手順](.kiro/steering/agent-handoff.md)。命名の範囲と手順は[命名レビュー規約](.kiro/settings/rules/naming-review.md)。ここへ写さない。過去の承認記録は書き換えない。
 
-## worktreeの作業方針
+## 作業場所と方針
 
-- 本worktreeは`refactor/architecture`ブランチ。旧実装の固定基準は`748c3aa`。
+- 2026-11-17に`refactor/architecture`と`docs/fedsda-processing-flow`を`main`へ統合した（ユーザー指示）。以後の作業の基点は`main`の元のcheckout（リポジトリのルート）。新しい研究（例: 1クライアント版）は、`main`から分けたブランチと`.worktrees/`の下のworktreeで行う。旧実装の固定基準は`748c3aa`。
+- Git管理外の置き場（`.gitignore`）: 実験の結果は`results/`（全worktreeの結果をここへ集める）、データは`data/`、参照資料は`references/`（`code/`にclone、`papers/`に論文、`surveys/`に外部の調査報告）、退避した過去の作業物は`archive/`。
 - 方針の正本は[リファクタリング方針](docs/research/refactoring-policy.md)、進捗・変更仕様は`.kiro/specs/`で管理する。
 - セッション開始・再開時は、`.kiro/steering/resume.md`から入り、共通引継ぎ手順の「開始時」に従って、対象specの`spec.json`・`tasks.md`で現在の合意と未完了の事項を確認する。
 - 名前は短さより、意味の明確さ・他の概念と混同しないこと・実態との一致を優先する。
@@ -19,7 +20,6 @@
   cc-sddの`-y`・`--auto`、以前の「開始して」という依頼、時間経過を承認として扱わない。人間の承認を毎段階で再要求せず、レビューのsession・判定・指摘の採否を対象specへ記録する。
   現在の状態は対象specの`spec.json`・`tasks.md`から確認する。
 - 移植対象の数値・判断・時系列をgoldenと照合する。新APIとの対応付けはテスト側で明示する。
-- 基準worktreeには3つのコミット保留資料とresultsがある。本worktreeへ自動コピー・stageしない。
 - コミット・プッシュは2026-10-03にユーザーが許可済み。検証済みで切り戻しやすい責務の単位で行い、対象ファイルを明示してstageする。
 
 ## 既存実装向けの開発規約
@@ -44,11 +44,10 @@
 
 - 文書の入口は`docs/README.md`。全体説明は`overview/`、個別機能は`components/`、
   実験資料は`experiments/`、設定参照は`reference/`、研究検討資料は`research/`へ置く。
-- 2026-10-02のユーザー指示により、以下の3ファイルはgit管理外のままコミット判断を保留している。
+- 2026-10-02のユーザー指示により、`docs/experiments/experiment-results-audit.md`はgit管理外のままコミット判断を保留している。
   移動したことを理由に自動でstage・commitしない。後続のユーザー指示で扱いを決める。
-  - `docs/experiments/experiment-results-audit.md`
-  - `docs/overview/fedsda-processing-flow.html`
-  - `docs/research/FedSDA Meta-switchingの先行研究・差分・新規性に関する調査報告.pdf`
+  （同じときに保留した`docs/overview/fedsda-processing-flow.html`は2026-11-17に統合でcommitし、
+  `FedSDA Meta-switchingの先行研究・差分・新規性に関する調査報告.pdf`は外部の調査報告として`references/surveys/`へ移した。）
 
 ## 実験実行環境とコマンド
 

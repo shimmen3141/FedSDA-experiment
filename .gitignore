@@ -14,9 +14,15 @@ results_*/
 *.npz
 /data/mnist/
 
-# 参照用に clone した外部リポジトリ・論文(この repo には含めない)
-/FedDrift/
-/FedDrift_paper/
+# 参照資料(この repo には含めない)。references/code/ に clone した外部リポジトリ、
+# references/papers/ に論文、references/surveys/ に外部の調査報告を置く。
+/references/
+# 退避した過去の作業物(旧worktreeの検証の証拠、統合前の古い下書きなど)
+/archive/
+# 検証・試運転の一時出力
+/.tmp/
+/.validation-*/
+.pytest_cache/
 
 # OS / エディタ
 .DS_Store

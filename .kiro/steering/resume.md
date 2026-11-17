@@ -4,6 +4,7 @@
 
 ## 現在地
 
+- 2026-11-17: ユーザー指示で`refactor/architecture`と`docs/fedsda-processing-flow`を`main`へ統合し、作業の基点を`main`の元のcheckout（リポジトリのルート）にした。`.worktrees/refactoring`は片付けた（Git管理外の検証の証拠は`archive/refactoring-worktree/`へ、結果は`results/`へ移した）。参照資料は`references/`（`code/`・`papers/`・`surveys/`）、結果は`results/`、退避物は`archive/`（いずれもGit管理外）。1クライアント版の研究は、後で`main`から分けたブランチとworktreeで始める（未作成）。予備実験の結果は[計画と結果](../../docs/research/fedhasp-single-client-pilot-v16.md)。
 - 2026-11-07: [柔らかい学習＋単体予測](../specs/fedsda-soft-training-single-model-prediction/tasks.md)はTask 1・2・3・5を実装。Task 4の未達検査とTask 6の独立CLI承認・環境制約を残す。commit・push・stashは禁止、差分は作業ツリー。Task 7の本規模実行と実集計は主担当。詳細と検査証拠は対象spec。
 - 2026-10-29: [fedsda-every-sample-change-interval-search-default](../specs/fedsda-every-sample-change-interval-search-default/tasks.md)はTask 1〜5を完了（実装レビューPASS、全pytest 13,239 passed・失敗0、WSL 472 passed）。同日のユーザー判断で、逆向きの1本の流れで1件刻みに測る扱いを基準版16の既定にする。本規模の640 runで基準版15の既定との精度差は平均+0.01〜+0.02pp（[IMPROVE-032](../../docs/research/improvement-candidates/improve-032-reverse-order-prequential-code-for-all-change-intervals.md)）。
 - **最新の総括・再開順は[研究の引継ぎ（2026-10-26）](../../docs/research/research-handoff-20261026.md)**。Claude交代後の一連の研究、結果の所在、訂正、未着手事項をまとめている。
@@ -77,7 +78,7 @@
 
 - 2026-10-24の研究作業: [E1a](../../docs/research/fedsda-mixing-past-posteriors-e1a-20261024.md)と[E2](../../docs/research/fedsda-class-conditioned-prediction-e2-20261024.md)の検証を完了。E2は短い予備対照に加えてMNIST4の5,000標本・4 seedまで確認したが、改善が小さく専用枝単独は低下したため、現行形は未採用・本規模化見送り。製品は基準版12のまま。検証・レビュー・数値と採否の正本は各研究記録。E1aの原因の時系列診断、E1b/E3の試作は未実施。研究ツール段階ではspec不要、本実装を決めたらcc-sddというユーザー指示を維持する。1時間以上かかる見込みの実験は55分おきに確認し、早く完了通知が来たらその時点で分析する。
 
-- 作業場所は`.worktrees/refactoring`、ブランチは`refactor/architecture`。mainへはまだマージしない。同じworktreeの主担当は一人にする。
+- 作業場所はリポジトリのルート、ブランチは`main`（2026-11-17に統合。それまでは`.worktrees/refactoring`の`refactor/architecture`）。同じcheckoutの主担当は一人にする。
 - **研究の現在地と次の一手は[最新の研究引継ぎ（2026-10-26）](../../docs/research/research-handoff-20261026.md)を最初に読む**。10月23日の引継ぎは交代時点の背景資料。
 - 直近に完了したspecは[fedsda-loss-monitor-rebaseline-and-all-evaluating-clients](../specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)（基準版13。損失の低下で監視の基準を下げる扱いと、評価clientの上限の撤廃を既定にした）。その前は[fedsda-cross-evaluation-clients-with-target-samples](../specs/fedsda-cross-evaluation-clients-with-target-samples/tasks.md)（基準版12）。
 - FedSDAと比較構成、FedDrift、単一モデルのFedAvg（旧Oblivious）の移植・全体run・成果物・掃引入口は接続済み。旧実装は参照として残っている。古い移植順を次の作業と誤認しない。
@@ -126,7 +127,7 @@
 - 過去の独立回収prototypeは旧source hash固定の研究再現用。通常実行は最新ブランチを取得する。uraniumが一時detached HEADだったためブランチ復帰手順を案内済みだが、サーバ側更新の完了は未確認。
 - サーバ実行と転送はユーザー担当（踏み台経由）。長時間実験はLinux `.venv`・tmux、各数値ライブラリ1thread。uraniumのコア数だけでworkerを増やさず、メモリ・負荷を確認する。
 - Windows検証Pythonは元checkoutの`venv/Scripts/python.exe`。Linux検証WSLは`Ubuntu`を明示する（既定がdocker-desktopになっていた）。MNIST入力・固定環境は基準文書に従う。
-- 研究入力・生の結果・一時スクリプトの多くはGit管理外。`results/`が存在するこのworktreeと、Gitだけをcloneした環境は同じではない。各報告の入力パスと完全性を確認し、一括stageしない。
+- 研究入力・生の結果・一時スクリプトの多くはGit管理外。`results/`が存在するこのcheckoutと、Gitだけをcloneした環境は同じではない。各報告の入力パスと完全性を確認し、一括stageしない。
 
 ## 未解消の事項・次の候補
 
@@ -136,7 +137,7 @@
 - LEGACY-001とLEGACY-014の概念計数は旧実装を外した後に直す判断、NEW-004は旧依存の計算量照合を外す準備の記録。LEGACY-019の改名参照除外の頻度・影響は未確認。詳細と変更時期は各記録を参照する。
 - 未移植の細目はUNPORTED-001（検出episode）、002（参照も学習する検証）、003（回復期限定の混合）。現在の不具合や移植漏れと自動判定しない。その他の診断追加や旧実装削除は、目的・依存を確認してから仕様化する。
 - 一部の古いspecはtask完了でもphaseが`implementation-complete`等のまま。履歴上の状態表現と直近specの未完了を混同せず、spec.jsonとtasksの証拠を読む。
-- 動作図HTMLは別ブランチ`docs/fedsda-processing-flow`で整理・push済み、専用worktreeは削除済み。mainへのマージは保留。refactoringへ自動コピー・混在させない。
+- 動作図HTMLは2026-11-17に`main`へ統合した（`docs/overview/fedsda-processing-flow.html`）。refactoringへ自動コピー・混在させない。
 
 ## 直近・主要な完了spec
 
