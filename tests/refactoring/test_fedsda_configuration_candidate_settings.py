@@ -5,6 +5,9 @@ import pytest
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
 )
+from federated_learning_experiments.runtime.dynamic_weighted_majority_run_settings import (
+    DynamicWeightedMajorityRunSettings,
+)
 from federated_learning_experiments.runtime.fedavg_run_settings import FedavgRunSettings
 from federated_learning_experiments.runtime.feddrift_run_settings import FeddriftRunSettings
 from federated_learning_experiments.runtime.fedsda_experiment_run import (
@@ -40,7 +43,7 @@ def fedsda_configuration_names():
                 configuration_name=name, experiment_run_conditions=_CONDITIONS
             )
         )
-        not in (FedavgRunSettings, FeddriftRunSettings)
+        not in (FedavgRunSettings, FeddriftRunSettings, DynamicWeightedMajorityRunSettings)
     ]
 
 

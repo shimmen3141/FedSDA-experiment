@@ -24,6 +24,16 @@ from federated_learning_experiments.core.run_provenance import (
 from federated_learning_experiments.core.settings_serialization import (
     convert_settings_to_plain_mapping,
 )
+from federated_learning_experiments.runtime.dynamic_weighted_majority_experiment_run import (
+    execute_dynamic_weighted_majority_experiment_run,
+)
+from federated_learning_experiments.runtime.dynamic_weighted_majority_run_artifact_files import (
+    load_dynamic_weighted_majority_run_artifacts,
+    save_dynamic_weighted_majority_experiment_run,
+)
+from federated_learning_experiments.runtime.dynamic_weighted_majority_run_settings import (
+    DynamicWeightedMajorityRunSettings,
+)
 from federated_learning_experiments.runtime.fedavg_experiment_run import (
     execute_fedavg_experiment_run,
 )
@@ -117,9 +127,11 @@ def _validate_run_settings_type(planned_run: PlannedExperimentRun) -> None:
         FedsdaRunSettings,
         FeddriftRunSettings,
         FedavgRunSettings,
+        DynamicWeightedMajorityRunSettings,
     ):
         raise TypeError(
-            "run_settings must be exact FedsdaRunSettings, FeddriftRunSettings or FedavgRunSettings"
+            "run_settings must be exact FedsdaRunSettings, FeddriftRunSettings, FedavgRunSettings "
+            "or DynamicWeightedMajorityRunSettings"
         )
 
 
@@ -151,7 +163,9 @@ def find_existing_run_state(
         )
     try:
         loader = (
-            load_fedavg_run_artifacts
+            load_dynamic_weighted_majority_run_artifacts
+            if type(planned_run.run_settings) is DynamicWeightedMajorityRunSettings
+            else load_fedavg_run_artifacts
             if type(planned_run.run_settings) is FedavgRunSettings
             else load_feddrift_run_artifacts
             if type(planned_run.run_settings) is FeddriftRunSettings
@@ -273,6 +287,18 @@ def execute_planned_experiment_run(
                 file_stem=planned_run.run_identifier,
                 run_provenance=run_provenance,
             )
+        elif type(planned_run.run_settings) is DynamicWeightedMajorityRunSettings:
+            dynamic_weighted_majority_run = execute_dynamic_weighted_majority_experiment_run(
+                run_settings=planned_run.run_settings
+            )
+            save_dynamic_weighted_majority_experiment_run(
+                experiment_run=dynamic_weighted_majority_run,
+                output_directory=run_directory,
+                file_stem=planned_run.run_identifier,
+                run_provenance=run_provenance,
+            )
+        else:
+            raise TypeError(f"unsupported run_settings type: {type(planned_run.run_settings)!r}")
     except Exception as caught_exception:
         return ExperimentRunOutcome(
             configuration_name=planned_run.configuration_name,

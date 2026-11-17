@@ -338,6 +338,7 @@ CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN: dict[str, str] = {
     "fedsda-synchronized-model-prediction": "tests/refactoring/test_fedsda_synchronized_model_prediction.py",
     "fedsda-synchronized-local-mixture-prediction": "tests/refactoring/test_fedsda_synchronized_local_mixture_prediction.py",
     "fedsda-local-parameter-prediction": "tests/refactoring/test_fedsda_local_parameter_prediction.py",
+    "dwm-neural-network": "tests/refactoring/test_dynamic_weighted_majority_experiment_run.py",
     # 版7では、候補検証の経路を守る大きい条件のケースを、この構成で実行する（構成の名前のケースは無い）。
 }
 _VERSION_1_CASE_NAMES = (

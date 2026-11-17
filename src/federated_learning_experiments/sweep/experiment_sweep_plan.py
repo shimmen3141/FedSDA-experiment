@@ -15,6 +15,9 @@ from federated_learning_experiments.methods.feddrift.adaptive_fedavg_learning_ra
     AdaptiveFedavgLearningRateSettings,
 )
 from federated_learning_experiments.methods.feddrift.driftsurf_state import DriftSurfSettings
+from federated_learning_experiments.runtime.dynamic_weighted_majority_run_settings import (
+    DynamicWeightedMajorityRunSettings,
+)
 from federated_learning_experiments.runtime.fedavg_run_settings import FedavgRunSettings
 from federated_learning_experiments.runtime.feddrift_run_settings import FeddriftRunSettings
 from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
@@ -183,13 +186,21 @@ class PlannedExperimentRun:
 
     configuration_name: str
     run_identifier: str
-    run_settings: FedsdaRunSettings | FeddriftRunSettings | FedavgRunSettings
+    run_settings: (
+        FedsdaRunSettings
+        | FeddriftRunSettings
+        | FedavgRunSettings
+        | DynamicWeightedMajorityRunSettings
+    )
 
 
 def make_run_identifier(
     *,
     configuration_name: str,
-    run_settings: FedsdaRunSettings | FeddriftRunSettings | FedavgRunSettings,
+    run_settings: FedsdaRunSettings
+    | FeddriftRunSettings
+    | FedavgRunSettings
+    | DynamicWeightedMajorityRunSettings,
 ) -> str:
     """`<dataset>_interval<集約間隔>_seed<seed>_<hash>`を返す。
 
@@ -200,9 +211,15 @@ def make_run_identifier(
         raise TypeError("configuration_name must be builtin str")
     if not configuration_name:
         raise ValueError("configuration_name must not be empty")
-    if type(run_settings) not in (FedsdaRunSettings, FeddriftRunSettings, FedavgRunSettings):
+    if type(run_settings) not in (
+        FedsdaRunSettings,
+        FeddriftRunSettings,
+        FedavgRunSettings,
+        DynamicWeightedMajorityRunSettings,
+    ):
         raise TypeError(
-            "run_settings must be exact FedsdaRunSettings, FeddriftRunSettings or FedavgRunSettings"
+            "run_settings must be exact FedsdaRunSettings, FeddriftRunSettings, FedavgRunSettings "
+            "or DynamicWeightedMajorityRunSettings"
         )
     canonical_text = dumps(
         {
@@ -426,7 +443,10 @@ def build_planned_experiment_runs(
 
 
 def _replace_feddrift_training_round_count(
-    run_settings: FedsdaRunSettings | FeddriftRunSettings | FedavgRunSettings,
+    run_settings: FedsdaRunSettings
+    | FeddriftRunSettings
+    | FedavgRunSettings
+    | DynamicWeightedMajorityRunSettings,
     round_count: int,
 ) -> FeddriftRunSettings:
     """窓構成のserver設定だけを替え、参加者の組合せの検査を通す。"""

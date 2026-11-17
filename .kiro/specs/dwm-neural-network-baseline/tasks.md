@@ -28,7 +28,7 @@
   - _Depends: 3_
   - _Requirements: 3.2, 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 5. 構成`dwm-neural-network`を掃引へ接続する
+- [x] 5. 構成`dwm-neural-network`を掃引へ接続する
   - 構成名の定数を一覧の末尾へ足し、設定の組立て・計画の型・実行と保存・既存の結果の読込み（FedSDAの読込みへ落ちる前の明示の分岐）へDWMを振り分ける。構成の名前の一覧を固定で照合している既存のtest（`test_fedsda_configuration_variants.py`の完全一致と変種の集合の差、`test_fedsda_configuration_candidate_settings.py`の設定の型の除外、`test_soft_training_single_model_prediction.py`の末尾の照合）と、`behavior_golden_cases.py`の`CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN`へ、design「Modified Files」のとおりDWMを足す（既存の名前・順・goldenは変えない）。`docs/experiments/experiment-sweep.md`の構成の一覧へ、目的と`fedavg`・論文のDWMとの違いを書く。
   - 完了条件: `tests/refactoring/test_dynamic_weighted_majority_experiment_sweep.py`で、計画・実行・保存・一覧のCSV・再開（完了済みの飛ばし、片方だけのファイルの競合）が通り、FedDrift系の軸を指定してもDWMのrunが増えず、既存の構成の名前・順・runの識別子が変わらない。上の既存の4ファイルのtestと`test_important_behavior_regression_goldens.py`が通る。DWMの分岐が設定の組立ての既定の経路（FedSDA）より前にあり、保存の振り分けでどの型にも当たらなければ例外になる。`test_dynamic_weighted_majority_experiment_run.py`が、`CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN`で`dwm-neural-network`が自分のファイルに割り当てられていることを確かめる（既存の保護対象の専用testと同じ形）。
   - _Depends: 4_

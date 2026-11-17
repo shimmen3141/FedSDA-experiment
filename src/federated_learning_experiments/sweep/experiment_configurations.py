@@ -21,6 +21,10 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment.trai
     MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME,
     REINITIALIZED_LEARNER_POLICY_NAME,
 )
+from federated_learning_experiments.runtime.dynamic_weighted_majority_run_settings import (
+    DynamicWeightedMajorityRunSettings,
+    build_default_dynamic_weighted_majority_run_settings,
+)
 from federated_learning_experiments.runtime.fedavg_run_settings import (
     FedavgRunSettings,
     build_default_fedavg_run_settings,
@@ -94,6 +98,8 @@ MINIMUM_INTERVAL_MULTIPLES_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME = (
 # 提案構成から、「新しいモデル」の仮説のwarm startの学習者だけを外す構成。
 WITHOUT_WARM_STARTED_LEARNER_CONFIGURATION_NAME = "fedsda-without-warm-started-learner"
 FEDDRIFT_ORACLE_CONCEPT_ASSIGNMENT_CONFIGURATION_NAME = "feddrift-oracle-concept-assignment"
+# `fedavg`と同じ学習器を専門家にしたDynamic Weighted Majority（Kolter & Maloof 2007の図1）。clientごとに独立で、集約しない。
+DYNAMIC_WEIGHTED_MAJORITY_NEURAL_NETWORK_CONFIGURATION_NAME = "dwm-neural-network"
 FEDDRIFT_IFCA_WINDOW_CONFIGURATION_NAME = "feddrift-ifca-window"
 FEDDRIFT_IFCA_WINDOW_PRETRAINED_CLUSTER0_CONFIGURATION_NAME = (
     "feddrift-ifca-window-pretrained-cluster0"
@@ -164,6 +170,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     SOFT_TRAINING_CONFIGURATION_NAME,
     TRAINING_MASS_DIAGNOSTICS_CONFIGURATION_NAME,
     SOFT_TRAINING_SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
+    DYNAMIC_WEIGHTED_MAJORITY_NEURAL_NETWORK_CONFIGURATION_NAME,
 )
 
 
@@ -263,7 +270,9 @@ def _replace_candidate_acceptance_and_shared_feature_update(
 
 def build_experiment_run_settings(
     *, configuration_name: str, experiment_run_conditions: ExperimentRunConditions
-) -> FedsdaRunSettings | FeddriftRunSettings | FedavgRunSettings:
+) -> (
+    FedsdaRunSettings | FeddriftRunSettings | FedavgRunSettings | DynamicWeightedMajorityRunSettings
+):
     """構成の名前と実行条件から、1 runの完全なrun設定を作る。"""
     if type(configuration_name) is not str:
         raise TypeError("configuration_name must be builtin str")
@@ -352,6 +361,11 @@ def build_experiment_run_settings(
                     else None,
                 ),
             ),
+        )
+    # FedSDAの構成を返す既定の経路より前に置く（当たらない名前はFedSDAの設定になるため）。
+    if configuration_name == DYNAMIC_WEIGHTED_MAJORITY_NEURAL_NETWORK_CONFIGURATION_NAME:
+        return build_default_dynamic_weighted_majority_run_settings(
+            experiment_run_conditions=experiment_run_conditions
         )
     if configuration_name == "fedavg":
         return build_default_fedavg_run_settings(
