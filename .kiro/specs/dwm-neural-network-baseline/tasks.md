@@ -14,14 +14,14 @@
   - _Depends: 1_
   - _Requirements: 1.1, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.6, 2.7, 3.1_
 
-- [ ] 3. DWMのrunの設定・サーバ・参加者の準備を実装する
+- [x] 3. DWMのrunの設定・サーバ・参加者の準備を実装する
   - 参加者の設定とrunの設定（β・θ・pの範囲の検査を含む）、`fedavg`の既定から値を取り出してβ=0.5・θ=0.01・p=50を足す既定の組立て、同期で何もせず通信量0を記録するサーバ、事前学習1回でclientとサーバを準備するfactoryを作る。
   - 完了条件: 既定の組立てが`fedavg`と同じ実行・事前学習・構造・optimizer・batch・更新の回数・指標の設定を持つことと、範囲外のβ・θ・pの拒否、factoryが各clientへ同じ初期状態（事前学習の直後）を渡すこと、サーバの同期で通信量が0のままであることをtestで確かめる。
   - _Boundary: runtime（DWMの設定・サーバ・参加者）_
   - _Depends: 2_
   - _Requirements: 1.1, 1.2, 2.5, 3.1, 3.2, 3.3_
 
-- [ ] 4. DWMの全体run・指標・記録の表・保存を実装する
+- [x] 4. DWMの全体run・指標・記録の表・保存を実装する
   - 計測つきの全体run、FedAvgと同じ項目の指標の導出（design「runtime」の各項目のDWMでの意味、検出0件の検出の指標）、design「Data Models」の表の対応どおりの記録の名前付きの配列、JSON・NPZの保存と読込み（`method_name`の確認を含む）を作る。
   - 完了条件: `tests/refactoring/test_dynamic_weighted_majority_experiment_run.py`で、SINE2・SEA2の小さい条件の全体runの指標が記録から導いた値と一致し、通信量0、保存→読込みの往復で値が一致し、既存ファイルがあるときに上書きせず拒否する。
   - _Boundary: runtime（DWMの全体run・記録・保存）_
