@@ -131,6 +131,7 @@
 
 ## 未解消の事項・次の候補
 
+- 2026-11-17ユーザー指示（未着手）: 掃引が全部完了したら、`.resume`（runごとの開始の記録のJSON。中断したrunの安全な再開にだけ使う）を1つの圧縮ファイルにまとめる。研究室サーバからの転送でファイル数が多く時間がかかるため。製品の変更なのでcc-sddのspecで進める。既存の結果の`.resume`は、同日のユーザー判断で削除してよいことになった。
 - 候補検証を単純化しV/O両方に優位となる方式として、検証なし＋候補の共有部の固定を採用した（[研究記録](../../docs/research/fedsda-provisional-candidate-expert-20261019.md)）。検証なしのMNIST2の低下が共有部の上書きから来るという説明は、固定で低下が消えたことと合うが、直接の切り分けではない。
 - 純粋予測方式seed5〜9の240run、手法比較（間隔100/500）seed5〜9の180runは補完コマンドを提示済みだが、実行・結果受領は未確認。確認なしに完了扱い・再発注しない。
 - LEGACY/IMPROVE/NEW/UNPORTEDの現在の採否は[実装findings](../../docs/research/implementation-findings/README.md)と[改善候補](../../docs/research/improvement-candidates/README.md)が正本。10/13以降の修正・採否を、古い「残るLEGACYをまとめて判断」へ戻さない。
