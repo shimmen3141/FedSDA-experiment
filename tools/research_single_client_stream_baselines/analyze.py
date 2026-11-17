@@ -6,6 +6,10 @@
 - --river: river_baselines.pyの出力先（省略可。繰り返して複数指定できる）。--streamsと同じ順に組で使う。
 - --streams: stream_export.pyの書き出し先（--riverと組で指定する。系列だけの照合はしない）。
   特徴の表現が生の特徴でない結果は、手法の名前に`@<表現>`を付けて別の手法として並べる。
+- --dwm: 構成`dwm-neural-network`（`fedavg`と同じ学習器を専門家にしたDWM）の掃引の結果のディレクトリ（省略可。
+  その下の`dwm-neural-network/`を読む）。DWMは集約しないので集約の間隔によって結果が変わらず、間隔は1つだけを
+  受け付ける。Riverと同じく間隔を持たない手法として、両方の間隔のFedHASPと対にする。DWMのrunの記録のラベルと
+  真のコンセプトが、同じデータ・seedのFedHASPのrunと全標本で一致しなければ止める。
 - --logs: 掃引・Oracle・Riverの標準出力を保存したログ（省略可）。runごとの経過時間は記録ファイルに無く、
   掃引の出力の行（`[i/N] <構成>/<runの識別子>: completed (<秒>s)`）にだけ出るので、ここから読む。
 
@@ -42,6 +46,7 @@ SOFT_SINGLE = "fedsda-soft-training-single-model-prediction"
 HARD_MIX_LOCAL = "fedsda-local-parameter-prediction"
 SINGLE_MODEL = "fedavg"
 ORACLE = "oracle"
+DWM = "dwm-neural-network"
 PILOT_CONFIGURATIONS = (HARD_MIX, SOFT_MIX, HARD_SINGLE, SOFT_SINGLE, HARD_MIX_LOCAL, SINGLE_MODEL)
 ORACLE_VARIANT_DIRECTORY = Path("product-default-oracle-concept-assignment") / "fedsda"
 
@@ -115,6 +120,8 @@ def load_sweep_configuration(directory, configuration_label):
                 accuracy=float(row["prediction_accuracy"]),
                 sample_count=int(row["per_client_sample_count"]),
                 final_model_count=float(row["final_global_model_count"]),
+                held_model_sample_count=int(row["held_model_sample_count"]),
+                processed_sample_count=int(row["processed_sample_count"]),
                 mac_per_sample=float(
                     row[
                         "computation_cost_summary.client_forward_and_backward_multiply_accumulate_count_per_processed_sample"
@@ -218,6 +225,33 @@ def check_stream_inputs(stream_digests, runs_by_configuration, datasets, interva
     return checked
 
 
+def load_dynamic_weighted_majority(sweep_directory):
+    """DWMの掃引の結果を読み、間隔を持たない手法として(データ, None, seed)の鍵にする。"""
+    runs = load_sweep_configuration(sweep_directory / DWM, DWM)
+    intervals = {interval for _, interval, _ in runs}
+    if len(intervals) != 1:
+        raise ValueError(f"DWMの集約の間隔は1つだけを受け付けます: {sorted(intervals)}")
+    return {(dataset, None, seed): run for (dataset, _, seed), run in runs.items()}
+
+
+def check_run_inputs(runs, reference_runs, intervals):
+    """runの記録のラベルと真のコンセプトが、同じデータ・seedの基準のrun（全間隔）と一致するかを確かめる。"""
+    checked = 0
+    for (dataset, _, seed), run in runs.items():
+        with np.load(run["npz_path"]) as npz:
+            labels = npz["sample_prediction.observed_class_id"]
+            concepts = npz["sample_prediction.observed_concept_id"]
+        for interval in intervals:
+            with np.load(reference_runs[(dataset, interval, seed)]["npz_path"]) as npz:
+                if not (
+                    np.array_equal(labels, npz["sample_prediction.observed_class_id"])
+                    and np.array_equal(concepts, npz["sample_prediction.observed_concept_id"])
+                ):
+                    raise ValueError(f"DWMとFedHASPのrunの入力が一致しません: {dataset} {interval} {seed}")
+            checked += 1
+    return checked
+
+
 def paired_summary(differences):
     values = np.asarray(differences, dtype=float)
     mean = float(values.mean())
@@ -301,6 +335,7 @@ def main(command_arguments=None):
     parser.add_argument("--oracle", type=Path)
     parser.add_argument("--river", type=Path, action="append", default=[])
     parser.add_argument("--streams", type=Path, action="append", default=[])
+    parser.add_argument("--dwm", type=Path)
     parser.add_argument("--logs", type=Path, nargs="*", default=[])
     parser.add_argument("--output", type=Path, required=True)
     arguments = parser.parse_args(command_arguments)
@@ -329,6 +364,14 @@ def main(command_arguments=None):
     (sample_count,) = sample_counts
 
     check_complete(runs_by_method, datasets, intervals, seeds)
+    dwm_check_count = 0
+    if arguments.dwm is not None:
+        dwm_runs = load_dynamic_weighted_majority(arguments.dwm)
+        if {r["sample_count"] for r in dwm_runs.values()} != {sample_count}:
+            raise ValueError("DWMの標本数が予備実験と違います")
+        runs_by_method[DWM] = dwm_runs
+        check_complete(runs_by_method, datasets, intervals, seeds)
+        dwm_check_count = check_run_inputs(dwm_runs, reference, intervals)
     stream_check_count = 0
     for river_directory, streams_directory in zip(arguments.river, arguments.streams):
         river_runs, stream_digests = load_river(river_directory, streams_directory)
@@ -350,6 +393,11 @@ def main(command_arguments=None):
         check_complete(runs_by_method, datasets, intervals, seeds)
 
     comparisons = [c for c in COMPARISONS if c[1] in runs_by_method and c[2] in runs_by_method]
+    if DWM in runs_by_method:
+        comparisons += [
+            ("FedHASP−DWM（同じ学習器）", HARD_MIX, DWM),
+            ("DWM−単一のモデル（DWMの仕組みの効果）", DWM, SINGLE_MODEL),
+        ]
     comparisons += [
         (f"FedHASP−{method.split(':', 1)[1]}", HARD_MIX, method)
         for method in sorted(m for m in runs_by_method if m.startswith("river:"))
@@ -369,6 +417,11 @@ def main(command_arguments=None):
             f"書き出した系列と全構成のrunのラベル・真のコンセプトが{stream_check_count}組で一致。"
             if stream_check_count
             else "Riverの結果は含めていない。"
+        )
+        + (
+            f"DWMのrunとFedHASPのrunのラベル・真のコンセプトが{dwm_check_count}組で一致。"
+            if dwm_check_count
+            else ""
         )
     )
     lines.append("")
@@ -434,6 +487,18 @@ def main(command_arguments=None):
                 + f" | {st.mean(r['mac_per_sample'] for r in selected):.3g}"
                 + f" | {elapsed_cell(configuration, selected, elapsed_seconds)} |"
             )
+    if DWM in runs_by_method:
+        selected = [runs_by_method[DWM][(d, None, s)] for d in datasets for s in seeds]
+        added = []
+        for run in selected:
+            with np.load(run["npz_path"]) as npz:
+                added.append(int((npz["expert_lifetime.created_sample_index"] >= 0).sum()))
+        lines.append(
+            f"| {DWM} | — | 記録なし | — | {st.mean(r['final_model_count'] for r in selected):.2f}"
+            f"（予測の時点の平均 {st.mean(r['held_model_sample_count'] / r['processed_sample_count'] for r in selected):.2f}）"
+            f" | — | {st.mean(added):.2f}（足した専門家） | {st.mean(r['mac_per_sample'] for r in selected):.3g}"
+            f" | {elapsed_cell(DWM, selected, elapsed_seconds)} |"
+        )
     river_methods = [m for m in methods if m.startswith("river:")]
     if river_methods:
         lines.append("")

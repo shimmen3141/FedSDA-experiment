@@ -187,3 +187,8 @@
 - 条件: 2×2の4構成（`fedsda-training-mass-diagnostics`、`fedsda-soft-training`、`fedsda-single-model-prediction`、`fedsda-soft-training-single-model-prediction`）×10データ×間隔50×seed 0〜9、1 client×50,000標本、400 run。製品の掃引の入口を引数だけ変えて使う（コードの変更なし）。
 - 判断の材料（事前に決める）: 2×2の差を、5,000標本の1クライアント（間隔50）と連合学習（間隔50）と並べる。区間の種類ごとの集計（`recurrence_breakdown.py`の方法）も行う。長くした1クライアントの効果が連合学習の値に近づけば、学習データの量と再来の機会で説明できる（仮説1）。5,000標本の値のままなら、連合学習に固有の仕組み（仮説2など）が残る。
 
+
+## DWM（神経網の専門家）の結果の集計の準備（2026-11-17）
+
+- `tools/research_single_client_stream_baselines/analyze.py`に`--dwm <掃引の結果のディレクトリ>`を足した。構成`dwm-neural-network`（spec `dwm-neural-network-baseline`）の結果を、間隔を持たない手法として両方の間隔のFedHASPと対にし、「FedHASP−DWM（同じ学習器）」「DWM−単一のモデル（DWMの仕組みの効果）」を出す。DWMの集約の間隔は1つだけを受け付け、DWMのrunの記録のラベルと真のコンセプトが同じデータ・seedのFedHASPのrun（両方の間隔）と全標本で一致しなければ止める。診断の表には、最後に残った専門家の数、予測の時点の専門家の数の平均、足した専門家の数、標本あたりのMACを出す。
+- 手元の確認: SINE2・SEA2×seed 0〜2・1000標本のDWMの掃引（間隔1000）と、以前の小さい予備実験・Oracle・Riverの結果を合わせて集計が通り、DWMとFedHASPの入力が12組で一致した。
