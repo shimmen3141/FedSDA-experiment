@@ -3,8 +3,9 @@
 入力:
 - --pilot: 製品の掃引の結果（構成ごとのディレクトリに`run_summary.csv`と`runs/*.npz`）。
 - --oracle: 研究ツール`research_oracle_concept_assignment`の出力先（省略可）。
-- --river: river_baselines.pyの出力先（省略可）。--streamsと組で使う。
+- --river: river_baselines.pyの出力先（省略可。繰り返して複数指定できる）。--streamsと同じ順に組で使う。
 - --streams: stream_export.pyの書き出し先（--riverと組で指定する。系列だけの照合はしない）。
+  特徴の表現が生の特徴でない結果は、手法の名前に`@<表現>`を付けて別の手法として並べる。
 - --logs: 掃引・Oracle・Riverの標準出力を保存したログ（省略可）。runごとの経過時間は記録ファイルに無く、
   掃引の出力の行（`[i/N] <構成>/<runの識別子>: completed (<秒>s)`）にだけ出るので、ここから読む。
 
@@ -183,7 +184,9 @@ def load_river(river_directory, streams_directory):
         key = (result["dataset_name"], result["random_seed"], result["sample_count"])
         if key not in stream_digests or stream_digests[key][0] != result["stream_array_sha256"]:
             raise ValueError(f"Riverの結果の系列が書き出しと一致しません: {path.name}")
-        runs_by_method[f"river:{result['method_name']}"][(key[0], None, key[1])] = dict(
+        representation = result.get("feature_representation", "raw")
+        method = f"river:{result['method_name']}" + ("" if representation == "raw" else f"@{representation}")
+        runs_by_method[method][(key[0], None, key[1])] = dict(
             accuracy=result["prediction_accuracy"],
             sample_count=result["sample_count"],
             elapsed_seconds=result["elapsed_seconds"],
@@ -296,14 +299,14 @@ def main(command_arguments=None):
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument("--pilot", type=Path, required=True)
     parser.add_argument("--oracle", type=Path)
-    parser.add_argument("--river", type=Path)
-    parser.add_argument("--streams", type=Path)
+    parser.add_argument("--river", type=Path, action="append", default=[])
+    parser.add_argument("--streams", type=Path, action="append", default=[])
     parser.add_argument("--logs", type=Path, nargs="*", default=[])
     parser.add_argument("--output", type=Path, required=True)
     arguments = parser.parse_args(command_arguments)
     elapsed_seconds = read_elapsed_seconds(arguments.logs)
-    if (arguments.river is None) != (arguments.streams is None):
-        raise ValueError("--riverと--streamsは組で指定してください")
+    if len(arguments.river) != len(arguments.streams):
+        raise ValueError("--riverと--streamsは同じ数だけ、同じ順に組で指定してください")
 
     runs_by_method = RunsByMethod()
     for configuration in PILOT_CONFIGURATIONS:
@@ -327,13 +330,15 @@ def main(command_arguments=None):
 
     check_complete(runs_by_method, datasets, intervals, seeds)
     stream_check_count = 0
-    if arguments.river is not None:
-        river_runs, stream_digests = load_river(arguments.river, arguments.streams)
+    for river_directory, streams_directory in zip(arguments.river, arguments.streams):
+        river_runs, stream_digests = load_river(river_directory, streams_directory)
         for method, runs in river_runs.items():
+            if method in runs_by_method:
+                raise ValueError(f"{method}の結果が複数の--riverにあります")
             if {r["sample_count"] for r in runs.values()} != {sample_count}:
                 raise ValueError(f"{method}の標本数が予備実験と違います")
             runs_by_method[method] = runs
-        stream_check_count = check_stream_inputs(
+        stream_check_count += check_stream_inputs(
             stream_digests,
             {m: runs_by_method[m] for m in runs_by_method.interval_methods},
             datasets,
@@ -341,6 +346,7 @@ def main(command_arguments=None):
             seeds,
             sample_count,
         )
+    if arguments.river:
         check_complete(runs_by_method, datasets, intervals, seeds)
 
     comparisons = [c for c in COMPARISONS if c[1] in runs_by_method and c[2] in runs_by_method]

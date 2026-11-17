@@ -180,6 +180,8 @@ def _run_one(task):
         prediction_accuracy=float(correct.mean()),
         elapsed_seconds=elapsed,
         stream_array_sha256=metadata["array_sha256"],
+        # 書き出しの特徴の表現（記録の無い古い書き出しは生の特徴）。
+        feature_representation=metadata.get("feature_representation", "raw"),
         river_baselines_source_sha256=_source_sha256(),
     )
     temporary = result_path.with_suffix(".tmp.json")
