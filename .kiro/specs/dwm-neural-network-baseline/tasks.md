@@ -34,7 +34,7 @@
   - _Depends: 4_
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-- [ ] 6. 依存の境界・fresh process・全体の検証
+- [x] 6. 依存の境界・fresh process・全体の検証
   - 新しいmoduleの依存の許可集合を`tests/refactoring/test_single_run_dependency_boundaries.py`へ登録し、`tests/refactoring/fresh_process_smoke.py`へDWMの小さい全体runと保存・読込みの流れを足す。naming.mdを実装に合わせ、`spec_checks.py names`を通す。
   - 完了条件: 依存の境界のtestとfresh process smokeが通り、全pytest（goldenを含む）・Ruff・pyrightが通る。既存のgoldenとrunの識別子は変わらない。件数とcommitをImplementation Notesへ記録する。
   - _Depends: 5_
@@ -59,3 +59,21 @@
 ### 仕様書群の再確認（3回目、2026-11-17）
 - 担当: Claude Haiku 5.5（effort medium、読むだけ、session `99adb187-07b9-49ff-9bca-05135164bdf2`、`is_error=false`、`modelUsage`はclaude-haiku-5-5）。判定PASS（Blocker・Majorなし、Minor 4）。
 - 採用（Minor、文書だけの修正なので再確認なし）: (1) 全構成名を回す既存のtestの記述を「型で絞るものは通る、型で絞らないのは1件だけ」に正確にした。(2) DWMの分岐を設定の組立ての既定の経路より前に置き、保存の振り分けで型に当たらなければ例外にすることを書いた。(3) 追加の判断の投票が減衰の直後・正規化と削除の前であることを要求2.2・design・task 1に書いた。(4) 専用testで保護の表への所属を確かめることをtask 5に書いた。
+
+### 実装（2026-11-17）
+- commit: task 1・2 `84a35445`、task 3・4 `1259513d`、task 5 `4dce41bd`、task 6の登録 `06cc2ca2`。main の fixture の修正（下）を `bb2310dd` で取り込んだ。
+- 手順の逸脱: task 3は、testより先に実装を書いた（testは後でtask 4と同じファイル`test_dynamic_weighted_majority_experiment_run.py`にまとめて書いた）。
+- 新しいtest: 規則23、client 13、全体run 13、掃引4（うち1件はslow）。依存の境界は、新しいmoduleの許可集合（末端の名前だけ）とexact検査の一覧への追加、掃引の3 moduleの許可集合へのDWMの名前の追加。fresh process smokeにDWMの全体run・保存・読込みを足した。
+
+### 実装レビュー（2026-11-17）
+- 担当: Claude Haiku 5.5（effort medium、session `07d4e460-b725-4a47-97e8-a2323ac06c18`、`is_error=false`、`modelUsage`はclaude-haiku-5-5）。GPT-6 Lunaは使用量の上限（22:00ごろまで回復しない）で使えず、実装のレビューの優先の担当でもあるHaikuにした。判定PASS（DWMの差分に起因するBlocker・Majorなし）。レビュー担当は新しい4ファイル（53 passed）、依存の境界・構成の照合の既存test（2406 passed、1 failed＝下の既存の失敗）、Ruffを独立に実行した。全pytest・fresh smoke・pyrightは独立に実行していない。
+- 指摘1（Major、差分の外・既存）: 保護するgoldenのhashのfixture（`soft_training_single_model_prediction_existing_configurations.json`、2026-11-07）が、CRLFの内容のhashを記録していた。ユーザーの承認（2026-11-17）を得て、mainで2件（`feddrift_regression_goldens/linux-…json`、`golden/fedsda_without_candidate_validation_random_states.json`）をLFの内容のhashへ直した（main `58c5d571`、このブランチへ`bb2310dd`で取り込み）。goldenの中身は変えていない。
+- 指摘2（Minor）: 保存の振り分けの`else: raise TypeError`は`try`の中なので、runの失敗として記録される。手前の型の検査で先に止まるので到達しない。変更しない。
+- 指摘3（任意）: 専門家ごとに全保持標本を持つので、メモリは専門家の数×標本の数で増える（要求1.4のとおり）。大きいrunでの注意として記録する。
+
+### 全pytest（2026-11-17、HEAD `bb2310dd`、Windows、12 worker、`--dist loadfile`）
+- 13,847 passed、8 skipped、1 failed（15分16秒）。JUnit: `venv/refactoring-tests/dwm-neural-network-baseline-full.xml`。
+- 失敗の1件は`test_research_method_pareto_figure.py::test_statistics_and_outputs`で、Windowsのアプリケーション制御がmatplotlibの使うfontToolsのDLL（`iup`）の読み込みを止めた（`ImportError: DLL load failed ... アプリケーション制御ポリシーによってこのファイルがブロックされました`）。コードの不具合ではなく、単独で再実行して通過した。全pytestを通しで再実行はしていない。
+- `spec_checks.py identity`: `tests.test_regression`・`tests.test_proposed_regression`は成功、作業ツリーに未コミットの差分なし。「固定旧基準748c3aaからの差分が空」はNGだが、差分は過去のspec（2026-11-03〜11-07）が入れた旧実装の`experiment_spec`の3ファイルと、`tools/`の研究ツールで、このspecの前（`b9368285`）から同じ。このspecは旧実装と旧のgoldenに触れていない。
+- Ruff（変更したsourceとtest）、pyright（変更したsource、0件）、fresh process smokeは成功。
+

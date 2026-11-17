@@ -4,6 +4,7 @@
 
 ## 現在地
 
+- 2026-11-17: 1クライアント版の研究のブランチ`research/single-client`（worktree `.worktrees/single-client`）で、比較手法の構成`dwm-neural-network`（`fedavg`と同じ学習器を専門家にしたDWM）を追加した（[spec](../specs/dwm-neural-network-baseline/tasks.md)、実装レビューPASS、全pytestは環境によるDLLの読み込みの拒否の1件を除き通過）。mainへは未統合。
 - 2026-11-17: ユーザー指示で`refactor/architecture`と`docs/fedsda-processing-flow`を`main`へ統合し、作業の基点を`main`の元のcheckout（リポジトリのルート）にした。`.worktrees/refactoring`は片付けた（Git管理外の検証の証拠は`archive/refactoring-worktree/`へ、結果は`results/`へ移した）。参照資料は`references/`（`code/`・`papers/`・`surveys/`）、結果は`results/`、退避物は`archive/`（いずれもGit管理外）。1クライアント版の研究は、後で`main`から分けたブランチとworktreeで始める（未作成）。予備実験の結果は[計画と結果](../../docs/research/fedhasp-single-client-pilot-v16.md)。
 - 2026-11-07: [柔らかい学習＋単体予測](../specs/fedsda-soft-training-single-model-prediction/tasks.md)はTask 1・2・3・5を実装。Task 4の未達検査とTask 6の独立CLI承認・環境制約を残す。commit・push・stashは禁止、差分は作業ツリー。Task 7の本規模実行と実集計は主担当。詳細と検査証拠は対象spec。
 - 2026-10-29: [fedsda-every-sample-change-interval-search-default](../specs/fedsda-every-sample-change-interval-search-default/tasks.md)はTask 1〜5を完了（実装レビューPASS、全pytest 13,239 passed・失敗0、WSL 472 passed）。同日のユーザー判断で、逆向きの1本の流れで1件刻みに測る扱いを基準版16の既定にする。本規模の640 runで基準版15の既定との精度差は平均+0.01〜+0.02pp（[IMPROVE-032](../../docs/research/improvement-candidates/improve-032-reverse-order-prequential-code-for-all-change-intervals.md)）。
