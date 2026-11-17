@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. 集約の重みの元を設定とclientに足す
+- [x] 1. 集約の重みの元を設定とclientに足す
   - `FedsdaRunClientSettings`に`model_aggregation_weight_source`（既定`"training_assignment_amounts"`、もう1つの値`"single_model_assignment_sample_counts"`、既定値を保存しない宣言、`allowed_parameter_values`）を足し、`__post_init__`で型・値と、件数の指定が柔らかい学習以外と組み合わされたときの拒否を行う。`FedsdaRunClient`に読取りだけのpropertyを足す。
   - 完了条件: 新しいtestファイルで、不正な値・型と、固い学習との組合せが`RunSettingsValidationError`になり、柔らかい学習との組合せは通る。既存の`test_soft_training_single_model_prediction.py::test_existing_configuration_mapping_order_identity_and_protected_files`（既存の全構成の設定の写像・hash・識別子が変わらない）が通る。
   - _Boundary: runtime（clientの設定とclient）_

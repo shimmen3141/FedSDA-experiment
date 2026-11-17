@@ -196,7 +196,39 @@ class FedsdaRunClientSettings:
         },
     )
 
+    # 集約で使う、clientのモデルごとの重みの元。既定は、学習の割当方式による今の量（固い学習は固い割り当ての
+    # 件数、柔らかい学習は責任度の合計）。もう1つは、柔らかい学習でも固い割り当ての件数を使う（柔らかい学習でだけ選べる）。
+    model_aggregation_weight_source: str = field(
+        default="training_assignment_amounts",
+        metadata={
+            "omit_default_from_saved_settings": True,
+            "allowed_parameter_values": (
+                "training_assignment_amounts",
+                "single_model_assignment_sample_counts",
+            ),
+        },
+    )
+
     def __post_init__(self) -> None:
+        weight_source = self.model_aggregation_weight_source
+        if type(weight_source) is not str or weight_source not in (
+            "training_assignment_amounts",
+            "single_model_assignment_sample_counts",
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="model_aggregation_weight_source",
+                specified_parameter_value=weight_source,
+                validation_failure_reason="宣言された集約の重みの元を指定してください。",
+            )
+        if (
+            weight_source == "single_model_assignment_sample_counts"
+            and self.training_assignment_strategy != "responsibility_weighted_training"
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="model_aggregation_weight_source",
+                specified_parameter_value=weight_source,
+                validation_failure_reason="固い割り当ての件数での集約は、柔らかい学習（responsibility_weighted_training）でだけ指定できます。",
+            )
         policy = self.training_responsibility_weight_update_policy
         if type(policy) is not str or policy not in (
             "prediction_weight_updates",

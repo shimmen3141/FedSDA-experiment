@@ -257,6 +257,11 @@ class FedsdaRunClient:
         return self._run_client_settings.prediction_combination_settings.prediction_combination_strategy
 
     @property
+    def model_aggregation_weight_source(self) -> str:
+        """集約で使う、このclientのモデルごとの重みの元（設定の値）。"""
+        return self._run_client_settings.model_aggregation_weight_source
+
+    @property
     def short_change_interval_alarm_policy(self) -> str:
         """検出器の合図があり、推定変化区間が最小件数より短いときに、警報とするかどうかの方針（設定の値）。"""
         return self._run_client_settings.loss_change_detection_settings.short_change_interval_alarm_policy
