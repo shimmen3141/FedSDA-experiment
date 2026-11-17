@@ -26,7 +26,7 @@
 - 集約（重みは今どおり責任度の合計。対象外のモデルは学習量が0になり、既存の規則どおり集約に参加しない）。
 
 ### Allowed Dependencies
-- `runtime/released_sample_training_responsibilities.py`は、新しい引数の型として`learning.training.model_training_sample_store.ModelTrainingSampleStore`をimportする（runtimeからlearningへの向き。依存の境界の許可集合へ登録する）。
+- `runtime/released_sample_training_responsibilities.py`は、新しい引数の型として`learning.training.model_training_sample_store.ModelTrainingSampleStore`をimportする（runtimeからlearningへの向き）。依存の境界の許可集合には、既存の登録の形に合わせて、module名`federated_learning_experiments.learning.training.model_training_sample_store`と`...model_training_sample_store.ModelTrainingSampleStore`の両方を登録する。
 
 ### Revalidation Triggers
 - 柔らかい学習で固い割り当ての標本の保持の規則が変わったとき。
@@ -41,16 +41,21 @@
 1. `ModelTrainingSampleStore`に`snapshot_model_ids_with_assigned_samples() -> frozenset[int]`を足す。固い割り当ての標本を1件以上持つモデルIDの集合を返す（標本の列はcopyしない。読むだけ）。
 2. `build_released_sample_responsibility_provider`に、キーワード引数`own_assignment_sample_store: ModelTrainingSampleStore | None = None`を足す。
    - `None`（既定）なら今と同じ。
-   - 与えられたら、重みと確率は今どおり全保有モデルで求め（重みの同期・forwardの順と回数を変えない）、`calculate_training_responsibilities`へ渡す前に、両方の辞書を「`own_assignment_sample_store.snapshot_model_ids_with_assigned_samples()`に含まれるモデル」と`fallback_model_id`だけに絞る。
+   - 与えられたら、重みと確率は今どおり全保有モデルで求め（重みの同期・forwardの順と回数を変えない）、`calculate_training_responsibilities`へ渡す前に、両方の辞書を、保有モデルの辞書の側から「キーが`own_assignment_sample_store.snapshot_model_ids_with_assigned_samples()`に含まれるか`fallback_model_id`に等しいもの」を残す向きで絞る（集合の側から辞書を引かない。保有していないIDを引かないため）。
    - 絞った後の集合は`fallback_model_id`を含むので空にならない。`calculate_training_responsibilities`の検査（重みと確率の集合が同じ、`fallback_model_id`が含まれる）はそのまま通る。正規化は絞った集合の中で行われる。
    - 標本は提供の関数を呼んだ後で固い割り当ての列へ足されるので、初めて固く割り当てられるモデルは`fallback_model_id`として含まれる（要求1.5）。
-3. `FedsdaRunClientSettings`に`training_responsibility_model_scope: str`を足す。値は`"all_held_models"`（既定）と`"models_with_own_assigned_samples"`。metadataは`omit_default_from_saved_settings=True`と`allowed_parameter_values`。`__post_init__`で型・値と、`"models_with_own_assigned_samples"`で`training_assignment_strategy != "responsibility_weighted_training"`の拒否（設定の組立て時なので、runの準備・乱数の消費より前）。
-4. client（`fedsda_run_client.py`の、柔らかい学習の提供の関数を組み立てる2か所）で、設定が`"models_with_own_assigned_samples"`なら`own_assignment_sample_store=owners.training_sample_store`を渡す。既定なら引数を渡さない（今の呼出しと同じ）。
+3. `FedsdaRunClientSettings`に`training_responsibility_model_scope: str`を足す。値は`"all_held_models"`（既定）と`"models_with_own_assigned_samples"`。metadataは`omit_default_from_saved_settings=True`と`allowed_parameter_values`。`__post_init__`で型・値と、`"models_with_own_assigned_samples"`で`training_assignment_strategy != "responsibility_weighted_training"`または`training_responsibility_weight_update_policy != "prediction_weight_updates"`の拒否（設定の組立て時なので、runの準備・乱数の消費より前）。独立したFixed-Shareの重みを使う構成（`fedsda-soft-training-single-model-prediction`の系統）との組合せは、研究の目的に要らないので受け付けない（仕様レビューの任意の指摘8）。
+4. client（`fedsda_run_client.py`の、柔らかい学習の既定の提供の関数を組み立てる箇所。独立した重みの箇所は上の拒否で到達しない）で、設定が`"models_with_own_assigned_samples"`なら`own_assignment_sample_store=owners.training_sample_store`を渡す。既定なら引数を渡さない（今の呼出しと同じ）。
 5. `experiment_configurations`に`SOFT_TRAINING_OWN_ASSIGNED_MODELS_CONFIGURATION_NAME = "fedsda-soft-training-own-assigned-models"`を足し、`EXPERIMENT_CONFIGURATION_NAMES`の末尾に置く。組立ては`fedsda-soft-training`の分岐に含め、`training_responsibility_model_scope="models_with_own_assigned_samples"`だけを追加で替える。
 6. 文書`docs/experiments/experiment-sweep.md`の構成の表に1行を足す。
 
+### 「固い割り当ての標本を持つ」の意味
+- FedSDAの経路では`clear_model_training_samples`が呼ばれず（呼出しはDriftSurf・FedEM・FedDriftの経路だけ）、固い割り当ての列は、ID付け替え（`reassign_model_training_samples_id`で元のIDの列が移る）と統合の`remap`（列がIDに従って移る）以外で減らない。よって「その時点で標本を持つ」は「そのIDで（付け替え・統合の後のIDで数えて）過去に固く割り当てたことがある」と同じ。runのtestで、各呼出しの対象が、そのclientがそれまでに`fallback_model_id`として渡したIDを、付け替え・統合で移した集合と一致することを確かめる。
+
 ### 乱数・計算量・状態の順
-- 提供の関数は乱数を使わない。絞る処理は辞書の選択だけで、forwardの回数・重みの同期は変えないので、計算量の計数（MAC）は`fedsda-soft-training`の同じ状態と同じ。
+- 提供の関数は乱数を使わない。絞る処理は辞書の選択だけで、forwardの回数・重みの同期は変えないので、提供の関数の中の計算量の計数（MAC）は`fedsda-soft-training`の同じ状態と同じ。
+- ただし対象外のモデルは学習量を持たないので、柔らかい学習の更新（`sample_batches`で学習量の無いモデルは飛ばす）と集約（学習量が正のモデルだけが参加）から外れる。run全体の学習のMACと上りの通信量は、`fedsda-soft-training`より小さくなる。結果の報告では、この差を標準指標として併記する。
+- 学習量の記録（`_masses`）のキーの挿入順は、既定では全保有モデルが最初の標本から入るが、制限では対象になった時点で入る。`sample_batches`の乱数の消費はこの順に従うので、乱数の順が`fedsda-soft-training`と同じなのは、全保有モデルが対象である間だけ（要求2.2の範囲）。
 - 対象外のモデルは責任度の辞書に入らないので、学習量の記録・抽出の参加（正の責任度の標本数がbatch以上）に現れず、学習されない。予測・選択・採用は保有モデル全部を今どおり使う。
 
 ### 要求と処理の対応
