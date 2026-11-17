@@ -1,0 +1,70 @@
+{
+  "feature_name": "fedsda-processing-flow-v8",
+  "created_at": "2026-10-17T00:59:13.193913+09:00",
+  "updated_at": "2026-10-17T01:13:23.362604+09:00",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a14573-a2f3-7343-a68a-e635dd28022f",
+    "initial_session_id": "01a14570-5a13-7d90-b46b-0b0212742f0a",
+    "result": "初回PASS。ユーザー追記の評価結果ノードと一時モデルの扱いを追加した変更レビューもPASS。"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a1457c-26b8-7e90-8b9d-689b2e365561",
+    "target_sha256": "926dad4c1d7f7e505abfe0a55158e31140f65cbc513015065acc7512cf54fcbe",
+    "result": "PASS。仕様/全差分/コード根拠/検査証拠を照合しNode構文検査を独立実行。ブラウザ全経路/実時間遷移は主担当の実行証拠で、独立再実行と独立画像確認は未実施。"
+  },
+  "validation": {
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        390,
+        844
+      ],
+      [
+        1440,
+        900
+      ]
+    ],
+    "combinations_each": 18,
+    "frames_each": 472,
+    "issues": 0,
+    "actual_transition_flash": "passed",
+    "standalone_html": "unique ids, no external assets, inline matches target",
+    "old_files": "hashes unchanged",
+    "numeric_tests": "HTMLのみのため未実施",
+    "commit_push": "未実施"
+  }
+}

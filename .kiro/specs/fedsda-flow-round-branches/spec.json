@@ -1,0 +1,67 @@
+{
+  "feature_name": "fedsda-flow-round-branches",
+  "created_at": "2026-10-20",
+  "updated_at": "2026-10-20",
+  "language": "ja",
+  "phase": "completed",
+  "ready_for_implementation": true,
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザー承認と独立Luna high仕様レビューPASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザー承認と独立Luna high仕様レビューPASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザー承認と独立Luna high仕様レビューPASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザー承認と独立Luna high仕様レビューPASS"
+    }
+  },
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "reviewer": "/root/seed_range_review",
+    "findings": 0
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "reviewer": "/root/seed_range_review",
+    "findings": 0,
+    "browser_independent_execution": false
+  },
+  "validation": {
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        1440,
+        900
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "paths": 18,
+    "frames": 411,
+    "page_errors": 0,
+    "html_sha256": "e420555d047170f8eb7634b1fc9d9d4ad0c6dab896de8b88a450d027c2235e01",
+    "evidence": "元checkout venv/flow-browser-check/round-branches-validation.json・round-branches-geometry.jsonと代表PNG",
+    "numeric_pytest": "HTMLのみのため対象外"
+  }
+}

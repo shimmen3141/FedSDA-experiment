@@ -1,0 +1,69 @@
+{
+  "feature_name": "fedsda-processing-flow-v7",
+  "created_at": "2026-10-16T23:55:27.497594+09:00",
+  "updated_at": "2026-10-17T00:09:49.186891+09:00",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a14536-04bb-72c0-bf8e-c8f762f094f6",
+    "result": "PASS。Minor2件は既定の退出中の過渡検査/候補学習検査の確認であり、計画に含めて対応。"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a14541-0884-76b2-840b-101321ea14c7",
+    "target_sha256": "41a05fa08fbc7297a51e6d2975b8a78899922fca2660cb4d3f2d4b2ca21c1d60",
+    "result": "PASS。重大/軽微な指摘なし。提示HTMLと仕様・実装根拠・検査証拠を照合し、Node構文検査を独立実行。ブラウザ全経路/過渡遷移は主担当の実行証拠で、独立再実行は未実施。"
+  },
+  "validation": {
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        390,
+        844
+      ],
+      [
+        1440,
+        900
+      ]
+    ],
+    "combinations_each": 18,
+    "frames_each": 472,
+    "issues": 0,
+    "true_transition_audit": "passed; focus suppressed during inactive exit, parent opacity x state opacity sampled using real elapsed time",
+    "v6_flash_red": "reproduced models:sync 0.22 -> 0.3705575 on N01 to N02",
+    "old_files": "hashes unchanged",
+    "numeric_tests": "HTMLのみのため未実施",
+    "commit_push": "未実施"
+  }
+}

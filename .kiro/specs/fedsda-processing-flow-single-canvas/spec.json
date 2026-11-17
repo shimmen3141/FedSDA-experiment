@@ -1,0 +1,76 @@
+{
+  "feature_name": "fedsda-processing-flow-single-canvas",
+  "created_at": "2026-10-16T17:08:46.402659+09:00",
+  "updated_at": "2026-10-16T17:41:34.794932+09:00",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーの明示した単一画面SVGへの訂正に基づく主担当gate確認"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーの明示した単一画面SVGへの訂正に基づく主担当gate確認"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーの明示した単一画面SVGへの訂正に基づく主担当gate確認"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーの明示した単一画面SVGへの訂正に基づく主担当gate確認"
+    }
+  },
+  "ready_for_implementation": true,
+  "source_reference_commit": "3e6153c",
+  "supersedes_display_design": "fedsda-processing-flow-explainer（ユーザーが説明ページ形式を不採用と明確化）",
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna / claude-haiku-5-5",
+    "effort": "medium",
+    "session_id": "01a143d2-7557-7b81-aa68-98de94dbcecf",
+    "result": "表示方式/寸法/frame/交差のMajorを反映。Haikuで全内容の修正点通過、残った反映後検査のtask記載をLunaで限定PASS。"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a143dd-9f1f-7762-8426-2b161f347519",
+    "result": "PASS。旧形式の一画面固定図、画像overview/learning、図の意味、構文、既存レポートを独立確認。独立ブラウザ再実行はなし。"
+  },
+  "validation": {
+    "frames_per_configuration_and_path_total": 352,
+    "normal_viewports": [
+      [
+        1440,
+        900
+      ],
+      [
+        1280,
+        720
+      ]
+    ],
+    "narrow_viewport": [
+      390,
+      844
+    ],
+    "checks": [
+      "frame順序と全ID集合",
+      "固定bboxと濃淡",
+      "活性線の交差/重複・他箱の横断",
+      "通常サイズの全図/操作が画面内・文字実寸",
+      "キーボード/再生/選択変更時停止/最終停止",
+      "狭幅拡大/全図復帰",
+      "低モーション/通常travelアニメーション",
+      "元HTML反映後の352コマ再検証"
+    ],
+    "python_tests": "未実施。HTML専用、Python/実験/旧golden変更なし",
+    "artifact": "元checkoutへ反映、作業コピーと一致。HTMLはGit管理外/保留のまま",
+    "parallel_head_checked": "c4222ff、参照3e6153cからsrc差分なし"
+  }
+}

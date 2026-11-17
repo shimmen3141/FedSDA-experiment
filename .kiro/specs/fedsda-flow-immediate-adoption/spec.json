@@ -1,0 +1,181 @@
+{
+  "feature_name": "fedsda-flow-immediate-adoption",
+  "created_at": "2026-10-20",
+  "updated_at": "2026-10-20",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "basis": "User-delegated scope; independent Luna high specification review PASS, no findings"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "basis": "User-delegated scope; independent Luna high specification review PASS, no findings"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "basis": "User-delegated scope; independent Luna high specification review PASS, no findings"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "basis": "User-delegated scope; independent Luna high specification review PASS, no findings"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "reviewer": "/root/seed_range_review",
+    "result": "PASS; Blocker/Major/Minor 0"
+  },
+  "implementation_review": {
+    "status": "accepted_after_minor_fix",
+    "initial_verdict": "FAIL",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "reviewer": "/root/seed_range_review",
+    "findings": {
+      "blocker": 0,
+      "major": 0,
+      "minor": 1
+    },
+    "resolution": "SVGの読み上げ説明の旧名称を新モデル作成へ修正。Minorのみのため再レビュー不要の規則を適用。ブラウザ独立再実行なし。"
+  },
+  "validation": {
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        1440,
+        900
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "paths": 18,
+    "frames": 453,
+    "page_errors": 0,
+    "html_sha256": "3fc68016b8172d306fbf184533021880b208b42ace0d673476242dd8caf5e186",
+    "evidence": "元checkoutのvenv/flow-browser-check/validation.jsonとPNG",
+    "numeric_pytest": "HTMLのみのため対象外",
+    "followup_evidence": "元checkout venv/flow-browser-check/connections-validation.json・geometry-validation.json・connections-final-*.png",
+    "latest_followup_evidence": "元checkout venv/flow-browser-check/inline-phase-geometry.json・inline-phase-<幅>-<分岐>.png"
+  },
+  "followup_reviews": [
+    {
+      "scope": "要求5〜7：コピー元・追加先の明示",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_verdict": "PASS",
+      "implementation_verdict": "PASS",
+      "findings": 0,
+      "browser_independent_execution": false,
+      "evidence": "主担当の18経路444コマとPNGを照合。最後の文字サイズ調整は主担当の枠検査で確認。"
+    },
+    {
+      "scope": "要求8〜9：標本受渡しとコピーの分離・同列追加の強調",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_initial_verdict": "FAIL Major 1（対象枠名の略記の曖昧さ。実idと表示名を明記）",
+      "specification_recheck": "PASS（実id確認と対象明記で解消）",
+      "implementation_verdict": "PASS",
+      "implementation_findings": 0,
+      "browser_independent_execution": false,
+      "evidence": "18経路447コマの検証記録とC00/C01/C03のPNGを独立照合"
+    },
+    {
+      "scope": "要求10：新モデル名拡大とR02表示",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_verdict": "PASS",
+      "implementation_verdict": "PASS",
+      "findings": 0,
+      "browser_independent_execution": false,
+      "evidence": "4置換の逆変換一致、18経路447コマ、R02の1280/390 PNGを独立確認。文字は実測から16pxを採用。"
+    },
+    {
+      "scope": "要求11〜13：中継枠撤去・処理記号と直接データ線",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_verdict": "PASS",
+      "implementation_verdict": "PASS",
+      "findings": 0,
+      "browser_independent_execution": false,
+      "evidence": "18経路447コマ、線と文字の非交差、代表PNG、A05/A06/A07最終3画面確認の証拠を独立照合"
+    },
+    {
+      "scope": "要求14〜18：矢印の色・向き・結果とタイムライン左右キー",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_verdict": "PASS",
+      "implementation_verdict": "PASS",
+      "findings": 0,
+      "browser_independent_execution": false,
+      "evidence": "18経路447コマ、色/方向/破線/端点/分岐結果、タイムライン実キーとフォーカス・既存操作、非交差検査と代表PNGを独立照合"
+    },
+    {
+      "scope": "要求19〜20：分岐キー操作と警報処理記号",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_initial_verdict": "FAIL Major 1（要求18との優先関係）",
+      "specification_recheck": "PASS（要求19が上部分岐ラジオについて上書きと明記）",
+      "implementation_verdict": "accepted_after_minor_fix",
+      "implementation_findings": {
+        "major": 0,
+        "minor": 1
+      },
+      "resolution": "修飾キーの対象を既存処理と同じAlt/Ctrl/Metaと明記。Minorのみで再レビュー不要。",
+      "browser_independent_execution": false,
+      "evidence": "18経路453コマ・最終判定PNGを独立照合。主担当が結果3状態×3画面の配置と最終ラベルを追加確認。"
+    },
+    {
+      "scope": "要求21：警報処理記号の寸法と結果の先端表示",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_verdict": "PASS",
+      "implementation_verdict": "PASS",
+      "findings": 0,
+      "browser_independent_execution": false,
+      "evidence": "警報3状態×3画面の寸法・破線・端点・文字配置とW01監視接続の3画面検査・PNGを独立照合。"
+    },
+    {
+      "scope": "要求22：検出と対応の用語",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_verdict": "PASS",
+      "implementation_verdict": "PASS",
+      "findings": 0,
+      "browser_independent_execution": false,
+      "evidence": "3画面×3状態の文言一致・枠内検査と1280/390代表PNGを独立照合。frame/handler不変。"
+    },
+    {
+      "scope": "要求23：分岐選択肢の1行表示",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_verdict": "PASS",
+      "implementation_verdict": "PASS",
+      "findings": 0,
+      "browser_independent_execution": false,
+      "evidence": "3画面×3状態の1行・枠内検査、1280/390のPNG、CSSと改行だけの差分を独立確認。"
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "feature_name": "fedsda-processing-flow-v4",
+  "created_at": "2026-10-16T20:59:54.699793+09:00",
+  "phase": "completed",
+  "language": "ja",
+  "source_reference_commit": "c4222ff",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーv4修正依頼に基づく主担当確認"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーv4修正依頼に基づく主担当確認"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーv4修正依頼に基づく主担当確認"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーv4修正依頼に基づく主担当確認"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a14496-90f3-7352-aa2f-181a7b4b3228",
+    "result": "R12/R03は同一集約関数の入力/計算を分けた図解と全specへ明記し限定再レビューPASS。108組合せの数え方も追記。"
+  },
+  "updated_at": "2026-10-16T21:10:09.854430+09:00",
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a1449d-7de2-7c22-8fc1-c70814d7fb16",
+    "result": "PASS、Major/Minorなし。要求7点、実SVG/JS/CSS/source抜粋/画像5枚/3画面の報告を確認。JS構文とHTML hashを独立実行。ブラウザの独立再実行はなし。"
+  },
+  "validation": {
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        1440,
+        900
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "combinations_each": 108,
+    "frames_each": 2310,
+    "source_order": "refactoring c4222ff。関連3sourceはHEADとの差分なし。配布反映→held classifiers全体のdeepcopy。登録はIDのみ、集約が送信/平均。",
+    "checks": [
+      "6フェーズ/上下とcaption色一致",
+      "最初を含むstage-startの3px枠",
+      "結合記号ごとの枠内と通常/拡大時6余白",
+      "候補検証とclient境界の余白/接続",
+      "全共有枝R12→R03/登録では二重送信なし",
+      "R09→R10/右→左の全モデルコピー",
+      "保存コマで選択マーク非表示/他は学習側と同じ濃淡",
+      "既存の全コマ操作/固定bbox/確率表記/入力濃淡",
+      "通常motion/低motion/狭幅拡大",
+      "JS構文/ID一意/外部依存なし/保護対象hash不変"
+    ],
+    "numerical_tests": "HTML専用のため未実施。Python/実験/golden変更なし",
+    "git": "stage/commit/push未実施。v4は専用worktreeのみ。"
+  }
+}
