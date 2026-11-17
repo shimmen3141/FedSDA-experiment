@@ -1,29 +1,55 @@
 {
   "feature_name": "fedsda-soft-training-assignment-count-aggregation-weights",
   "created_at": "2026-11-17T16:56:05Z",
-  "updated_at": "2026-11-17T17:01:53Z",
+  "updated_at": "2026-11-17T18:00:00Z",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
-      "approved": true
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）。仕様書群の独立レビュー2回目でPASS"
     },
     "design": {
       "generated": true,
-      "approved": true
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）。仕様書群の独立レビュー2回目でPASS"
     },
     "tasks": {
       "generated": true,
-      "approved": false
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）。仕様書群の独立レビュー2回目でPASS"
     },
     "naming": {
       "generated": true,
-      "approved": false,
+      "approved": true,
       "revision": null,
       "approved_revision": null,
       "approved_sha256_lf": null
     }
   },
-  "ready_for_implementation": false
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "reviewer": "GPT-6 Luna（effort medium、読むだけ、独立CLI。ログのmodel行・reasoning effort行で確認）",
+    "reason": "要求・設計・命名の文書のレビューで、判断の難度は中程度のため",
+    "target": "f63f0a82（1回目）、f63f0a82..3fa890d2（2回目、修正箇所）",
+    "sessions": [
+      {
+        "round": 1,
+        "session_id": "01a1ea75-bf01-7ae0-9035-3b191c335c97",
+        "verdict": "FAIL（Major 1、Minor 1、任意 1。全部採用）"
+      },
+      {
+        "round": 2,
+        "session_id": "01a1ea77-5056-7842-b32d-3ba1a232a519",
+        "verdict": "PASS"
+      }
+    ]
+  },
+  "task_graph_sanity_review": {
+    "mode": "inline",
+    "verdict": "PASS",
+    "reason": "AGENTS.mdの規約で内蔵の子エージェントを使わないため。全要求の番号がtaskにあることを確認"
+  }
 }
