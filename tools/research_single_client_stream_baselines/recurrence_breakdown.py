@@ -34,8 +34,9 @@ csv.field_size_limit(10**9)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 RESULTS = _REPOSITORY_ROOT / "results"
-CATEGORIES = ("start", "recurrence", "seen_by_others", "new")
+CATEGORIES = ("all", "start", "recurrence", "seen_by_others", "new")
 CATEGORY_LABELS = {
+    "all": "全標本（区間を分けない）",
     "start": "最初の区間（概念0）",
     "recurrence": "再来（自分が経験済み）",
     "seen_by_others": "自分は初めて・他clientが経験済み",
@@ -50,6 +51,7 @@ COMPARISONS = (
 )
 _PILOT = "fedhasp-single-client-pilot-v16/20261117_101402_single-client-seeds0-29/"
 _SOFT = "fedsda-soft-training-v16/20261105_182656_soft-vs-hard-i50-i500-seeds0-9/"
+_LONG = "fedhasp-single-client-pilot-v16/20261117_195811_single-client-long-n50000-seeds0-9/"
 SETTINGS = {
     "連合学習（10 client、間隔50・500、seed 0〜9）": dict(
         intervals=(50, 500),
@@ -63,6 +65,18 @@ SETTINGS = {
             SOFT_SINGLE: [
                 "fedsda-soft-training-single-model-prediction-v16/20261107_134630_soft-single-i50-i500-seeds0-9/fedsda-soft-training-single-model-prediction"
             ],
+        },
+    ),
+    "1クライアント・50,000標本（間隔50、seed 0〜9）": dict(
+        intervals=(50,),
+        roots={
+            name: [_LONG + configuration]
+            for name, configuration in (
+                (HARD_MIX, "fedsda-training-mass-diagnostics"),
+                (SOFT_MIX, "fedsda-soft-training"),
+                (HARD_SINGLE, "fedsda-single-model-prediction"),
+                (SOFT_SINGLE, "fedsda-soft-training-single-model-prediction"),
+            )
         },
     ),
     "1クライアント（間隔50・5000、seed 0〜29）": dict(
@@ -135,7 +149,8 @@ def run_category_accuracy(npz_path, accuracy, window):
     category, position = segment_categories(concepts)
     result = {}
     for kind in CATEGORIES:
-        for scope, mask in (("all", category == kind), (f"first{window}", (category == kind) & (position < window))):
+        selected = (category == category) if kind == "all" else (category == kind)
+        for scope, mask in (("all", selected), (f"first{window}", selected & (position < window))):
             count = int(mask.sum())
             result[(kind, scope)] = (float(correct[mask].mean()) if count else None, count)
     return result, concepts
@@ -158,7 +173,15 @@ def main(command_arguments=None):
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--window", type=int, default=200)
+    parser.add_argument(
+        "--results-root",
+        type=Path,
+        default=None,
+        help="結果の置き場所（既定はこのcheckoutのresults/。worktreeからは元のcheckoutのresults/を指定する）",
+    )
     arguments = parser.parse_args(command_arguments)
+    if arguments.results_root is not None:
+        globals()["RESULTS"] = arguments.results_root
     window = arguments.window
     scopes = ("all", f"first{window}")
     lines = ["# 区間の種類ごとの効果（仮説1の切り分け）", ""]
@@ -187,12 +210,12 @@ def main(command_arguments=None):
         lines += ["", f"## {setting}", ""]
         total = defaultdict(int)
         for key in keys:
-            for kind in CATEGORIES:
+            for kind in CATEGORIES[1:]:
                 total[kind] += per_run[(HARD_MIX, key)][0][(kind, "all")][1]
         grand = sum(total.values())
         lines.append(
             "- 標本の割合: "
-            + "、".join(f"{CATEGORY_LABELS[k]} {100 * total[k] / grand:.1f}%" for k in CATEGORIES)
+            + "、".join(f"{CATEGORY_LABELS[k]} {100 * total[k] / grand:.1f}%" for k in CATEGORIES[1:])
         )
         lines.append("")
         lines.append("| 比較 | 区間の種類 | 範囲 | 間隔 | 平均 | 95%区間 | 上のseed | セルの数 |")
