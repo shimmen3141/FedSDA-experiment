@@ -1,0 +1,29 @@
+{
+  "feature_name": "fedsda-soft-training-assignment-count-aggregation-weights",
+  "created_at": "2026-11-17T16:56:05Z",
+  "updated_at": "2026-11-17T17:01:53Z",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": false
+    },
+    "naming": {
+      "generated": true,
+      "approved": false,
+      "revision": null,
+      "approved_revision": null,
+      "approved_sha256_lf": null
+    }
+  },
+  "ready_for_implementation": false
+}
