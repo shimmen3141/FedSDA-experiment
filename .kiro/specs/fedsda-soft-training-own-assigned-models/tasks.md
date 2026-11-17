@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. 責任度の対象の設定と、固い割り当ての標本を持つモデルIDの読取りを足す
+- [x] 1. 責任度の対象の設定と、固い割り当ての標本を持つモデルIDの読取りを足す
   - `FedsdaRunClientSettings`に`training_responsibility_model_scope`（既定`"all_held_models"`、もう1つの値`"models_with_own_assigned_samples"`、既定値を保存しない宣言、`allowed_parameter_values`）を足し、`__post_init__`で型・値と、柔らかい学習以外との組合せの拒否を行う。`ModelTrainingSampleStore`に`snapshot_model_ids_with_assigned_samples`を足す。
   - 完了条件: 新しいtestファイルで、不正な値・型と、固い学習・独立したFixed-Shareの重みとの組合せが`RunSettingsValidationError`になり、柔らかい学習との組合せは通る。メソッドが標本を持つモデルIDだけを返す（空列で登録しただけのモデルは含まない。付け替え・remapの後のIDを返す）。既存の`test_soft_training_single_model_prediction.py::test_existing_configuration_mapping_order_identity_and_protected_files`が通る。
   - _Boundary: runtime（clientの設定）、learning（学習標本の保持）_

@@ -209,7 +209,39 @@ class FedsdaRunClientSettings:
         },
     )
 
+    # 柔らかい学習の責任度を分ける対象。既定は全保有モデル。もう1つは、このclientが自分で固く割り当てた標本を持つ
+    # モデルと、いま固く割り当てる先のモデルだけ（配られただけのモデルを柔らかい学習で更新しない）。
+    training_responsibility_model_scope: str = field(
+        default="all_held_models",
+        metadata={
+            "omit_default_from_saved_settings": True,
+            "allowed_parameter_values": (
+                "all_held_models",
+                "models_with_own_assigned_samples",
+            ),
+        },
+    )
+
     def __post_init__(self) -> None:
+        model_scope = self.training_responsibility_model_scope
+        if type(model_scope) is not str or model_scope not in (
+            "all_held_models",
+            "models_with_own_assigned_samples",
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="training_responsibility_model_scope",
+                specified_parameter_value=model_scope,
+                validation_failure_reason="宣言された責任度の対象を指定してください。",
+            )
+        if model_scope == "models_with_own_assigned_samples" and (
+            self.training_assignment_strategy != "responsibility_weighted_training"
+            or self.training_responsibility_weight_update_policy != "prediction_weight_updates"
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="training_responsibility_model_scope",
+                specified_parameter_value=model_scope,
+                validation_failure_reason="責任度の対象の制限は、予測と重みを共有する柔らかい学習（responsibility_weighted_training、prediction_weight_updates）でだけ指定できます。",
+            )
         weight_source = self.model_aggregation_weight_source
         if type(weight_source) is not str or weight_source not in (
             "training_assignment_amounts",

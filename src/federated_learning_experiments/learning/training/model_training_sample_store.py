@@ -81,6 +81,14 @@ class ModelTrainingSampleStore:
             training_samples = self._training_samples_by_model_id.pop(original_model_id)
             self._training_samples_by_model_id[reassigned_model_id] = training_samples
 
+    def snapshot_model_ids_with_assigned_samples(self) -> frozenset[int]:
+        """固い割り当ての標本を1件以上持つモデルIDの集合。標本の列はcopyしない。"""
+        return frozenset(
+            model_id
+            for model_id, training_samples in self._training_samples_by_model_id.items()
+            if training_samples
+        )
+
     def snapshot_ordered_model_training_samples(self) -> tuple[ModelTrainingSampleCollection, ...]:
         """構造を分離したsnapshotを返す。標本recordとTensorは共有する。"""
         return tuple(
