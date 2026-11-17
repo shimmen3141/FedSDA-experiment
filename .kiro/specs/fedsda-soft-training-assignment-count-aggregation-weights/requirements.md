@@ -21,7 +21,7 @@
 #### Acceptance Criteria
 1. The system shall 新しい構成で、予測、柔らかい学習（責任度と重み付きの抽出による学習）、変化の検出、モデルの採用、学習量のコンセプト別の記録を、`fedsda-soft-training`と同じ設定で行う。
 2. When 同じseed・データ・間隔で、新しい構成と`fedsda-soft-training`を最初の集約の前まで動かすとき, the system shall 両者の予測の列・パラメータ・乱数の状態を一致させる。
-3. Where 各clientが保有するモデルが1つだけである（全標本の責任度がそのモデルに1で、学習量が固い割り当ての件数と等しい）とき, the system shall 新しい構成の集約の結果（グローバルモデルのパラメータ・損失の統計・上りの通信量）を`fedsda-soft-training`と一致させる。
+3. Where 各clientが保有するモデルが1つだけである（全標本の責任度がそのモデルに1で、学習量が固い割り当ての件数と等しい）とき, the system shall 新しい構成の集約の結果（グローバルモデルのパラメータ・損失の統計・上りの通信量）を`fedsda-soft-training`と厳密に（誤差の許容なしで）一致させる。
 
 ### Requirement 2: 集約の重みと参加の判定
 **Objective:** As a 研究者, I want 集約で、各clientのモデルの重みを固い割り当ての標本の件数にする, so that そのモデルに固く割り当てられていないclientの柔らかい学習の更新を集約に混ぜない
