@@ -78,3 +78,101 @@ def test_client_exposes_the_configured_source():
         client_settings("fedsda-soft-training"), model_aggregation_weight_source=COUNTS
     )
     assert client.model_aggregation_weight_source == COUNTS
+
+
+# 重みを決める関数（task 2）
+
+
+def make_store(responsibility_provider, *, with_responsibility_store=True):
+    from federated_learning_experiments.learning.training.model_training_sample_store import (
+        ModelTrainingSampleStore,
+    )
+    from federated_learning_experiments.learning.training.responsibility_weighted_training import (
+        ResponsibilityWeightedTrainingStore,
+    )
+
+    store = ModelTrainingSampleStore()
+    if with_responsibility_store:
+        store.responsibility_training_store = ResponsibilityWeightedTrainingStore()
+    store.training_responsibility_provider = responsibility_provider
+    return store
+
+
+def observed_samples(count):
+    import torch
+
+    from federated_learning_experiments.learning.training.model_training_sample_records import (
+        ObservedTrainingSample,
+    )
+
+    return tuple(
+        ObservedTrainingSample(
+            input_features=torch.tensor([[float(i)]]), observed_class_labels=torch.tensor([[0.0]])
+        )
+        for i in range(count)
+    )
+
+
+def derive(store, source):
+    from federated_learning_experiments.runtime.server_model_registration_and_aggregation import (
+        derive_client_model_aggregation_weights,
+    )
+
+    return derive_client_model_aggregation_weights(
+        training_sample_store=store, model_aggregation_weight_source=source
+    )
+
+
+def test_split_responsibilities_give_amounts_by_default_and_counts_when_selected():
+    store = make_store(lambda model_id, sample: {3: 0.75, 5: 0.25})
+    store.append_model_training_samples(model_id=3, training_samples=observed_samples(4))
+    store.append_model_training_samples(model_id=5, training_samples=observed_samples(2))
+    assert derive(store, AMOUNTS) == pytest.approx({3: 4.5, 5: 1.5})
+    counts = derive(store, COUNTS)
+    assert counts == {3: 4, 5: 2}
+    assert all(type(value) is int for value in counts.values())
+
+
+@pytest.mark.parametrize(
+    "weight,probability",
+    [(1.0, 0.3), (0.017, 0.9999), (3.7e-5, 1e-200), (0.5, 0.0), (0.0, 0.5)],
+)
+def test_one_model_responsibilities_make_amounts_exactly_equal_to_counts(weight, probability):
+    from federated_learning_experiments.learning.training.responsibility_weighted_training import (
+        calculate_training_responsibilities,
+    )
+
+    def provider(model_id, sample):
+        return calculate_training_responsibilities(
+            prediction_weights={model_id: weight},
+            true_class_probabilities={model_id: probability},
+            fallback_model_id=model_id,
+        )
+
+    store = make_store(provider)
+    for _ in range(7):
+        store.append_model_training_samples(model_id=2, training_samples=observed_samples(13))
+    store.reassign_model_training_samples_id(original_model_id=2, reassigned_model_id=4)
+    amounts, counts = derive(store, AMOUNTS), derive(store, COUNTS)
+    assert counts == {4: 91}
+    # 近似の比較を使わない（要求1.3）。
+    assert amounts == counts
+    assert all(type(value) is float for value in amounts.values())
+
+
+@pytest.mark.parametrize("with_responsibility_store", [True, False])
+def test_records_without_soft_assignment_give_counts_for_both_sources(with_responsibility_store):
+    store = make_store(None, with_responsibility_store=with_responsibility_store)
+    store.append_model_training_samples(model_id=1, training_samples=observed_samples(3))
+    store.append_model_training_samples(model_id=0, training_samples=observed_samples(2))
+    assert derive(store, AMOUNTS) == derive(store, COUNTS) == {1: 3, 0: 2}
+
+
+@pytest.mark.parametrize("value", ["unknown", None, True, 0])
+def test_invalid_source_is_rejected_before_reading_the_store(value):
+    class UnreadableStore:
+        def __getattr__(self, name):
+            raise AssertionError(f"read {name}")
+
+    with pytest.raises(ValueError):
+        derive(UnreadableStore(), value)

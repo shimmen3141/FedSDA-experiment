@@ -22,6 +22,9 @@ from federated_learning_experiments.learning.models.classifier_parameter_snapsho
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
     TrainingModelAssignmentChange,
 )
+from federated_learning_experiments.learning.training.model_training_sample_store import (
+    ModelTrainingSampleStore,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.global_model_repository import (
     GlobalModelRepository,
 )
@@ -197,6 +200,34 @@ def _divide_parameters(
     }
 
 
+def derive_client_model_aggregation_weights(
+    *, training_sample_store: ModelTrainingSampleStore, model_aggregation_weight_source: str
+) -> dict[int, int | float]:
+    """1 clientの学習標本の記録から、集約に使うモデルIDごとの重みを返す。記録は読むだけ。
+
+    `"training_assignment_amounts"`は、学習の割当方式による今の量（柔らかい学習は責任度の合計、それ以外は固い
+    割り当ての件数）。`"single_model_assignment_sample_counts"`は、柔らかい学習でも固い割り当ての件数。
+    """
+    if type(model_aggregation_weight_source) is not str or model_aggregation_weight_source not in (
+        "training_assignment_amounts",
+        "single_model_assignment_sample_counts",
+    ):
+        raise ValueError(
+            "model_aggregation_weight_source must be training_assignment_amounts or "
+            "single_model_assignment_sample_counts"
+        )
+    if (
+        model_aggregation_weight_source == "training_assignment_amounts"
+        and training_sample_store.training_responsibility_provider is not None
+        and training_sample_store.responsibility_training_store is not None
+    ):
+        return training_sample_store.responsibility_training_store.training_masses_by_model_id
+    return {
+        model_training_samples.model_id: len(model_training_samples.training_samples)
+        for model_training_samples in training_sample_store.snapshot_ordered_model_training_samples()
+    }
+
+
 def aggregate_client_models_into_global_models(
     *,
     run_clients: tuple[FedsdaRunClient, ...],
@@ -246,15 +277,10 @@ def aggregate_client_models_into_global_models(
             held_model_training_state.model_id: held_model_training_state.classifier
             for held_model_training_state in owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
         }
-        training_sample_counts_by_model_id: dict[int, int | float] = {
-            model_training_samples.model_id: len(model_training_samples.training_samples)
-            for model_training_samples in owners.training_sample_store.snapshot_ordered_model_training_samples()
-        }
-        if (
-            owners.training_sample_store.training_responsibility_provider is not None
-            and owners.training_sample_store.responsibility_training_store is not None
-        ):
-            training_sample_counts_by_model_id = owners.training_sample_store.responsibility_training_store.training_masses_by_model_id
+        training_sample_counts_by_model_id = derive_client_model_aggregation_weights(
+            training_sample_store=owners.training_sample_store,
+            model_aggregation_weight_source=run_client.model_aggregation_weight_source,
+        )
         participating_models = [
             (model_id, training_sample_counts_by_model_id.get(model_id, 0))
             for model_id in aggregated_global_model_ids

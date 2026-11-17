@@ -6,7 +6,7 @@
   - _Boundary: runtime（clientの設定とclient）_
   - _Requirements: 3.1, 3.2, 4.2_
 
-- [ ] 2. 集約の重みを決める関数を足し、集約から呼ぶ
+- [x] 2. 集約の重みを決める関数を足し、集約から呼ぶ
   - `derive_client_model_aggregation_weights`を足し、`aggregate_client_models_into_global_models`の重みを決める数行をこの関数の呼出しに置き換える（参加の判定・平均・反映は変えない）。
   - 完了条件: 新しいtestファイルの単体testで、(a) 2モデルへ分かれた責任度の記録では既定が学習量・件数の指定が件数、(b) 1モデルのときの実際の`calculate_training_responsibilities`の責任度で作った記録で、両者の値が`==`で等しい（近似の比較を使わない）、(c) 責任度の提供が無い記録ではどちらも件数、(d) 不正な値は状態を読む前に`ValueError`、が通る。既存の集約のtest（`test_server_model_registration_and_aggregation`系、`test_fedsda_soft_training_configuration.py`、`test_global_model_distribution.py`、`test_model_clustering_and_consolidation.py`、`test_model_cross_evaluation.py`）が通る。
   - _Boundary: runtime（サーバの集約）_

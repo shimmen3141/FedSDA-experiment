@@ -4441,6 +4441,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.loss_statistics.server_loss_mean_aggregation.aggregate_participating_client_loss_means",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
             "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
             "federated_learning_experiments.methods.fedsda.model_registration.global_model_repository.GlobalModelRepository",
             "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
             "federated_learning_experiments.runtime.held_model_registration_confirmation.confirm_held_model_registration",
