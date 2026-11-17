@@ -25,12 +25,10 @@ from tests.refactoring import behavior_golden_cases as golden
 NAME = "dwm-neural-network"
 
 
-def test_configuration_is_registered_last_and_protected_by_its_own_test():
+def test_configuration_is_registered_after_soft_single_and_protected_by_its_own_test():
     assert configurations.DYNAMIC_WEIGHTED_MAJORITY_NEURAL_NETWORK_CONFIGURATION_NAME == NAME
-    assert configurations.EXPERIMENT_CONFIGURATION_NAMES[-1] == NAME
-    assert configurations.EXPERIMENT_CONFIGURATION_NAMES[-2] == (
-        "fedsda-soft-training-single-model-prediction"
-    )
+    names = configurations.EXPERIMENT_CONFIGURATION_NAMES
+    assert names[names.index(NAME) - 1] == "fedsda-soft-training-single-model-prediction"
     assert (
         golden.CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN[NAME]
         == "tests/refactoring/test_dynamic_weighted_majority_experiment_run.py"

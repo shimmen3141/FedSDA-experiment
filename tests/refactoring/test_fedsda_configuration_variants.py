@@ -944,6 +944,7 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         "fedsda-training-mass-diagnostics",
         "fedsda-soft-training-single-model-prediction",
         "dwm-neural-network",
+        "fedsda-soft-training-assignment-count-aggregation-weights",
     )
     assert INDEPENDENT_MODELS_CONFIGURATION_NAME == "fedsda-independent-models"
     assert WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME == (
@@ -972,6 +973,8 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         "fedavg",
         # FedSDAの変種ではない（`fedavg`と同じ学習器を専門家にしたDWM）。
         "dwm-neural-network",
+        # 柔らかい学習の集約の重みだけを替えた研究の構成。専用のtestで守る。
+        "fedsda-soft-training-assignment-count-aggregation-weights",
         # 旧実装に対応する構成が無いので、実旧とは照合しない。
         FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME,
         SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME,

@@ -29,7 +29,7 @@ def test_existing_configuration_mapping_order_identity_and_protected_files():
     )
     assert EXPERIMENT_CONFIGURATION_NAMES == tuple(
         row["name"] for row in fixture["configurations"]
-    ) + (NAME, "dwm-neural-network")
+    ) + (NAME, "dwm-neural-network", "fedsda-soft-training-assignment-count-aggregation-weights")
     for row in fixture["configurations"]:
         settings = build_settings(row["name"])
         mapping = convert_settings_to_plain_mapping(settings)

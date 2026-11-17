@@ -45,6 +45,10 @@ SOFT_TRAINING_SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME = (
     "fedsda-soft-training-single-model-prediction"
 )
 TRAINING_MASS_DIAGNOSTICS_CONFIGURATION_NAME = "fedsda-training-mass-diagnostics"
+# 柔らかい学習（`fedsda-soft-training`）の、集約の重みと参加の判定だけを、固い割り当ての標本の件数に替えた構成。
+SOFT_TRAINING_ASSIGNMENT_COUNT_AGGREGATION_WEIGHTS_CONFIGURATION_NAME = (
+    "fedsda-soft-training-assignment-count-aggregation-weights"
+)
 # 提案構成から、集約後の、予測重みの再較正を外した構成。
 PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME = (
     "fedsda-without-prediction-weight-recalibration"
@@ -171,6 +175,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     TRAINING_MASS_DIAGNOSTICS_CONFIGURATION_NAME,
     SOFT_TRAINING_SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
     DYNAMIC_WEIGHTED_MAJORITY_NEURAL_NETWORK_CONFIGURATION_NAME,
+    SOFT_TRAINING_ASSIGNMENT_COUNT_AGGREGATION_WEIGHTS_CONFIGURATION_NAME,
 )
 
 
@@ -554,22 +559,29 @@ def build_experiment_run_settings(
     if configuration_name in (
         SOFT_TRAINING_CONFIGURATION_NAME,
         TRAINING_MASS_DIAGNOSTICS_CONFIGURATION_NAME,
+        SOFT_TRAINING_ASSIGNMENT_COUNT_AGGREGATION_WEIGHTS_CONFIGURATION_NAME,
     ):
         participants = proposed_run_settings.run_participant_settings
+        client_settings = replace(
+            participants.run_client_settings,
+            training_assignment_strategy=(
+                "single_model_assignment"
+                if configuration_name == TRAINING_MASS_DIAGNOSTICS_CONFIGURATION_NAME
+                else "responsibility_weighted_training"
+            ),
+            record_training_mass_by_concept=True,
+        )
+        if (
+            configuration_name
+            == SOFT_TRAINING_ASSIGNMENT_COUNT_AGGREGATION_WEIGHTS_CONFIGURATION_NAME
+        ):
+            client_settings = replace(
+                client_settings,
+                model_aggregation_weight_source="single_model_assignment_sample_counts",
+            )
         return replace(
             proposed_run_settings,
-            run_participant_settings=replace(
-                participants,
-                run_client_settings=replace(
-                    participants.run_client_settings,
-                    training_assignment_strategy=(
-                        "responsibility_weighted_training"
-                        if configuration_name == SOFT_TRAINING_CONFIGURATION_NAME
-                        else "single_model_assignment"
-                    ),
-                    record_training_mass_by_concept=True,
-                ),
-            ),
+            run_participant_settings=replace(participants, run_client_settings=client_settings),
         )
     if configuration_name == SOFT_TRAINING_SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME:
         participants = proposed_run_settings.run_participant_settings

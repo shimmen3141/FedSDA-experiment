@@ -316,6 +316,7 @@ CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN: dict[str, str] = {
     "fedsda-soft-training-single-model-prediction": "tests/refactoring/test_soft_training_single_model_prediction.py",
     "fedsda-soft-training": "tests/refactoring/test_fedsda_soft_training_configuration.py",
     "fedsda-training-mass-diagnostics": "tests/refactoring/test_fedsda_soft_training_configuration.py",
+    "fedsda-soft-training-assignment-count-aggregation-weights": "tests/refactoring/test_fedsda_soft_training_assignment_count_aggregation_weights.py",
     "feddrift-fedccfa-window": "tests/refactoring/test_feddrift_fedccfa_configuration.py",
     "feddrift-fedccfa-window-scaled-alignment": "tests/refactoring/test_feddrift_fedccfa_configuration.py",
     "feddrift-fedccfa-window200": "tests/refactoring/test_feddrift_fedccfa_configuration.py",
