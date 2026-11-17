@@ -413,7 +413,7 @@ def test_run_restricts_responsibilities_to_own_models_and_matches_soft_until_res
 ):
     interval = 50
     tables, traces = run_with_traced_responsibilities(NAME, dataset, monkeypatch, count, interval)
-    _, soft_traces = run_with_traced_responsibilities(
+    soft_tables, soft_traces = run_with_traced_responsibilities(
         "fedsda-soft-training", dataset, monkeypatch, count, interval
     )
     assert len(traces) == len(soft_traces) == 2
@@ -445,10 +445,24 @@ def test_run_restricts_responsibilities_to_own_models_and_matches_soft_until_res
             assert mine["responsibilities"] == theirs["responsibilities"]
         matched_prefix.append(len(prefix))
     assert sum(matched_prefix) > 0
+    # 予測も一致する。FIFOから放すのは予測の後なので、各clientで最初の制限より前に放した件数より前の番号の標本は、
+    # 最初の制限より前に予測している。全clientの最小の件数までを比べる。
+    import numpy as np
+
+    predicted = min(matched_prefix)
+    assert predicted > 0
+    prediction_columns = [k for k in tables if k.startswith("sample_prediction.")]
+    assert prediction_columns
+    for column in prediction_columns:
+        mine, theirs = np.asarray(tables[column]), np.asarray(soft_tables[column])
+        assert mine.ndim == 2 and mine.shape == theirs.shape, column
+        np.testing.assert_array_equal(mine[:, :predicted], theirs[:, :predicted], err_msg=column)
     # (b) 制限が実際に効いている。
     assert restricted_calls > 0
     # (d) 学習量のコンセプト別の記録がある。
     assert len(tables["training_mass_by_concept.training_mass"]) > 0
+    # 責任度の実効モデル数の記録がある（要求3.3）。
+    assert len(tables["training_responsibility.effective_model_count"]) > 0
     print(
         json.dumps(
             dict(

@@ -1,4 +1,9 @@
-"""仮説2(a)の介入の集計: 柔らかい学習の集約の重みだけを固い割り当ての件数にした構成を、固い学習・柔らかい学習と比べる。
+"""柔らかい学習への介入の集計: 介入の構成を、固い学習・柔らかい学習と比べる（`--intervention`で構成を選ぶ）。
+
+介入の構成（既定は1つ目）:
+- `fedsda-soft-training-assignment-count-aggregation-weights`（仮説2(a)）: 局所は柔らかい学習、集約の重みと参加の判定は件数。
+- `fedsda-soft-training-own-assigned-models`（E1）: 責任度の対象を、そのclientが自分で固く割り当てた標本を持つモデルと、
+  いま割り当てる先に限る。
 
 3つの構成（連合学習、同じデータ・間隔・seed）を対にする。
 - 固い学習: `fedsda-training-mass-diagnostics`（`fedsda`と同じ学習・予測に、学習量の記録を足した構成）
@@ -10,7 +15,7 @@
 
 照合（どれかが合わなければ止める）:
 - 3構成でrunの組（データ・間隔・seed）が同じで、各組に1つずつ。基準版が同じ。
-- 介入のrunの設定が、同じ組の柔らかい学習のrunの設定と、`model_aggregation_weight_source`だけ違う。
+- 介入のrunの設定が、同じ組の柔らかい学習のrunの設定と、介入の構成の設定の項目（下の`INTERVENTIONS`）だけ違う。
 - 3構成のrunのラベルと真のコンセプトの系列が全標本で一致する。標本ごとの正誤の平均が要約の精度と一致する。
 
 出力（`--output`。既定は介入の結果のディレクトリ）: `analysis_assignment_count_aggregation.md`と`assignment_count_aggregation_runs.csv`。
@@ -19,7 +24,8 @@
 
 使い方（プロジェクトのvenv、リポジトリのルートかworktreeで）:
     python -m tools.research_single_client_stream_baselines.assignment_count_aggregation \\
-        --existing <固い・柔らかいの結果のディレクトリ> --new <介入の結果のディレクトリ> [--logs <掃引のログ> ...]
+        --existing <固い・柔らかいの結果のディレクトリ> --new <介入の結果のディレクトリ> \\
+        [--intervention <介入の構成>] [--logs <掃引のログ> ...]
 """
 
 import argparse
@@ -45,18 +51,45 @@ csv.field_size_limit(10**9)
 
 HARD = "fedsda-training-mass-diagnostics"
 SOFT = "fedsda-soft-training"
+# 介入の構成ごとの、表の名前・題・柔らかい学習との違いの設定の項目（clientの設定の中）と値。
+INTERVENTIONS = {
+    "fedsda-soft-training-assignment-count-aggregation-weights": dict(
+        label="介入（柔らかい学習＋件数で集約）",
+        title="柔らかい学習の集約の重みを件数にした介入（仮説2(a)）",
+        setting="model_aggregation_weight_source",
+        value="single_model_assignment_sample_counts",
+        setting_label="集約の重みの元",
+    ),
+    "fedsda-soft-training-own-assigned-models": dict(
+        label="介入（柔らかい学習＋自分で割り当てたモデルだけ）",
+        title="柔らかい学習の責任度を自分で固く割り当てたモデルに限る介入（E1）",
+        setting="training_responsibility_model_scope",
+        value="models_with_own_assigned_samples",
+        setting_label="責任度の対象",
+    ),
+}
 NEW = "fedsda-soft-training-assignment-count-aggregation-weights"
-LABELS = {HARD: "固い学習", SOFT: "柔らかい学習", NEW: "介入（柔らかい学習＋件数で集約）"}
-COMPARISONS = (
-    ("固い−柔らかい（柔らかい学習による低下）", HARD, SOFT),
-    ("固い−介入（介入の後に残る低下）", HARD, NEW),
-    ("介入−柔らかい（介入で戻った分）", NEW, SOFT),
-)
-WEIGHT_SOURCE_PATH = (
-    "run_participant_settings",
-    "run_client_settings",
-    "model_aggregation_weight_source",
-)
+LABELS = {}
+COMPARISONS = ()
+SETTING_PATH = ()
+
+
+def select_intervention(configuration):
+    """介入の構成を選び、表の名前・比較の組・照合する設定の項目を決める。"""
+    global NEW, LABELS, COMPARISONS, SETTING_PATH
+    if configuration not in INTERVENTIONS:
+        raise ValueError(f"介入の構成ではありません: {configuration}")
+    NEW = configuration
+    LABELS = {HARD: "固い学習", SOFT: "柔らかい学習", NEW: INTERVENTIONS[NEW]["label"]}
+    COMPARISONS = (
+        ("固い−柔らかい（柔らかい学習による低下）", HARD, SOFT),
+        ("固い−介入（介入の後に残る低下）", HARD, NEW),
+        ("介入−柔らかい（介入で戻った分）", NEW, SOFT),
+    )
+    SETTING_PATH = ("run_participant_settings", "run_client_settings", INTERVENTIONS[NEW]["setting"])
+
+
+select_intervention(NEW)
 MAC_COLUMN = (
     "computation_cost_summary.client_forward_and_backward_multiply_accumulate_count_per_processed_sample"
 )
@@ -98,9 +131,9 @@ def without_weight_source(settings):
     """runの設定から、集約の重みの元（無ければ既定）を除いた写しを返す。"""
     copied = json.loads(json.dumps(settings))
     node = copied
-    for name in WEIGHT_SOURCE_PATH[:-1]:
+    for name in SETTING_PATH[:-1]:
         node = node[name]
-    node.pop(WEIGHT_SOURCE_PATH[-1], None)
+    node.pop(SETTING_PATH[-1], None)
     return copied
 
 
@@ -108,14 +141,17 @@ def check_settings(new_run, soft_run):
     new_settings = json.loads(new_run["json_path"].read_text(encoding="utf-8"))["run_settings"]
     soft_settings = json.loads(soft_run["json_path"].read_text(encoding="utf-8"))["run_settings"]
     node = new_settings
-    for name in WEIGHT_SOURCE_PATH[:-1]:
+    for name in SETTING_PATH[:-1]:
         node = node[name]
-    node = node.get(WEIGHT_SOURCE_PATH[-1])
-    if node != "single_model_assignment_sample_counts":
-        raise ValueError(f"介入のrunの集約の重みの元が違います: {new_run['run_identifier']} {node}")
+    node = node.get(SETTING_PATH[-1])
+    if node != INTERVENTIONS[NEW]["value"]:
+        raise ValueError(
+            f"介入のrunの{INTERVENTIONS[NEW]['setting_label']}が違います: {new_run['run_identifier']} {node}"
+        )
     if without_weight_source(new_settings) != without_weight_source(soft_settings):
         raise ValueError(
-            f"介入と柔らかい学習の設定が、集約の重みの元以外でも違います: {new_run['run_identifier']}"
+            f"介入と柔らかい学習の設定が、{INTERVENTIONS[NEW]['setting_label']}以外でも違います: "
+            f"{new_run['run_identifier']}"
         )
 
 
@@ -188,10 +224,12 @@ def main(command_arguments=None):
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument("--existing", type=Path, required=True, help="固い学習・柔らかい学習の結果のディレクトリ")
     parser.add_argument("--new", type=Path, required=True, help="介入の構成の結果のディレクトリ")
+    parser.add_argument("--intervention", choices=sorted(INTERVENTIONS), default=NEW)
     parser.add_argument("--logs", type=Path, nargs="*", default=[], help="掃引のログ（経過時間）")
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--window", type=int, default=200)
     arguments = parser.parse_args(command_arguments)
+    select_intervention(arguments.intervention)
     output = arguments.output or arguments.new
     runs = {
         HARD: load_configuration(arguments.existing, HARD),
@@ -226,14 +264,14 @@ def main(command_arguments=None):
     seeds = sorted({k[2] for k in keys})
     interval_sets = [("全体", tuple(intervals))] + [(f"間隔{i}", (i,)) for i in intervals]
 
-    lines = ["# 柔らかい学習の集約の重みを件数にした介入（仮説2(a)）", ""]
+    lines = [f"# {INTERVENTIONS[NEW]['title']}", ""]
     lines.append(
         f"- 連合学習、データ{len(datasets)}、間隔{intervals}、seed {seeds[0]}〜{seeds[-1]}（{len(seeds)}）、基準版{baselines.pop()}。"
         "差はpp、セル（データ×間隔）ごとにseedの平均をとり、セルを等しい重みで平均。95%区間はseedごとのセルの平均の差のt区間"
         "（多重比較の補正なし）。「区間が0より上／下のセル」は、セルの中のseedのt区間で数えた。"
     )
     lines.append(
-        f"- 照合: 3構成でrunの組が{len(keys)}組ずつそろい、介入の設定が柔らかい学習と集約の重みの元だけ違い、"
+        f"- 照合: 3構成でrunの組が{len(keys)}組ずつそろい、介入の設定が柔らかい学習と{INTERVENTIONS[NEW]['setting_label']}だけ違い、"
         f"ラベルと真のコンセプトの系列が全標本で一致し（{2 * len(keys)}組）、標本ごとの正誤の平均が精度と一致した。"
     )
     lines += ["", "## 精度の差", ""]

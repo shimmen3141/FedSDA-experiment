@@ -27,7 +27,7 @@
   - _Depends: 3_
   - _Requirements: 1.1, 1.4, 1.5, 2.1, 2.2, 3.3_
 
-- [ ] 5. 全体の検証
+- [x] 5. 全体の検証
   - naming.mdを実装に合わせ、`spec_checks.py names`を通す。独立CLIの実装レビューの指摘を反映した後、全pytest（goldenを含む）・Ruff・pyrightを通す。
   - 完了条件: 全pytestが通り（件数を前の件数＋追加のtest数と照合）、既存のgoldenと識別子が変わらない。件数とcommitをImplementation Notesへ記録する。
   - _Depends: 4_
@@ -50,4 +50,15 @@
 - testの順: task 1〜3は新しいtestを先に書いてREDを確かめてから実装した。task 2の(f)（storeの型の拒否）は、最初の形では実装の前でも「知らない引数」のTypeErrorで通ってしまうので、メッセージの照合を足し、実装を外すと失敗することを確かめた（task 2の6件が失敗）。task 4のrunのtestは実装済みの挙動の確認。
 - task 4のtestの直し: 最初は「対象外の保有モデルが初めて生じるまで柔らかい学習と一致」をclientごとに区切っていたが、1つのclientの制限が集約を通じて他のclientの状態も変えるので一致しなかった。要求2.2の文言（どのclientも対象外の保有モデルを持たない間）どおり、全clientを通した呼出しの順番で区切るよう直した。実装の変更はない。
 - 主担当の実測（Windows、固定venv、OMP/MKL 1 thread）: 新しいtestファイルの全件（runのtestはsine2で呼出し各1,470回、制限が効いた呼出し650回、柔らかい学習と一致した範囲は各client 820回）、関連の既存test 913件（goldenを含む）、依存の境界と柔らかい学習の既存test（2311件）、fresh process smoke、Ruff。`spec_checks.py names`は未登録なし。
+
+### 実装レビュー
+- 1回目（Claude Haiku 5.5、effort medium、独立CLI、testの実行を許可、session `83782ac5-5362-458c-9e8e-a9b1991e7b08`、JSONの`is_error=false`・`modelUsage`は`claude-haiku-5-5`、対象 `15abe646..e870dacb`）: PASS（Blocker・Majorなし）。GPT-6 Lunaは使用量の上限で使えず、実装のレビューの優先の担当でもあるHaikuにした。独立に実行: 新しいtest・柔らかい学習の3ファイル・依存の境界（`-m "not slow"`、2356 passed）、runのtestの`slow`の2件（2 passed。mnist4は呼出し770回・制限が効いた呼出し600回・一致区間171／170回）、Ruff、`spec_checks.py names`。独立に実行していない: 全pytest、構成の変種・goldenのtest、fresh process smoke、実掃引のtest（いずれも主担当の実測あり）。レビューの前後で`git status --short`は同じ。
+  - Minor 1（要求2.2の予測・パラメータの一致を、runのtestが責任度の列だけで確かめている）: 採用。最初の制限より前に予測した標本の予測の記録（`sample_prediction.*`の全列）の一致を足した。パラメータは、責任度・予測が一致し、学習が責任度の抽出で決まることから従うとして、直接は比べない。
+  - Minor 2（要求3.3の責任度の実効モデル数の記録をtestで確かめていない）: 採用。runのtestにassertを足した。
+  - 任意 3（fresh process smokeは制限が効いたことを見ない）・任意 4（集約の重みのspecのtestの順の期待を弱めた）: 妥当という確認で、変更なし（runのtestと新しいtestの`[-2:]`の照合が担う）。
+
+### 全体の検証（主担当、Windows、固定venv、OMP/MKL 1 thread、12 worker）
+- 全pytest: 13,908 passed、8 skipped、失敗0。対象はレビューの指摘の反映後の作業ツリー（commit `e870dacb`＋runのtestへのMinor 1・2の追加。この後のcommitで記録）。`FDE_FASHION_MNIST_DATA_DIR`を設定した。JUnit: `venv/refactoring-tests/fedsda-soft-training-own-assigned-models-full.xml`。
+- 件数の照合（前のspec `fedsda-soft-training-assignment-count-aggregation-weights`のJUnitと比べた）: 新しいtestファイル22件と、既存の構成一覧のtestへの新しい構成の分5件を足した（+27＝13,916−13,889）。消えたtestは無い。前のspecでFashion-MNISTのデータの場所の未設定でskipした6件は、今回は通った。
+- Ruff（check・format）: 0件。
 

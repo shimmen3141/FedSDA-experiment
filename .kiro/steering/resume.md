@@ -4,6 +4,7 @@
 
 ## 現在地
 
+- 2026-11-18: 同じブランチで、柔らかい学習の責任度の対象を自分で固く割り当てたモデルに限る構成`fedsda-soft-training-own-assigned-models`（E1）を追加した（[spec](../specs/fedsda-soft-training-own-assigned-models/tasks.md)、仕様・実装レビューPASS（Lunaは使用量の上限でHaikuへ代替）、全pytest通過）。集約の重みの介入（仮説2(a)）は精度が戻らず支持されなかった（[記録](../../docs/research/fedhasp-single-client-pilot-v16.md)）。E1のuraniumの200 runはユーザーが実行し、結果は`assignment_count_aggregation --intervention fedsda-soft-training-own-assigned-models`で集計する。
 - 2026-11-18: 同じブランチで、柔らかい学習の集約の重みと参加の判定だけを固い割り当ての件数にした構成`fedsda-soft-training-assignment-count-aggregation-weights`を追加した（[spec](../specs/fedsda-soft-training-assignment-count-aggregation-weights/tasks.md)、仕様・実装レビューPASS、全pytest通過）。仮説2(a)の介入。uraniumの200 runはユーザーが実行する（コマンドは台帳の行と同じ条件）。結果が届いたら、既存の固い・柔らかい学習の結果と対にして集計する。
 - 2026-11-17: 1クライアント版の研究のブランチ`research/single-client`（worktree `.worktrees/single-client`）で、比較手法の構成`dwm-neural-network`（`fedavg`と同じ学習器を専門家にしたDWM）を追加した（[spec](../specs/dwm-neural-network-baseline/tasks.md)、実装レビューPASS、全pytestは環境によるDLLの読み込みの拒否の1件を除き通過）。mainへは未統合。
 - 2026-11-17: ユーザー指示で`refactor/architecture`と`docs/fedsda-processing-flow`を`main`へ統合し、作業の基点を`main`の元のcheckout（リポジトリのルート）にした。`.worktrees/refactoring`は片付けた（Git管理外の検証の証拠は`archive/refactoring-worktree/`へ、結果は`results/`へ移した）。参照資料は`references/`（`code/`・`papers/`・`surveys/`）、結果は`results/`、退避物は`archive/`（いずれもGit管理外）。1クライアント版の研究は、後で`main`から分けたブランチとworktreeで始める（未作成）。予備実験の結果は[計画と結果](../../docs/research/fedhasp-single-client-pilot-v16.md)。
