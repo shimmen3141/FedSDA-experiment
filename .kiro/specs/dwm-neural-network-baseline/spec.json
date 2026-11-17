@@ -1,0 +1,60 @@
+{
+  "feature_name": "dwm-neural-network-baseline",
+  "created_at": "2026-11-17T11:08:47Z",
+  "updated_at": "2026-11-17T11:56:47Z",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）。仕様書群の独立レビューは未実施"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）。仕様書群の独立レビューは未実施"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）。仕様書群の独立レビュー3回目でPASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": null,
+      "approved_revision": null,
+      "approved_sha256_lf": null
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "reviewer": "Claude Haiku 5.5（effort medium、読むだけ、独立CLI）",
+    "fallback_reason": "2026-11-17 20:14にGPT-6 Lunaで開始したが、29分たっても出力が最初の1行のままで判定が得られなかった。ユーザーの確認でcodexの使用量が0%（22:00ごろまで回復しない）。標準入力を閉じずに起動していたことも一因の可能性がある。20:43に主担当が自分の起動したタスクだけを止め、Haikuへ代替した",
+    "target": "未コミットの仕様書群（requirements.md・design.md・naming.md・tasks.md・research.md）、基点 ab61d866",
+    "sessions": [
+      {
+        "round": 1,
+        "session_id": "13dfb876-a8df-4a65-875d-d89ed3a765ad",
+        "verdict": "FAIL"
+      },
+      {
+        "round": 2,
+        "session_id": "2267f727-3b91-4e66-8438-d12aeff8a5a1",
+        "verdict": "FAIL"
+      },
+      {
+        "round": 3,
+        "session_id": "99adb187-07b9-49ff-9bca-05135164bdf2",
+        "verdict": "PASS"
+      }
+    ]
+  },
+  "task_graph_sanity_review": {
+    "mode": "inline",
+    "verdict": "PASS",
+    "reason": "AGENTS.mdの規約で内蔵の子エージェントを使わないため。全要求の番号がtaskにあることを確認"
+  }
+}
