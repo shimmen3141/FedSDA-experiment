@@ -1702,6 +1702,23 @@ def main():
         assert client.owners.training_sample_store.training_responsibility_provider is not None
         assert client.model_aggregation_weight_source == "single_model_assignment_sample_counts"
     print("PASS 柔らかい学習を固い割り当ての件数で集約する全体run")
+    own_assigned_run = execute_fedsda_experiment_run(
+        run_settings=build_experiment_run_settings(
+            configuration_name="fedsda-soft-training-own-assigned-models",
+            experiment_run_conditions=ExperimentRunConditions(
+                dataset_name="sine2",
+                random_seed=0,
+                client_count=2,
+                per_client_sample_count=100,
+                server_aggregation_interval_per_client_samples=50,
+            ),
+        )
+    )
+    for client in own_assigned_run.measured_run.participants.client_operations:
+        store = client.owners.training_sample_store
+        assert store.training_responsibility_provider is not None
+        assert store.snapshot_model_ids_with_assigned_samples()
+    print("PASS 柔らかい学習の責任度を自分で固く割り当てたモデルに限る全体run")
     from federated_learning_experiments.runtime.dynamic_weighted_majority_experiment_run import (
         execute_dynamic_weighted_majority_experiment_run,
     )

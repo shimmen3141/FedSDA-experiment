@@ -188,7 +188,8 @@ def test_configuration_differs_from_soft_training_only_in_the_weight_source():
     assert (
         configurations.SOFT_TRAINING_ASSIGNMENT_COUNT_AGGREGATION_WEIGHTS_CONFIGURATION_NAME == NAME
     )
-    assert configurations.EXPERIMENT_CONFIGURATION_NAMES[-2:] == ("dwm-neural-network", NAME)
+    names = configurations.EXPERIMENT_CONFIGURATION_NAMES
+    assert names[names.index(NAME) - 1] == "dwm-neural-network"
     for dataset in ("sine2", "mnist4"):
         soft = build_settings("fedsda-soft-training", dataset=dataset)
         participants = soft.run_participant_settings

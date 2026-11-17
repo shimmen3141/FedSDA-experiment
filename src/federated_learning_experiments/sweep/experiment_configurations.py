@@ -49,6 +49,9 @@ TRAINING_MASS_DIAGNOSTICS_CONFIGURATION_NAME = "fedsda-training-mass-diagnostics
 SOFT_TRAINING_ASSIGNMENT_COUNT_AGGREGATION_WEIGHTS_CONFIGURATION_NAME = (
     "fedsda-soft-training-assignment-count-aggregation-weights"
 )
+# 柔らかい学習（`fedsda-soft-training`）の、責任度の対象だけを、そのclientが自分で固く割り当てた標本を持つモデルと、
+# いま割り当てる先に限った構成（配られただけのモデルを柔らかい学習で更新しない）。
+SOFT_TRAINING_OWN_ASSIGNED_MODELS_CONFIGURATION_NAME = "fedsda-soft-training-own-assigned-models"
 # 提案構成から、集約後の、予測重みの再較正を外した構成。
 PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME = (
     "fedsda-without-prediction-weight-recalibration"
@@ -176,6 +179,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     SOFT_TRAINING_SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
     DYNAMIC_WEIGHTED_MAJORITY_NEURAL_NETWORK_CONFIGURATION_NAME,
     SOFT_TRAINING_ASSIGNMENT_COUNT_AGGREGATION_WEIGHTS_CONFIGURATION_NAME,
+    SOFT_TRAINING_OWN_ASSIGNED_MODELS_CONFIGURATION_NAME,
 )
 
 
@@ -560,6 +564,7 @@ def build_experiment_run_settings(
         SOFT_TRAINING_CONFIGURATION_NAME,
         TRAINING_MASS_DIAGNOSTICS_CONFIGURATION_NAME,
         SOFT_TRAINING_ASSIGNMENT_COUNT_AGGREGATION_WEIGHTS_CONFIGURATION_NAME,
+        SOFT_TRAINING_OWN_ASSIGNED_MODELS_CONFIGURATION_NAME,
     ):
         participants = proposed_run_settings.run_participant_settings
         client_settings = replace(
@@ -578,6 +583,11 @@ def build_experiment_run_settings(
             client_settings = replace(
                 client_settings,
                 model_aggregation_weight_source="single_model_assignment_sample_counts",
+            )
+        if configuration_name == SOFT_TRAINING_OWN_ASSIGNED_MODELS_CONFIGURATION_NAME:
+            client_settings = replace(
+                client_settings,
+                training_responsibility_model_scope="models_with_own_assigned_samples",
             )
         return replace(
             proposed_run_settings,

@@ -13,14 +13,14 @@
   - _Depends: 1_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 3. 構成を登録し、掃引と文書へつなぐ
+- [x] 3. 構成を登録し、掃引と文書へつなぐ
   - 構成名の定数を一覧の末尾へ足し、`fedsda-soft-training`の組立ての分岐で`training_responsibility_model_scope="models_with_own_assigned_samples"`だけを替える。構成の名前を固定で照合している既存のtest（`test_soft_training_single_model_prediction.py`の一覧の末尾、`test_fedsda_soft_training_assignment_count_aggregation_weights.py`の末尾2つの期待、`test_fedsda_configuration_variants.py`の列挙と変種の集合の差）と`behavior_golden_cases.py`の`CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN`へ足す。`docs/experiments/experiment-sweep.md`の構成の表に、目的と`fedsda-soft-training`との違いを書く。
   - 完了条件: 新しいtestファイルで、新しい構成の設定が`fedsda-soft-training`と`training_responsibility_model_scope`だけ違い、保存の記録にその値が出る。計画で新しい構成のrunが増え、既存の構成の識別子が変わらない。小さい実掃引（`slow`）で保存・一覧のCSV・再開・競合の拒否が通る。上の既存のtest、構成の一覧の先頭や固定の範囲を照合している既存のtest（`test_fedsda_soft_training_configuration.py`、`test_feddrift_fedccfa_configuration.py`、`test_feddrift_ifca_window_configuration.py`、`test_feddrift_window_and_adaptive_fedavg_configuration.py`、`test_dynamic_weighted_majority_experiment_sweep.py`）、`test_important_behavior_regression_goldens.py`が通る。
   - _Boundary: sweep（構成の登録）、testの構成一覧、文書_
   - _Depends: 2_
   - _Requirements: 2.1, 3.1, 4.1, 4.2, 4.3_
 
-- [ ] 4. runの挙動を確かめ、fresh processへ足す
+- [x] 4. runの挙動を確かめ、fresh processへ足す
   - 2 client・sine2とmnist4の小さいrun（`slow`）で、提供の関数を包んで確かめるtestを書く。`fresh_process_smoke.py`に新しい構成の小さいrunを足す。
   - 完了条件: (a) 新しい構成の各呼出しで、返した責任度の辞書のキーが「そのclientの固い割り当ての標本を持つモデル」と`fallback_model_id`に含まれる、(b) 対象外の保有モデルが実際に生じる呼出しがある（制限が効いている）、(c) 各clientで、対象外の保有モデルが初めて生じる呼出しより前の責任度の列が、同じ条件の`fedsda-soft-training`と一致する、(c2) 各呼出しの対象が、そのclientがそれまでに`fallback_model_id`として渡したIDを付け替え・統合で移した集合（と今回の`fallback_model_id`）と一致する、(d) 記録の表に学習量のコンセプト別の記録がある、が通る。fresh process smokeが通る。
   - _Boundary: tests（run）、fresh process smoke_
