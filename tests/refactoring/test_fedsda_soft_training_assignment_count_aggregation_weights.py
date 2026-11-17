@@ -533,9 +533,6 @@ def test_model_without_assignment_counts_in_any_client_keeps_global_concept_spec
     monkeypatch.setattr(
         aggregation_parameters, "derive_client_model_aggregation_weights", without_model_zero
     )
-    monkeypatch.setattr(
-        aggregation_parameters, "aggregate_client_models_into_global_models", checked_aggregate
-    )
     from federated_learning_experiments.runtime import server_round_synchronization
 
     monkeypatch.setattr(

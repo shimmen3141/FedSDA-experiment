@@ -22,12 +22,12 @@
 
 - [x] 4. runの挙動を確かめ、fresh processへ足す
   - 2 client・sine2とmnist4の小さいrun（`slow`）で、集約の呼出しを包んで期待と比べるtestを書く。`fresh_process_smoke.py`に新しい構成の小さいrunを足す。
-  - 完了条件: (a) 集約の各呼出しで、重み付きの和に渡る重みの列が各clientの件数から作った期待（参加は保有かつ件数>0、共有部は合計）と一致、(b) 上りのモデル数が期待と一致、(c) どのclientも件数を持たない保有モデルのパラメータが集約で変わらない、(d) 少なくとも1回の集約で件数と学習量が異なる、(e) 最初の同期より前の標本の予測の記録が同じ条件の`fedsda-soft-training`と一致、(f) 記録の表に学習量のコンセプト別の記録がある、が通る。fresh process smokeが通る。
+  - 完了条件: (a) 集約の各呼出しで、重み付きの和に渡る重みの列が各clientの件数から作った期待（参加は保有かつ件数>0、共有部は合計）と一致、(b) 上りのモデル数が期待と一致、(c) どのclientも件数を持たない保有モデルのパラメータが集約で変わらない（小さいrunでは自然に起きないので、重みの関数を包んで起こす別のtestで確かめる）、(d) 少なくとも1回の集約で件数と学習量が異なる、(e) 最初の同期より前の標本の予測の記録が同じ条件の`fedsda-soft-training`と一致、(f) 記録の表に学習量のコンセプト別の記録がある、が通る。fresh process smokeが通る。
   - _Boundary: tests（run）、fresh process smoke_
   - _Depends: 3_
   - _Requirements: 1.1, 1.2, 2.1, 2.2, 2.3, 2.4, 2.5, 3.3_
 
-- [ ] 5. 全体の検証
+- [x] 5. 全体の検証
   - naming.mdを実装に合わせ、`spec_checks.py names`を通す。独立CLIの実装レビューの指摘を反映した後、全pytest（goldenを含む）・Ruff・pyrightを通す。
   - 完了条件: 全pytestが通り（件数を前の件数＋追加のtest数と照合）、既存のgoldenと識別子が変わらない。件数とcommitをImplementation Notesへ記録する。
   - _Depends: 4_
@@ -46,3 +46,15 @@
 - testの順: task 1〜4とも、新しいtestを先に書いてREDを確かめてから実装した（task 3は構成の登録の3件、task 4のrunのtestは実装済みの挙動の確認なので最初から通る）。
 - 要求2.4: 小さいrun（sine2・mnist4）では、どのclientも件数を持たない保有モデルが自然には出なかった（逐次実行の記録で該当0回。件数と学習量が異なる集約はsine2で29回、mnist4で26回）。重みの関数を包んでモデル0の件数を全clientで0にするtestを足し、概念固有部が変わらないことを確かめた。
 - 主担当の実測（Windows、固定venv、OMP/MKL 1 thread）: 新しいtestファイルの全件、関連の既存test（構成一覧の照合、FedDrift系の固定の範囲、柔らかい学習、golden、候補の設定）889件、集約の既存test 139件、依存の境界2287件（新しいtestと合わせて）、fresh process smoke、Ruff。`spec_checks.py names`は未登録なし。
+
+### 実装レビュー
+- 1回目（Claude Haiku 5.5、effort medium、独立CLI、testの実行を許可、session `0af2c8b3-6eac-4d60-af6b-246328d043a7`、JSONの`is_error=false`・`modelUsage`は`claude-haiku-5-5`、対象 `6490375d..c9240065`）: PASS。選択の理由は、集約の重みと複数の部品（設定・client・集約・構成）の接続のレビューのため。独立に実行: 新しいtest・柔らかい学習の2ファイル・依存の境界・集約のtest（`-m "not slow"`、2349 passed、1 skipped）、新しいtestの`slow`の4件（4 passed）、Ruff。独立に実行していない: 全pytest、`test_fedsda_configuration_variants.py`・`test_dynamic_weighted_majority_experiment_sweep.py`・`test_important_behavior_regression_goldens.py`、fresh process smoke、`spec_checks.py names`（いずれも主担当の実測あり）。レビューの前後で`git status --short`は同じ。
+  - Minor 1（要求2.4のtestで、`server_model_registration_and_aggregation`側の名前の差し替えは効かない）: 採用。その1行を消した。
+  - Minor 2（runのtestは`kept_without_counts`を数えるが確かめず、sine2・mnist4では0）: 採用。task 4の(c)の記述に、別のtestで確かめることを足した（上の「実装（主担当）」の記述と同じ）。
+  - 任意 3・4（構成の変種の集合からの除外、DWMの位置の期待の変更）: 妥当という確認で、変更なし。
+
+### 全体の検証（主担当、Windows、固定venv、OMP/MKL 1 thread、12 worker）
+- 全pytest: 13,875 passed、14 skipped、失敗0（19分23秒）。対象はレビューの指摘の反映後の作業ツリー（commit `c9240065`＋Minor 1の1行の削除・tasks.mdの記録。この後のcommitで記録）。JUnit: `venv/refactoring-tests/fedsda-soft-training-assignment-count-aggregation-weights-full.xml`。
+- 件数の照合（前のspec `dwm-neural-network-baseline`のJUnitと比べた）: 新しいtestファイル28件、既存の構成一覧のtestへの新しい構成の分6件を足し、DWMの位置のtest 1件を改名した（+34−1＝+33＝13,889−13,856）。
+- 前のspecより増えたskipの6件は、`test_fmnist_and_rotated_mnist_runs.py`のFashion-MNISTの全run（`FDE_FASHION_MNIST_DATA_DIR`を設定していなかった環境の差）。設定して同じファイルの`-k fmnist`を流し直し、28 passed。前のspecで環境の理由で失敗した`test_research_method_pareto_figure::test_statistics_and_outputs`は今回通った。
+- Ruff（check・format）、pyright（変更したsource 4ファイル）: 0件。
