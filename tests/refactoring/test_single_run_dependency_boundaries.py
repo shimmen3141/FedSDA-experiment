@@ -3673,6 +3673,143 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "numpy.typing",
             "numpy.typing.NDArray",
         )
+    if source_module_path == "methods/dynamic_weighted_majority/dynamic_weighted_majority_rules.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "math",
+        )
+    if (
+        source_module_path
+        == "methods/dynamic_weighted_majority/dynamic_weighted_majority_client.py"
+    ):
+        return imported_module_name in (
+            "copy.deepcopy",
+            "dataclasses.dataclass",
+            "dataclasses.field",
+            "dataclasses.replace",
+            "federated_learning_experiments.data.observed_streams.ObservedSample",
+            "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.validate_classifier_bounded_loss_inputs",
+            "federated_learning_experiments.learning.training.independent_model_parameter_update.update_independent_model_parameters",
+            "federated_learning_experiments.learning.training.independent_model_parameter_update.validate_independent_model_parameter_update_inputs",
+            "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
+            "federated_learning_experiments.methods.dynamic_weighted_majority.dynamic_weighted_majority_rules.update_weights_at_period",
+            "federated_learning_experiments.methods.dynamic_weighted_majority.dynamic_weighted_majority_rules.vote_weighted_majority",
+            "random.Random",
+            "torch.Tensor",
+            "torch.cat",
+            "torch.float32",
+            "torch.no_grad",
+            "torch.tensor",
+        )
+    if source_module_path == "runtime/dynamic_weighted_majority_run_settings.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
+            "federated_learning_experiments.evaluation.run_metric_calculations.RunMetricSettings",
+            "federated_learning_experiments.execution.stream_protocol_execution_settings.StreamProtocolExecutionSettings",
+            "federated_learning_experiments.execution.stream_protocol_execution_settings.validate_stream_protocol_execution_settings",
+            "federated_learning_experiments.learning.training.initial_model_pretraining_settings.InitialModelPretrainingSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
+            "federated_learning_experiments.runtime.fedavg_run_settings.build_default_fedavg_run_settings",
+        )
+    if source_module_path == "runtime/dynamic_weighted_majority_run_server.py":
+        return imported_module_name in (
+            "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeRecordStore",
+            "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeSnapshot",
+            "federated_learning_experiments.methods.dynamic_weighted_majority.dynamic_weighted_majority_client.DynamicWeightedMajorityClient",
+        )
+    if source_module_path == "runtime/dynamic_weighted_majority_run_participant_factory.py":
+        return imported_module_name in (
+            "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
+            "federated_learning_experiments.data.dataset_definitions.get_dataset_definition",
+            "federated_learning_experiments.data.observed_sample_generation.ObservedSampleGenerator",
+            "federated_learning_experiments.data.observed_sample_generation.is_observed_sample_generator_of_dataset",
+            "federated_learning_experiments.execution.run_participant_contracts.RunParticipants",
+            "federated_learning_experiments.execution.run_random_sources.RunRandomSources",
+            "federated_learning_experiments.learning.models.model_architecture_settings.ModelArchitectureSettings",
+            "federated_learning_experiments.methods.dynamic_weighted_majority.dynamic_weighted_majority_client.DynamicWeightedMajorityClient",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_run_server.DynamicWeightedMajorityRunServer",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_run_settings.DynamicWeightedMajorityRunParticipantSettings",
+            "federated_learning_experiments.runtime.initial_model_pretraining.pretrain_initial_model",
+            "numpy.random.RandomState",
+            "random.Random",
+        )
+    if source_module_path == "runtime/dynamic_weighted_majority_experiment_run.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
+            "federated_learning_experiments.data.observed_sample_generation.ObservedSampleGenerator",
+            "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeSnapshot",
+            "federated_learning_experiments.evaluation.computation_cost_summary.ComputationCostSummary",
+            "federated_learning_experiments.evaluation.computation_cost_summary.ServerComputationCounts",
+            "federated_learning_experiments.evaluation.computation_cost_summary.summarize_computation_cost",
+            "federated_learning_experiments.evaluation.run_metric_calculations.DetectionMetrics",
+            "federated_learning_experiments.evaluation.run_metric_calculations.calculate_detection_metrics",
+            "federated_learning_experiments.evaluation.run_metric_calculations.calculate_prediction_accuracy",
+            "federated_learning_experiments.evaluation.run_metric_calculations.calculate_stable_period_prediction_accuracy",
+            "federated_learning_experiments.evaluation.run_metric_calculations.extract_concept_change_sample_indices",
+            "federated_learning_experiments.execution.run_execution_records.StreamProtocolRunResult",
+            "federated_learning_experiments.execution.run_participant_contracts.RunParticipants",
+            "federated_learning_experiments.execution.run_participant_contracts.RunServerOperations",
+            "federated_learning_experiments.execution.run_random_sources.RunRandomSources",
+            "federated_learning_experiments.execution.stream_protocol_execution_settings.StreamProtocolExecutionSettings",
+            "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
+            "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationMeter",
+            "federated_learning_experiments.learning.models.model_computation_measurement.measure_model_computation",
+            "federated_learning_experiments.learning.models.model_computation_measurement.subtract_model_computation_counts",
+            "federated_learning_experiments.methods.dynamic_weighted_majority.dynamic_weighted_majority_client.DynamicWeightedMajorityClient",
+            "federated_learning_experiments.methods.dynamic_weighted_majority.dynamic_weighted_majority_client.DynamicWeightedMajoritySamplePrediction",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_run_participant_factory.DynamicWeightedMajorityRunParticipantFactory",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_run_server.DynamicWeightedMajorityRunServer",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_run_settings.DynamicWeightedMajorityRunParticipantSettings",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_run_settings.DynamicWeightedMajorityRunSettings",
+            "federated_learning_experiments.runtime.single_run_execution.execute_stream_protocol_run",
+            "typing.cast",
+        )
+    if source_module_path == "runtime/dynamic_weighted_majority_run_record_tables.py":
+        return imported_module_name in (
+            "dataclasses.fields",
+            "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
+            "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeSnapshot",
+            "federated_learning_experiments.evaluation.run_metric_calculations.extract_concept_change_sample_indices",
+            "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
+            "federated_learning_experiments.methods.dynamic_weighted_majority.dynamic_weighted_majority_client.DynamicWeightedMajorityClient",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_experiment_run.DynamicWeightedMajorityExperimentRun",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_experiment_run.derive_dynamic_weighted_majority_run_metrics",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_run_server.DynamicWeightedMajorityRunServer",
+            "numpy.asarray",
+            "numpy.bool_",
+            "numpy.int64",
+            "numpy.ndarray",
+            "numpy.str_",
+            "typing.cast",
+        )
+    if source_module_path == "runtime/dynamic_weighted_majority_run_artifact_files.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.core.run_provenance.RunProvenance",
+            "federated_learning_experiments.core.run_provenance.convert_run_provenance_to_mapping",
+            "federated_learning_experiments.core.run_provenance.read_run_provenance",
+            "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_experiment_run.DynamicWeightedMajorityExperimentRun",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_run_record_tables.build_dynamic_weighted_majority_run_record_tables",
+            "json.dumps",
+            "json.loads",
+            "numpy.__version__",
+            "numpy.load",
+            "numpy.ndarray",
+            "numpy.savez_compressed",
+            "os.replace",
+            "pathlib.Path",
+            "platform.machine",
+            "platform.python_version",
+            "platform.system",
+            "torch.__version__",
+            "uuid.uuid4",
+        )
     if source_module_path == "methods/fedavg/fedavg_client.py":
         return imported_module_name in (
             "copy.deepcopy",
@@ -4713,6 +4850,10 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_sweep_execution.py":
         return imported_module_name in (
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_experiment_run.execute_dynamic_weighted_majority_experiment_run",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_run_artifact_files.load_dynamic_weighted_majority_run_artifacts",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_run_artifact_files.save_dynamic_weighted_majority_experiment_run",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_run_settings.DynamicWeightedMajorityRunSettings",
             "federated_learning_experiments.sweep.experiment_sweep_resumption.can_recover_interrupted_run",
             "federated_learning_experiments.sweep.experiment_sweep_resumption.hold_sweep_output_lock",
             "federated_learning_experiments.sweep.experiment_sweep_resumption.recover_interrupted_run",
@@ -4749,6 +4890,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_sweep_plan.py":
         return imported_module_name in (
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_run_settings.DynamicWeightedMajorityRunSettings",
             "federated_learning_experiments.methods.feddrift.adaptive_fedavg_learning_rate.AdaptiveFedavgLearningRateSettings",
             "federated_learning_experiments.methods.feddrift.driftsurf_state.DriftSurfSettings",
             "federated_learning_experiments.runtime.fedavg_run_settings.FedavgRunSettings",
@@ -4779,6 +4921,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_configurations.py":
         return imported_module_name in (
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_run_settings.DynamicWeightedMajorityRunSettings",
+            "federated_learning_experiments.runtime.dynamic_weighted_majority_run_settings.build_default_dynamic_weighted_majority_run_settings",
             "federated_learning_experiments.methods.feddrift.adaptive_fedavg_learning_rate.AdaptiveFedavgLearningRateSettings",
             "federated_learning_experiments.methods.feddrift.driftsurf_state.DriftSurfSettings",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.REINITIALIZED_LEARNER_POLICY_NAME",
@@ -6145,6 +6289,14 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             importing_package_name=importing_package_name,
         )
         if source_module_path in (
+            "methods/dynamic_weighted_majority/dynamic_weighted_majority_rules.py",
+            "methods/dynamic_weighted_majority/dynamic_weighted_majority_client.py",
+            "runtime/dynamic_weighted_majority_run_settings.py",
+            "runtime/dynamic_weighted_majority_run_server.py",
+            "runtime/dynamic_weighted_majority_run_participant_factory.py",
+            "runtime/dynamic_weighted_majority_experiment_run.py",
+            "runtime/dynamic_weighted_majority_run_record_tables.py",
+            "runtime/dynamic_weighted_majority_run_artifact_files.py",
             "methods/fedavg/fedavg_client.py",
             "runtime/fedavg_experiment_run.py",
             "runtime/fedavg_run_artifact_files.py",

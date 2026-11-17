@@ -24,3 +24,17 @@
 | `dynamic_weighted_majority_run_artifact_files` / `save_dynamic_weighted_majority_experiment_run` / `load_dynamic_weighted_majority_run_artifacts` | `runtime/` | JSON・NPZの保存と読込み | — |
 
 実装担当が決めた公開名（あれば）は、実装の後にこの表へ追記する。
+
+## 実装で追加した名前
+
+| 公開名 | 場所 | 役割 | 似た名前との違い |
+|---|---|---|---|
+| `DynamicWeightedMajorityExpertTrainingCounts` | `dynamic_weighted_majority_client` | 専門家ごとの学習と予測の計数（消された専門家は消される時点の値）。`model_training`の表の1行 | `DynamicWeightedMajorityExpertLifetime`は作られた・消された位置だけを持つ |
+| `expert_lifetimes` / `expert_training_counts` | `DynamicWeightedMajorityClient`のproperty | 作られた順の全専門家（消されたものを含む）の寿命の記録と、学習の計数 | `experts`は今いる専門家だけ |
+| `DynamicWeightedMajorityRoundComputationCounts` | `dynamic_weighted_majority_experiment_run` | ラウンドごとの、標本の処理と同期の間のモデルの計算 | FedAvgの`FedavgRoundComputationCounts`と同じ働き（非公開名をimportしないため、同じ形をこのmoduleに持つ） |
+| `DynamicWeightedMajorityRunArtifactPaths` | `dynamic_weighted_majority_run_artifact_files` | 保存した要約と記録の表の場所 | FedAvgの`FedavgRunArtifactPaths`と同じ働き |
+| `METHOD_NAME` | 同上 | 要約の`method_name`（`dynamic_weighted_majority`）。読込みはこの値でなければ拒否する | 構成名`dwm-neural-network`とは別（成果物の種類の名前） |
+| `DEFAULT_WEIGHT_DECREASE_FACTOR` / `DEFAULT_REMOVAL_WEIGHT_THRESHOLD` / `DEFAULT_PERIOD_SAMPLE_COUNT` | `dynamic_weighted_majority_run_settings` | 既定のβ=0.5、θ=0.01、p=50 | 公式の実装の既定のpは1。50は論文4.2節の値 |
+| `synchronized_client_expert_counts` | `DynamicWeightedMajorityRunServer`の属性 | 同期の時点のclientごとの専門家の数（`synchronization.client_held_model_count`の表） | FedAvgのサーバには無い |
+| `build_experiment_run_settings` | `sweep/experiment_configurations.py` | 既存の関数。戻り値の型の和にDWMの設定を足し、構成`dwm-neural-network`の分岐をFedSDAの既定の経路より前に足しただけ | 役割は変えない |
+

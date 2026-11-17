@@ -1686,6 +1686,41 @@ def main():
         assert client.owners.training_sample_store.training_responsibility_provider is not None
         assert client.owners.fixed_share_weight_controller.weights_by_model_id == {}
     print("PASS 柔らかい学習と単体予測の全体run")
+    from federated_learning_experiments.runtime.dynamic_weighted_majority_experiment_run import (
+        execute_dynamic_weighted_majority_experiment_run,
+    )
+    from federated_learning_experiments.runtime.dynamic_weighted_majority_run_artifact_files import (
+        load_dynamic_weighted_majority_run_artifacts,
+        save_dynamic_weighted_majority_experiment_run,
+    )
+
+    dwm_run = execute_dynamic_weighted_majority_experiment_run(
+        run_settings=build_experiment_run_settings(
+            configuration_name="dwm-neural-network",
+            experiment_run_conditions=ExperimentRunConditions(
+                dataset_name="sine2",
+                random_seed=0,
+                client_count=2,
+                per_client_sample_count=120,
+                server_aggregation_interval_per_client_samples=40,
+            ),
+        )
+    )
+    with TemporaryDirectory() as directory:
+        paths = save_dynamic_weighted_majority_experiment_run(
+            experiment_run=dwm_run,
+            output_directory=Path(directory),
+            file_stem="dwm",
+            run_provenance=TEST_RUN_PROVENANCE,
+        )
+        summary, tables = load_dynamic_weighted_majority_run_artifacts(
+            summary_file_path=paths.summary_file_path
+        )
+    assert summary["method_name"] == "dynamic_weighted_majority"
+    assert dwm_run.run_metrics.communication_volume.uploaded_byte_count == 0
+    assert tables["sample_prediction.sample_index"].shape == (2, 120)
+    assert tables["expert_lifetime.expert_id"].size >= 2
+    print("PASS DWM（神経網の専門家）の全体run・保存・読込み")
     loaded_forbidden_modules = sorted(
         name
         for name in sys.modules
