@@ -1,13 +1,13 @@
 # Implementation Plan
 
-- [ ] 1. DWMの規則を純粋な関数として提供する
+- [x] 1. DWMの規則を純粋な関数として提供する
   - 投票（同点は最小のクラス）と、周期の標本での重みの更新（誤った専門家の減衰→投票し直し→最大の重みでの正規化→θ未満の削除→追加の判断）を、学習と乱数から切り離して実装する。不正な入力（専門家0、長さの不一致、範囲外のクラス、非有限の重み）を拒否する。
   - 追加の判断に使う投票は、減衰の直後・正規化と削除の前の重みで行う（削除の後に投票し直すと結果が変わる例を手計算の例に入れる）。
   - 完了条件: `tests/refactoring/test_dynamic_weighted_majority_rules.py`が、手で計算した例（全員正解で重みが変わらない、全員誤りで正規化により最大が1に戻る、θ未満の削除、投票し直した予測が誤りのときだけ追加、同点）と拒否の例で通る。
   - _Boundary: methods/dynamic_weighted_majority（規則）_
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 2. DWMのclientを実装する
+- [x] 2. DWMのclientを実装する
   - 専門家（ID、分類器、optimizerの状態、保持標本、重み、学習の計数）・記録（標本ごとの予測、専門家の作られた・消された位置）を所有し、design「System Flows」の1〜5の順で標本を処理する。新しい専門家は事前学習の直後の状態の複製（分類器とoptimizerの組を1回の`deepcopy`で。design参照）。完了条件に、足した専門家が実際に学習される（パラメータが変わり、元の初期状態は変わらない）ことを含める。学習は`update_independent_model_parameters`と`python_random_generator.sample`をFedAvgのclientと同じ順で呼ぶ。実行の枠の操作（区間末の消化ほか）は何もしない。
   - 完了条件: `tests/refactoring/test_dynamic_weighted_majority_client.py`で、(a) p>標本数のとき同じ初期状態・同じseedの`FedavgClient`と予測の列・全パラメータ・optimizerの状態・Pythonの乱数の状態が一致、(b) 周期の標本でだけ重みと専門家が変わり記録と一致、足した専門家の保持が作られた標本から始まり初期状態の複製で始まる、(c) 評価の予測が学習の前の重みによる、(d) 真のコンセプトを替えても予測・学習が変わらない、(e) 不正な入力で状態と乱数が変わらない、が通る。
   - _Boundary: methods/dynamic_weighted_majority（client）_
