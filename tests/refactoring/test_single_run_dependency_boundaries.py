@@ -3524,6 +3524,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
             "federated_learning_experiments.learning.training.model_training_sample_records",
             "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.learning.training.model_training_sample_store",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
             "federated_learning_experiments.learning.training.responsibility_weighted_training",
             "federated_learning_experiments.learning.training.responsibility_weighted_training.calculate_training_responsibilities",
             "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights",

@@ -6,7 +6,7 @@
   - _Boundary: runtime（clientの設定）、learning（学習標本の保持）_
   - _Requirements: 1.1, 3.1, 3.2, 4.2_
 
-- [ ] 2. 責任度の提供の関数に対象の制限を足し、clientから渡す
+- [x] 2. 責任度の提供の関数に対象の制限を足し、clientから渡す
   - `build_released_sample_responsibility_provider`に`own_assignment_sample_store`を足し、重みと確率を全保有モデルで求めた後で対象に絞る。`fedsda_run_client.py`の2か所で、設定が制限のときだけstoreを渡す。依存の境界の許可集合に、既存の形に合わせてmodule名と型名の両方を登録する。
   - 完了条件: 新しいtestファイルの単体testで、(a) 対象外のモデルが責任度の辞書に入らない、(b) 対象の中の値が、全保有モデルで求めた値を対象の中で正規化し直した値と一致、(c) Fixed-Shareの重みの状態が制限なしと同じ（全保有モデルで同期）、(d) 初めて割り当てる先（`fallback_model_id`）が含まれる、(e) 全保有モデルが対象なら制限なしと`==`で同じ、(f) storeに不正な型を渡すと`TypeError`、が通る。既存の`test_fedsda_soft_training_configuration.py`と依存の境界のtestが通る。
   - _Boundary: runtime（責任度の提供、client）_

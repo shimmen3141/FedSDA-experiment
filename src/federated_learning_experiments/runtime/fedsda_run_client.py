@@ -738,12 +738,24 @@ def assemble_fedsda_run_client(
             ResponsibilityWeightedTrainingStore()
         )
     if run_client_settings.training_assignment_strategy == "responsibility_weighted_training":
-        owners.training_sample_store.training_responsibility_provider = (
-            build_released_sample_responsibility_provider(
-                registry=owners.held_model_training_state_registry,
-                weight_controller=owners.fixed_share_weight_controller,
+        if (
+            run_client_settings.training_responsibility_model_scope
+            == "models_with_own_assigned_samples"
+        ):
+            owners.training_sample_store.training_responsibility_provider = (
+                build_released_sample_responsibility_provider(
+                    registry=owners.held_model_training_state_registry,
+                    weight_controller=owners.fixed_share_weight_controller,
+                    own_assignment_sample_store=owners.training_sample_store,
+                )
             )
-        )
+        else:
+            owners.training_sample_store.training_responsibility_provider = (
+                build_released_sample_responsibility_provider(
+                    registry=owners.held_model_training_state_registry,
+                    weight_controller=owners.fixed_share_weight_controller,
+                )
+            )
     return FedsdaRunClient(
         client_id=client_id,
         owners=owners,
