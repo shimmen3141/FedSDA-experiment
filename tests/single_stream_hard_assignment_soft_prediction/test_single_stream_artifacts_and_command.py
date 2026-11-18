@@ -8,8 +8,6 @@ import pytest
 
 pytest.importorskip("river")
 
-from tests.single_stream_hard_assignment_soft_prediction.stream_examples import make_stream  # noqa: E402
-
 from single_stream_hard_assignment_soft_prediction.single_stream_artifacts import (  # noqa: E402
     load_single_stream_run,
     save_single_stream_run,
@@ -19,9 +17,14 @@ from single_stream_hard_assignment_soft_prediction.single_stream_input import ( 
     compute_stream_array_digest,
     load_single_stream_input,
 )
-from single_stream_hard_assignment_soft_prediction.single_stream_run import run_single_stream  # noqa: E402
+from single_stream_hard_assignment_soft_prediction.single_stream_run import (
+    run_single_stream,  # noqa: E402
+)
 from single_stream_hard_assignment_soft_prediction.single_stream_settings import (  # noqa: E402
     build_default_single_stream_settings,
+)
+from tests.single_stream_hard_assignment_soft_prediction.stream_examples import (
+    make_stream,  # noqa: E402
 )
 
 
@@ -37,7 +40,13 @@ def write_stream(directory, seed):
     path = directory / f"sine2_seed{seed}_n800.npz"
     np.savez_compressed(path, **arrays)
     path.with_suffix(".json").write_text(
-        json.dumps(dict(dataset_name="sine2", random_seed=seed, array_sha256=compute_stream_array_digest(arrays))),
+        json.dumps(
+            dict(
+                dataset_name="sine2",
+                random_seed=seed,
+                array_sha256=compute_stream_array_digest(arrays),
+            )
+        ),
         encoding="utf-8",
     )
     return path
@@ -48,19 +57,29 @@ def test_saved_run_round_trips_and_is_not_overwritten(tmp_path):
     settings = build_default_single_stream_settings()
     result = run_single_stream(stream=stream, settings=settings)
     json_path, _ = save_single_stream_run(
-        result=result, settings=settings, stream=stream, output_directory=tmp_path / "out", file_stem="run"
+        result=result,
+        settings=settings,
+        stream=stream,
+        output_directory=tmp_path / "out",
+        file_stem="run",
     )
     document, tables = load_single_stream_run(json_path=json_path)
     assert set(tables) == set(result.record_tables)
     for name, values in result.record_tables.items():
         np.testing.assert_array_equal(tables[name], values)
-    assert document["summary"]["prequential_accuracy"] == pytest.approx(result.summary["prequential_accuracy"])
+    assert document["summary"]["prequential_accuracy"] == pytest.approx(
+        result.summary["prequential_accuracy"]
+    )
     assert document["settings"]["warm_up_sample_count"] == 200
     assert document["input"]["array_sha256"] == stream.array_sha256
     assert document["environment"]["river"] == "0.27.0"
     with pytest.raises(FileExistsError):
         save_single_stream_run(
-            result=result, settings=settings, stream=stream, output_directory=tmp_path / "out", file_stem="run"
+            result=result,
+            settings=settings,
+            stream=stream,
+            output_directory=tmp_path / "out",
+            file_stem="run",
         )
 
 

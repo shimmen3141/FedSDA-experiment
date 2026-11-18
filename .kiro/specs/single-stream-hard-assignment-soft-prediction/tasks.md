@@ -96,4 +96,10 @@
   - Minor 3（許可集合の各名前が実際にimportされていることを確かめていない）: 採用。`test_every_allowed_product_module_is_actually_imported`を足した。
   - 任意 4（A→B→Aの系列で、802件目にk=5で新しいモデルを作った直後、841件目に同じBのモデルがもう一つ作られる）: 記録する。結果を読むときの注意として、研究記録に残す。
   - 任意 5（標本の番号の連続性を確かめない、ほか）: 不採用。runの経路は連続した番号を渡すので、結果に影響しない。
+- 2回目（同じHaiku 5.5、session `15e53b1c-eab9-407b-97df-23ccb767c972`、対象 `655e9476..479b9ef6`）: PASS（Blocker・Majorなし。1回目のMajor 1・2とMinor 3は解消と確認）。独立に実行: worktreeと、`git archive 479b9ef6`で取り出したHEADの複製で、Windows（25 passed、6 skipped）とWSL（61 passed、2 skipped）。
+  - 作業ツリーの変更について: レビューの依頼の後、主担当がRuffの対象（`pyproject.toml`の`include`）に新しいtestのディレクトリを足し、新しいtestにRuffの整形とimportの並べ替えをかけた（依頼文の「未コミットの差分は無い」と食い違った）。レビュー担当はこれを書いていないと報告し、判定はHEAD（`479b9ef6`）の複製で行った。整形の変更はtestの中身を変えないもので、この後のcommitで記録し、全pytestを取り直す。1回目の記録の「レビューの前後で`git status --short`は同じ」は1回目について正しい。
+  - Minor 1（待つ方針のtestのコメント「内部の基準の引き下げは除く」が不正確）: 採用。コメントを直した。
+  - 任意 2（監視の包み込みの条件が読みにくい）: 採用。局所のフラグにした（直す前の条件は、最初の始め直しまで包み込みを重ねうる形だった）。
+  - 任意 3（Windowsの結果は新しいtestの証拠にならない）: 採用。記録ではWSLの結果を新しいtestの証拠とする。
+- Ruffの対象: これまで`pyproject.toml`の`include`が`src/`と`tests/refactoring/`だけで、新しいtest（`tests/single_stream_hard_assignment_soft_prediction/`）はRuffの対象外だった（「All checks passed」と出ても検査されていなかった）。`include`に1行足して対象にし、整形とimportの並べ替えをかけた（designのファイル計画に無い変更）。
 

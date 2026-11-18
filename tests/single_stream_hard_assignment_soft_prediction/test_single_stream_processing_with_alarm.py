@@ -4,8 +4,6 @@ import pytest
 
 pytest.importorskip("river")
 
-from tests.single_stream_hard_assignment_soft_prediction.stream_examples import make_stream  # noqa: E402
-
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (  # noqa: E402
     FixedShareWeightController,
 )
@@ -17,6 +15,9 @@ from single_stream_hard_assignment_soft_prediction.single_stream_processing impo
 )
 from single_stream_hard_assignment_soft_prediction.single_stream_settings import (  # noqa: E402
     build_default_single_stream_settings,
+)
+from tests.single_stream_hard_assignment_soft_prediction.stream_examples import (
+    make_stream,  # noqa: E402
 )
 
 STREAM = make_stream([(0, 800), (1, 800), (0, 800)])
@@ -65,7 +66,9 @@ def traced_run():
 
     def recording_loss(*, model_id, observed_loss, observed_class_id):
         assigned_losses.setdefault(model_id, []).append(observed_loss)
-        return original_record(model_id=model_id, observed_loss=observed_loss, observed_class_id=observed_class_id)
+        return original_record(
+            model_id=model_id, observed_loss=observed_loss, observed_class_id=observed_class_id
+        )
 
     processor.loss_statistics_store.record_assigned_loss = recording_loss
     monitor_wrapped = False
@@ -79,7 +82,11 @@ def traced_run():
             def tracking_reset(*, baseline_loss_mean, _original=original_reset):
                 if in_alarm_handling[0]:
                     losses = assigned_losses.get(processor.current_model_id, [])
-                    expected = 0.01 if not losses else min(1.0 - 1e-6, max(0.01, sum(losses) / len(losses)))
+                    expected = (
+                        0.01
+                        if not losses
+                        else min(1.0 - 1e-6, max(0.01, sum(losses) / len(losses)))
+                    )
                     resets.append((processor.processed_sample_count, baseline_loss_mean, expected))
                 return _original(baseline_loss_mean=baseline_loss_mean)
 
@@ -87,7 +94,9 @@ def traced_run():
             monitor_wrapped = True
         alarm_count_before = len(processor.alarm_records)
         records.append(
-            processor.process_sample(sample_index=i, features=x, observed_class_id=y, observed_concept_id=c)
+            processor.process_sample(
+                sample_index=i, features=x, observed_class_id=y, observed_concept_id=c
+            )
         )
         new_alarms = processor.alarm_records[alarm_count_before:]
         if any(a.alarm_raised for a in new_alarms):
@@ -102,7 +111,9 @@ def raised(processor):
 
 def test_concept_change_creates_a_new_model_and_recurrence_reuses_the_old_one(traced_run):
     processor, _, _, _, _ = traced_run
-    outcomes = [(a.sample_index, a.adaptation_outcome, a.destination_model_id) for a in raised(processor)]
+    outcomes = [
+        (a.sample_index, a.adaptation_outcome, a.destination_model_id) for a in raised(processor)
+    ]
     new_alarms = [o for o in outcomes if o[1] == "new" and 800 <= o[0] < 1000]
     assert new_alarms, outcomes
     new_model_id = new_alarms[0][2]
@@ -114,7 +125,8 @@ def test_concept_change_creates_a_new_model_and_recurrence_reuses_the_old_one(tr
     probe = make_stream([(0, 70)])
     model = dict(processor.held_models)[reused_model_id]
     correct = sum(
-        int(max(range(2), key=lambda c: model.predict_class_probabilities(features=x)[c]) == y) for x, y, _ in probe
+        int(max(range(2), key=lambda c: model.predict_class_probabilities(features=x)[c]) == y)
+        for x, y, _ in probe
     )
     assert correct / len(probe) > 0.9
     assert new_model_id != 0
@@ -127,10 +139,14 @@ def test_each_sample_is_assigned_and_learned_once_by_a_held_model(traced_run):
     pending = set(processor.pending_sample_indices)
     assert set(assignments) | pending == set(range(len(STREAM)))
     assert not set(assignments) & pending
-    assert sum(getattr(model, "test_learn_count", 0) for _, model in processor.held_models) == len(assignments)
+    assert sum(getattr(model, "test_learn_count", 0) for _, model in processor.held_models) == len(
+        assignments
+    )
 
 
-def test_alarm_empties_the_pending_buffer_and_restarts_monitoring_with_the_destination_baseline(traced_run):
+def test_alarm_empties_the_pending_buffer_and_restarts_monitoring_with_the_destination_baseline(
+    traced_run,
+):
     processor, _, _, _, (resets, pending_after_alarm) = traced_run
     alarms = raised(processor)
     assert alarms
@@ -159,15 +175,18 @@ def test_short_window_after_an_alarm_waits_and_retries_the_selection(monkeypatch
         observation = original_observe(self, **kwargs)
         return replace(observation, drift_detected=kwargs["sample_index"] in forced)
 
-    monkeypatch.setattr(OverallAndTrueClassLossMonitor, "observe_loss_after_label_observation", forcing)
+    monkeypatch.setattr(
+        OverallAndTrueClassLossMonitor, "observe_loss_after_label_observation", forcing
+    )
     processor = SingleStreamHardAssignmentSoftPredictionProcessor(
         settings=build_default_single_stream_settings(), class_count=2
     )
     resets = []
+    monitor_wrapped = False
     stream = make_stream([(0, 310)])
     pending_after = {}
     for i, (x, y, c) in enumerate(stream):
-        if processor.loss_change_monitor is not None and not resets and not hasattr(processor, "_wrapped"):
+        if processor.loss_change_monitor is not None and not monitor_wrapped:
             monitor = processor.loss_change_monitor
             original_reset = monitor.reset
 
@@ -176,8 +195,10 @@ def test_short_window_after_an_alarm_waits_and_retries_the_selection(monkeypatch
                 return _original(baseline_loss_mean=baseline_loss_mean)
 
             monitor.reset = tracking_reset
-            processor._wrapped = True
-        processor.process_sample(sample_index=i, features=x, observed_class_id=y, observed_concept_id=c)
+            monitor_wrapped = True
+        processor.process_sample(
+            sample_index=i, features=x, observed_class_id=y, observed_concept_id=c
+        )
         pending_after[i] = processor.pending_sample_indices
     by_index = {a.sample_index: a for a in processor.alarm_records}
     # 300: 保留が31件で選択でき、警報になり、保留が空になる。
@@ -189,7 +210,8 @@ def test_short_window_after_an_alarm_waits_and_retries_the_selection(monkeypatch
         assert alarm.adaptation_outcome == "too_short" and not alarm.alarm_raised
         assert alarm.window_sample_count == offset
         assert pending_after[index] == tuple(range(301, index + 1))
-    # 待った標本では検出器を始め直さない（始め直しは300の警報の1回だけ。内部の基準の引き下げは除く）。
+    # 待った標本（301〜304）では検出器を始め直さない。300の警報では始め直す（記録には、監視の部品が損失の低下で
+    # 基準を下げるときの内部の始め直しも入りうるので、「300で始め直しがある」と「301〜304で無い」だけを確かめる）。
     assert 300 in resets and not any(index in resets for index in (301, 302, 303, 304))
     # 305以降は合図が無く、保留は容量まで溜まり続ける。
     assert pending_after[309] == tuple(range(301, 310))

@@ -21,7 +21,11 @@ ALLOWED_PRODUCT_MODULES = {
 }
 ALLOWED_THIRD_PARTY_ROOTS = {"numpy", "river"}
 # riverを使わないmodule（Windowsの固定venvでimportできる）。
-RIVER_FREE_PACKAGE_MODULES = ("single_stream_settings", "single_stream_input", "single_stream_metrics")
+RIVER_FREE_PACKAGE_MODULES = (
+    "single_stream_settings",
+    "single_stream_input",
+    "single_stream_metrics",
+)
 
 
 def imported_modules(path: Path) -> set[str]:
@@ -46,7 +50,10 @@ def test_package_imports_only_allowed_product_modules_stdlib_numpy_and_river():
             elif root == PACKAGE_NAME:
                 continue
             else:
-                assert root in ALLOWED_THIRD_PARTY_ROOTS or root in sys.stdlib_module_names, (path.name, name)
+                assert root in ALLOWED_THIRD_PARTY_ROOTS or root in sys.stdlib_module_names, (
+                    path.name,
+                    name,
+                )
             assert root != "torch", (path.name, name)
 
 
@@ -56,7 +63,9 @@ def test_product_does_not_import_the_package():
 
 
 def test_allowed_product_modules_and_river_free_package_modules_do_not_load_torch():
-    modules = sorted(ALLOWED_PRODUCT_MODULES) + [f"{PACKAGE_NAME}.{name}" for name in RIVER_FREE_PACKAGE_MODULES]
+    modules = sorted(ALLOWED_PRODUCT_MODULES) + [
+        f"{PACKAGE_NAME}.{name}" for name in RIVER_FREE_PACKAGE_MODULES
+    ]
     code = (
         "import importlib, sys\n"
         f"for name in {modules!r}:\n"
@@ -81,4 +90,3 @@ def test_every_allowed_product_module_is_actually_imported():
     for path in PACKAGE_DIRECTORY.glob("*.py"):
         used |= imported_modules(path)
     assert ALLOWED_PRODUCT_MODULES <= used, sorted(ALLOWED_PRODUCT_MODULES - used)
-

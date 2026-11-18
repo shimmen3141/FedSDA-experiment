@@ -85,7 +85,10 @@ def test_unseen_concept_creates_a_new_model():
     window = samples("A", 6, offset=2) + samples("C", 25, offset=40)
     selection = select(window, held, 0)
     assert selection.selected_hypothesis == "new_model"
-    assert selection.new_model_learner_name in (REINITIALIZED_LEARNER_NAME, WARM_STARTED_LEARNER_NAME)
+    assert selection.new_model_learner_name in (
+        REINITIALIZED_LEARNER_NAME,
+        WARM_STARTED_LEARNER_NAME,
+    )
 
 
 def test_held_models_without_loss_statistics_are_not_destinations():
@@ -120,11 +123,17 @@ def test_new_model_code_length_uses_reverse_prefix_sums_of_reset_and_keep_learne
     n, k = len(window), selection.change_interval_sample_count
     reset = reverse_prefixes(current.create_empty_like(), window)
     keep = reverse_prefixes(current.copy(), window)
-    before = math.fsum(current.description_length_loss(features=x, observed_class_id=y) for x, y in window[: n - k])
-    switching = compute_switching_code_length(switching_probability=SWITCHING_PROBABILITY, destination_count=1)
+    before = math.fsum(
+        current.description_length_loss(features=x, observed_class_id=y) for x, y in window[: n - k]
+    )
+    switching = compute_switching_code_length(
+        switching_probability=SWITCHING_PROBABILITY, destination_count=1
+    )
     expected = (before + switching) + (min(reset[k - 1], keep[k - 1]) + math.log(2.0))
     assert selection.description_length == pytest.approx(expected, rel=1e-12)
-    expected_name = REINITIALIZED_LEARNER_NAME if reset[k - 1] <= keep[k - 1] else WARM_STARTED_LEARNER_NAME
+    expected_name = (
+        REINITIALIZED_LEARNER_NAME if reset[k - 1] <= keep[k - 1] else WARM_STARTED_LEARNER_NAME
+    )
     assert selection.new_model_learner_name == expected_name
 
 
@@ -134,9 +143,16 @@ def test_built_new_model_equals_the_measured_learner_after_k_samples(learner_nam
     window = samples("A", 6, offset=2) + samples("C", 25, offset=40)
     k = 20
     built, recorded_losses = build_selected_new_concept_model(
-        learner_name=learner_name, current_model=current, pending_samples=tuple(window), change_interval_sample_count=k
+        learner_name=learner_name,
+        current_model=current,
+        pending_samples=tuple(window),
+        change_interval_sample_count=k,
     )
-    learner = current.create_empty_like() if learner_name == REINITIALIZED_LEARNER_NAME else current.copy()
+    learner = (
+        current.create_empty_like()
+        if learner_name == REINITIALIZED_LEARNER_NAME
+        else current.copy()
+    )
     expected_losses = []
     for x, y in list(reversed(window))[:k]:
         expected_losses.append(learner.monitoring_loss(features=x, observed_class_id=y))

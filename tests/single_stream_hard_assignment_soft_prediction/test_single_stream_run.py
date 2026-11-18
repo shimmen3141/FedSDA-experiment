@@ -5,15 +5,20 @@ import pytest
 
 pytest.importorskip("river")
 
-from tests.single_stream_hard_assignment_soft_prediction.stream_examples import make_stream  # noqa: E402
-
-from single_stream_hard_assignment_soft_prediction.single_stream_input import SingleStreamInput  # noqa: E402
+from single_stream_hard_assignment_soft_prediction.single_stream_input import (
+    SingleStreamInput,  # noqa: E402
+)
 from single_stream_hard_assignment_soft_prediction.single_stream_metrics import (  # noqa: E402
     compute_prequential_metrics,
 )
-from single_stream_hard_assignment_soft_prediction.single_stream_run import run_single_stream  # noqa: E402
+from single_stream_hard_assignment_soft_prediction.single_stream_run import (
+    run_single_stream,  # noqa: E402
+)
 from single_stream_hard_assignment_soft_prediction.single_stream_settings import (  # noqa: E402
     build_default_single_stream_settings,
+)
+from tests.single_stream_hard_assignment_soft_prediction.stream_examples import (
+    make_stream,  # noqa: E402
 )
 
 
@@ -46,7 +51,9 @@ def test_records_cover_every_sample_and_metrics_match_the_records(result):
     )
     for name, value in expected.items():
         assert summary[name] == pytest.approx(value, nan_ok=True)
-    assert summary["prequential_accuracy"] == pytest.approx(tables["sample.prediction_is_correct"].mean())
+    assert summary["prequential_accuracy"] == pytest.approx(
+        tables["sample.prediction_is_correct"].mean()
+    )
     assert summary["sample_count"] == 2100 and summary["elapsed_seconds"] > 0
 
 

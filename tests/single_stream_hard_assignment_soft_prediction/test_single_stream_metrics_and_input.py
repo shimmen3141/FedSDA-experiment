@@ -21,7 +21,10 @@ def test_accuracy_and_kappa_statistics_match_hand_computation():
     predicted = np.array([0, 1, 0, 0, 1, 1, 0, 1])
     concepts = np.zeros(8, dtype=int)
     m = compute_prequential_metrics(
-        predicted_class_ids=predicted, observed_class_ids=observed, concept_ids=concepts, class_count=2
+        predicted_class_ids=predicted,
+        observed_class_ids=observed,
+        concept_ids=concepts,
+        class_count=2,
     )
     p0 = 5 / 8
     # 周辺分布: 予測 0:4 1:4、観測 0:3 1:5。
@@ -42,7 +45,10 @@ def test_accuracy_and_kappa_statistics_match_hand_computation():
 def test_kappa_is_nan_when_the_denominator_is_zero():
     observed = np.zeros(5, dtype=int)
     m = compute_prequential_metrics(
-        predicted_class_ids=observed.copy(), observed_class_ids=observed, concept_ids=np.zeros(5, dtype=int), class_count=2
+        predicted_class_ids=observed.copy(),
+        observed_class_ids=observed,
+        concept_ids=np.zeros(5, dtype=int),
+        class_count=2,
     )
     assert math.isnan(m["kappa"]) and math.isnan(m["kappa_m"]) and math.isnan(m["kappa_temporal"])
 
@@ -51,11 +57,14 @@ def test_accuracy_after_true_changes_pools_samples_over_change_points():
     concepts = np.array([0] * 10 + [1] * 4 + [0] * 40)
     correct = np.zeros(54, dtype=bool)
     correct[10:12] = True  # 1つ目の変化点（10）の後の区間（4件）で2件正解
-    correct[14:14 + 20] = True  # 2つ目の変化点（14）の後の最初の20件が正解
+    correct[14 : 14 + 20] = True  # 2つ目の変化点（14）の後の最初の20件が正解
     observed = np.zeros(54, dtype=int)
     predicted = np.where(correct, 0, 1)
     m = compute_prequential_metrics(
-        predicted_class_ids=predicted, observed_class_ids=observed, concept_ids=concepts, class_count=2
+        predicted_class_ids=predicted,
+        observed_class_ids=observed,
+        concept_ids=concepts,
+        class_count=2,
     )
     # 最初の30件: 1つ目は区間の全部4件（2正解）、2つ目は30件（20正解）→ 22/34。
     assert m["accuracy_first_30_after_change"] == pytest.approx(22 / 34)
@@ -69,15 +78,43 @@ def test_concept_identification_classification():
     concepts = np.array([0] * 10 + [1] * 10 + [0] * 10 + [1] * 10)
     assigned = np.array([0] * 10 + [1] * 10 + [0] * 10 + [2] * 10)
     alarms = [
-        dict(sample_index=12, adaptation_outcome="new", destination_model_id=1, tail_concept_ids=(1, 1, 1)),
-        dict(sample_index=22, adaptation_outcome="reuse", destination_model_id=0, tail_concept_ids=(0, 0, 0)),
-        dict(sample_index=32, adaptation_outcome="new", destination_model_id=2, tail_concept_ids=(1, 1, 1)),
-        dict(sample_index=35, adaptation_outcome="reuse", destination_model_id=0, tail_concept_ids=(1, 1, 0)),
-        dict(sample_index=36, adaptation_outcome="stay", destination_model_id=2, tail_concept_ids=(1,)),
+        dict(
+            sample_index=12,
+            adaptation_outcome="new",
+            destination_model_id=1,
+            tail_concept_ids=(1, 1, 1),
+        ),
+        dict(
+            sample_index=22,
+            adaptation_outcome="reuse",
+            destination_model_id=0,
+            tail_concept_ids=(0, 0, 0),
+        ),
+        dict(
+            sample_index=32,
+            adaptation_outcome="new",
+            destination_model_id=2,
+            tail_concept_ids=(1, 1, 1),
+        ),
+        dict(
+            sample_index=35,
+            adaptation_outcome="reuse",
+            destination_model_id=0,
+            tail_concept_ids=(1, 1, 0),
+        ),
+        dict(
+            sample_index=36,
+            adaptation_outcome="stay",
+            destination_model_id=2,
+            tail_concept_ids=(1,),
+        ),
     ]
     created = {0: -1, 1: 12, 2: 32}
     counts = classify_concept_identification(
-        alarms=alarms, assigned_model_ids=assigned, concept_ids=concepts, model_created_sample_index_by_model_id=created
+        alarms=alarms,
+        assigned_model_ids=assigned,
+        concept_ids=concepts,
+        model_created_sample_index_by_model_id=created,
     )
     assert counts == dict(
         correct_reuse=1,
@@ -98,7 +135,11 @@ def write_stream(directory, *, labels=None, dataset_name="sine2", digest=None):
     )
     path = directory / "stream.npz"
     np.savez_compressed(path, **arrays)
-    metadata = dict(dataset_name=dataset_name, random_seed=3, array_sha256=digest or compute_stream_array_digest(arrays))
+    metadata = dict(
+        dataset_name=dataset_name,
+        random_seed=3,
+        array_sha256=digest or compute_stream_array_digest(arrays),
+    )
     path.with_suffix(".json").write_text(json.dumps(metadata), encoding="utf-8")
     return path, arrays
 

@@ -6,8 +6,6 @@ import pytest
 
 pytest.importorskip("river")
 
-from tests.single_stream_hard_assignment_soft_prediction.stream_examples import make_stream  # noqa: E402
-
 from single_stream_hard_assignment_soft_prediction.hoeffding_tree_concept_model import (  # noqa: E402
     HoeffdingTreeConceptModel,
 )
@@ -16,6 +14,9 @@ from single_stream_hard_assignment_soft_prediction.single_stream_processing impo
 )
 from single_stream_hard_assignment_soft_prediction.single_stream_settings import (  # noqa: E402
     build_default_single_stream_settings,
+)
+from tests.single_stream_hard_assignment_soft_prediction.stream_examples import (
+    make_stream,  # noqa: E402
 )
 
 
@@ -67,7 +68,9 @@ def test_prediction_is_the_argmax_of_the_weighted_mixture_with_one_model():
     for i, (x, y, c) in enumerate(make_stream([(0, 300)])):
         model = processor.held_models[0][1]
         probabilities = model.predict_class_probabilities(features=x)
-        record = processor.process_sample(sample_index=i, features=x, observed_class_id=y, observed_concept_id=c)
+        record = processor.process_sample(
+            sample_index=i, features=x, observed_class_id=y, observed_concept_id=c
+        )
         expected = 0 if probabilities[0] >= probabilities[1] else 1
         assert record.predicted_class_id == expected
         assert record.prediction_is_correct == (expected == y)
@@ -78,19 +81,25 @@ def test_true_concept_ids_do_not_change_predictions_or_learning():
     stream = make_stream([(0, 500), (1, 500)])
     first, first_records = run(stream)
     second, second_records = run(stream, concept_offset=7)
-    assert [r.predicted_class_id for r in first_records] == [r.predicted_class_id for r in second_records]
+    assert [r.predicted_class_id for r in first_records] == [
+        r.predicted_class_id for r in second_records
+    ]
     assert first.assigned_model_id_by_sample_index == second.assigned_model_id_by_sample_index
     assert [(a.sample_index, a.adaptation_outcome) for a in first.alarm_records] == [
         (a.sample_index, a.adaptation_outcome) for a in second.alarm_records
     ]
 
 
-@pytest.mark.parametrize("bad", [dict(sample_index=-1), dict(observed_class_id=2), dict(observed_class_id=True)])
+@pytest.mark.parametrize(
+    "bad", [dict(sample_index=-1), dict(observed_class_id=2), dict(observed_class_id=True)]
+)
 def test_invalid_inputs_are_rejected_before_any_update(bad):
     processor = SingleStreamHardAssignmentSoftPredictionProcessor(
         settings=build_default_single_stream_settings(), class_count=2
     )
-    arguments = dict(sample_index=0, features={0: 1.0}, observed_class_id=1, observed_concept_id=0) | bad
+    arguments = (
+        dict(sample_index=0, features={0: 1.0}, observed_class_id=1, observed_concept_id=0) | bad
+    )
     with pytest.raises((ValueError, TypeError)):
         processor.process_sample(**arguments)
     assert processor.processed_sample_count == 0
