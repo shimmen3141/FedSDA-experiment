@@ -50,7 +50,7 @@
 **Objective:** As a 研究者, I want 現在のモデルの損失を製品と同じ検出器で監視し、標本を保留してから割り当てる, so that FedHASPの固い割り当てを再現する
 
 #### Acceptance Criteria
-1. The system shall 最初の200件（ウォームアップ）では監視も警報もせず、200件目の標本の処理の最後に、現在のモデルの損失の統計から`select_loss_monitoring_baseline_mean_loss`で選んだ値を基準値として、design.mdの設定の`OverallAndTrueClassLossMonitor`を作り、201件目から監視する。ウォームアップ中の監視の対数e値はNaNとして記録する。
+1. The system shall 最初の200件（ウォームアップ）では監視の部品を呼ばず警報もせず（記録の対数e値の欄はNaN）、200件目の標本の処理の最後に、現在のモデルの損失の統計から`select_loss_monitoring_baseline_mean_loss`で選んだ値を基準値として、design.mdの設定の`OverallAndTrueClassLossMonitor`を作り、201件目から監視する。ウォームアップ中の監視の対数e値はNaNとして記録する。
 2. While ウォームアップの後, the system shall 各標本で、現在のモデルの監視用の損失・正解クラス・標本の番号と、現在のモデルの損失の統計から毎回`select_loss_monitoring_baseline_mean_loss`で選んだ基準値を渡して、`observe_loss_after_label_observation`で監視を進める（損失の低下による基準の引き下げは、この部品の既定の挙動に従う）。
 3. The system shall 各標本を、監視の後に帰属の保留（容量30）へ加え、警報としなければ、容量を超えた最も古い標本を現在のモデルへ割り当てる。
 4. When 標本をモデルへ割り当てるとき, the system shall そのモデルの学習の前の監視用の損失を、そのモデルの損失の統計（`ModelAndClassLossStatisticsStore.record_assigned_loss`、正解クラスつき）へ記録してから、その標本で1回学習する。

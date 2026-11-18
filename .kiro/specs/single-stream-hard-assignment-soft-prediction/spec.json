@@ -1,29 +1,60 @@
 {
   "feature_name": "single-stream-hard-assignment-soft-prediction",
   "created_at": "2026-11-18T16:00:00Z",
-  "updated_at": "2026-11-18T15:44:36Z",
+  "updated_at": "2026-11-18T18:30:00Z",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
-      "approved": true
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）。仕様書群の独立レビュー3回目で、文書だけの修正のMajor 1を残して他は解消（規約により再確認不要）"
     },
     "design": {
       "generated": true,
-      "approved": true
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）。仕様書群の独立レビュー3回目で、文書だけの修正のMajor 1を残して他は解消（規約により再確認不要）"
     },
     "tasks": {
       "generated": true,
-      "approved": false
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）。仕様書群の独立レビュー3回目で、文書だけの修正のMajor 1を残して他は解消（規約により再確認不要）"
     },
     "naming": {
       "generated": true,
-      "approved": false,
+      "approved": true,
       "revision": null,
       "approved_revision": null,
       "approved_sha256_lf": null
     }
   },
-  "ready_for_implementation": false
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "reviewer": "Claude Haiku 5.5（effort medium、読むだけ、独立CLI）",
+    "fallback_reason": "GPT-6 Lunaは使用量の上限（2026-11-22 23:07まで回復しない）で使えなかった",
+    "target": "6d0ce8d1（1回目）、6d0ce8d1..e53ae3b9（2回目）、e53ae3b9..e6330b97（3回目）",
+    "sessions": [
+      {
+        "round": 1,
+        "session_id": "b74feb35-4a62-4442-bb9a-ad91d4d07eb8",
+        "verdict": "FAIL（Major 5ほか。全部採用）"
+      },
+      {
+        "round": 2,
+        "session_id": "49f54e75-4951-4ef1-afb8-b7d3f09d45a2",
+        "verdict": "FAIL（Major 2ほか。全部採用）"
+      },
+      {
+        "round": 3,
+        "session_id": "4339927f-e5e0-4537-8938-254c12fdaa61",
+        "verdict": "FAIL（文書だけの修正のMajor 1、Minor 3。全部採用。レビュー担当が再レビュー不要と判定し、規約により主担当が直して記録）"
+      }
+    ]
+  },
+  "task_graph_sanity_review": {
+    "mode": "inline",
+    "verdict": "PASS",
+    "reason": "AGENTS.mdの規約で内蔵の子エージェントを使わないため。全要求の番号がtaskにあることを確認"
+  }
 }

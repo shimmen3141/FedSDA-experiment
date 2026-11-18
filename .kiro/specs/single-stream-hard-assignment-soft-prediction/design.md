@@ -54,7 +54,7 @@
 | 監視: 現在のモデルの誤りをe-detectorで、全体とクラスごとに監視（α=0.001、低下で基準を下げる） | `OverallAndTrueClassLossMonitor`（事前学習の5分割交差検証の統計で開始） | 同じ部品と設定。200件のウォームアップの後、現在のモデルの損失の統計で開始（製品と違う点5） |
 | 帰属の保留: FIFO 30、容量を超えた最古の標本を現在のモデルへ | 保留の部品（torchの標本の型と組） | 同じ規則を、このパッケージの小さいFIFOで持つ |
 | 警報: 合図があり、min(n,k)≥5（待つ方針） | 同じ | 同じ |
-| MDL: (i)そのまま、(ii)保有モデルへ、(iii)新しいモデル（keep・resetを新しい順に1件ずつ予測→学習、短い方＋ln 2）、$L_{sw}=\ln T+\ln$（帰属先の候補の数＋1） | 符号長の計算はtorch、比較は`select_assignment_by_minimum_description_length` | 符号長は木で計算し、比較は同じ部品。$L_{sw}$のMは製品と同じ「帰属先の候補の数＋1」（論文の$|\mathcal{M}|$とは定義が違う。論文側で揃える） |
+| MDL: (i)そのまま、(ii)保有モデルへ、(iii)新しいモデル（keep・resetを新しい順に1件ずつ予測→学習、短い方＋ln 2）、$L_{sw}=\ln T+\ln$（帰属先の候補の数＋1） | 符号長の計算はtorch、比較は`select_assignment_by_minimum_description_length` | 符号長は木で計算し、比較は同じ部品。$L_{sw}$のMは製品と同じ「帰属先の候補の数＋1」。保有モデルはすべて損失の統計を持つので、これは保有モデルの数（現在のモデルを含む）と等しく、論文の式$M=|\mathcal{M}|$と同じ |
 | 選んだ後: 前のn−k件を現在のモデル、後のk件を帰属先へ。FIFOを空に、帰属先の損失の統計で監視を始め直す | 同じ | 同じ |
 | 新しいモデル: 区間の損失が最小の保有モデルを初期値に、区間で数エポック学習 | 候補の学習 | MDLで測った学習者そのもの（製品と違う点3） |
 | 学習: 毎標本、各モデルのデータストアからミニバッチを作り、全モデルを1回更新 | 再生のミニバッチ | 割り当てた時点に、その標本でそのモデルを1回学習（製品と違う点2） |
@@ -74,11 +74,11 @@
 |---|---|---|
 | `pending_assignment_buffer_capacity_samples` | 30 | 製品と同じ |
 | `minimum_change_interval_sample_count` | 5 | 製品と同じ |
-| `fixed_share_weight_redistribution_time_scale_samples`（T） | 120 | 製品と同じ。`switching_probability=1/T`。`L_sw`の「帰属先の候補の数＋1」は製品と同じで、論文4.3節の$M=|\mathcal{M}|$とは定義が違う（論文の4章の実装の注記は「保持モデルの数+1」）。論文側で揃える |
+| `fixed_share_weight_redistribution_time_scale_samples`（T） | 120 | 製品と同じ。`switching_probability=1/T`。`L_sw`の「帰属先の候補の数＋1」は製品と同じで、保有モデルの数（現在のモデルを含む）と等しく、論文4.3節の$M=|\mathcal{M}|$と同じ。論文4章の実装の注記（「保持モデルの数+1」）の方がずれているので、論文側の注記を直す |
 | `loss_change_detection_settings` | 製品の既定の`LossChangeDetectionSettings`（e_sr、`overall_and_true_class_losses`、α=0.001、`lower_baseline_on_loss_decrease`、待つ方針、ADWINの値は使わない） | 製品と同じ（全field） |
 | `loss_monitor_betting_fractions` | (0.05, 0.1, 0.2, 0.4, 0.8) | 製品と同じ |
 | `loss_monitor_maximum_retained_candidate_count` | 1000 | 製品と同じ |
-| `prediction_combination_settings` | 製品の既定の`PredictionCombinationSettings`の写し。このパッケージで働くのは`prediction_combination_strategy`（`fixed_share_weighted_prediction`）とTだけ | 働くfieldは製品と同じ。`prediction_model_parameter_source`・集約の後の作り直しは使わない（製品と違う点1、集約なし） |
+| `prediction_combination_settings` | `PredictionCombinationSettings`。このパッケージで働くのは`prediction_combination_strategy`（`fixed_share_weighted_prediction`）とTだけ | 働くfieldは製品と同じ。`prediction_model_parameter_source`・集約の後の作り直しは使わない（製品と違う点1、集約なし） |
 | 新しいモデルの学習者 | resetとkeepの2つ、変化区間の探索は1件刻みの逆順の1本の流れ | 製品と同じ |
 | `warm_up_sample_count` | 200 | このパッケージだけ（製品と違う点5） |
 | `probability_smoothing_weight` | 0.01 | このパッケージだけ（製品と違う点6） |
@@ -90,7 +90,7 @@
 製品の`process_observed_sample`の順（予測→重みの更新→監視→保留→警報の判定→割り当て・学習）と同じにする。
 1. **予測**: 保有モデル（作った順）の平滑化した確率を求め、`get_weights_before_label_observation(model_ids=保有の順)`の重みで混ぜ、最大のクラス（同点は小さい番号）を予測とする。
 2. **重みの更新**: 各モデルの監視用の損失と、1の重み（ラベル観測前の重み）を渡して`update_weights_after_loss_observation`を呼ぶ（製品の`observed_sample_prediction.py`の呼び方と同じ）。
-3. **監視**: ウォームアップの後なら、現在のモデルの監視用の損失、正解クラス、標本の番号、`select_loss_monitoring_baseline_mean_loss(loss_moments=現在のモデルの統計の`overall_loss_moments`)`を渡して`observe_loss_after_label_observation`を呼ぶ。ウォームアップ中は呼ばない（対数e値はNaN）。
+3. **監視**: ウォームアップ中は監視の部品を呼ばず、記録の対数e値の欄だけをNaNにする。ウォームアップの後なら、現在のモデルの監視用の損失、正解クラス、標本の番号、`select_loss_monitoring_baseline_mean_loss(loss_moments=現在のモデルの統計の`overall_loss_moments`)`を渡して`observe_loss_after_label_observation`を呼ぶ。ウォームアップ中は呼ばない（対数e値はNaN）。
 4. **保留**: 標本をFIFOへ加える。
 5. **警報の判定**: 検出器が合図すれば、FIFOの列W（n件）で`select_alarm_interval_assignment`を呼ぶ。min(n, k)<5なら警報としない（`too_short`を記録）。変化区間の探索はk≥5なので、実質はn<5（警報の直後で保留が少ない）のときだけ起きる。このときは7へ進み、検出器は始め直さないので、次の標本で合図が続けば、その標本を最後に含むWで選択をやり直す。
 6. **警報**: 要求5.5の(a)〜(d)の順。
@@ -112,7 +112,7 @@
 - Kappa-Temporal: (p0−pt)/(1−pt)。ptは「直前の標本の観測クラス」（最初の標本はクラス0）を予測する分類器のprequential精度。
 - 分母が0のときはNaN。
 - 真の変化点の後の精度: 真のコンセプトが変わった標本から、次の変化点までの最初の30・100・500件（区間がそれより短ければ区間の全部）について、全変化点の該当標本をまとめた正解の割合（標本数で重み付け）。
-- 概念の同定（警報としたものだけ）: 各モデルの概念は、最後の時点でそのモデルに割り当てた全標本の最多の真のコンセプト（同点は小さい番号。割り当てた標本の無いモデルは概念なし）。各警報の「新しい概念」は、Wの末尾k件（警報の標本を含む）の最多の真のコンセプト（同点は小さい番号）。分類: `reuse`は、帰属先の概念＝新しい概念なら正しい再利用、違うか概念なしなら誤った再利用。`new`は、その警報より前に作ったモデル（その警報の時点で保有していたモデル）の中に、最後の時点の概念が新しい概念と同じモデルがあれば「再来なのに新規作成」、無ければ「初めての概念での新規作成」。`stay`はそのまま。
+- 概念の同定（警報としたものだけ）: 各モデルの概念は、最後の時点でそのモデルに割り当てた全標本の最多の真のコンセプト（同点は小さい番号。割り当てた標本の無いモデルは概念なし）。各警報の「新しい概念」は、Wの末尾k件（警報の標本を含む）の最多の真のコンセプト（同点は小さい番号）。分類: `reuse`は、帰属先の概念＝新しい概念なら正しい再利用、違うか概念なしなら誤った再利用。`new`は、その警報の時点で保有していたモデル（現在のモデルを含む。その警報で作る新しいモデルは含まない）の中に、最後の時点の概念が新しい概念と同じモデルがあれば「再来なのに新規作成」、無ければ「初めての概念での新規作成」。`stay`はそのまま。
 
 ## Components and Interfaces
 
