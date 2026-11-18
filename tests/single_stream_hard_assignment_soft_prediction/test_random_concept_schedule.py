@@ -5,7 +5,10 @@ import random
 import numpy as np
 import pytest
 
-from federated_learning_experiments.configuration.experiment_run_conditions import (
+# 製品のrun設定（既定値の照合）がtorchを読むので、torchの無いWSLのriverの環境ではskipする（Windowsで実行する）。
+pytest.importorskip("torch")
+
+from federated_learning_experiments.configuration.experiment_run_conditions import (  # noqa: E402
     ExperimentRunConditions,
 )
 from federated_learning_experiments.data.concept_schedules.random_concept_schedule_generation import (

@@ -12,21 +12,21 @@
   - _Boundary: single_stream_input_
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 3. データの定義と系列の生成
+- [x] 3. データの定義と系列の生成
   - `river_synthetic_recurring_streams`（定義と`generate_river_synthetic_stream`）を実装する。
   - 完了条件: design.mdの「系列」のtestがWSLの`~/river-env`で通る。
   - _Boundary: river_synthetic_recurring_streams_
   - _Depends: 1_
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 4. 書き出しのコマンド
+- [x] 4. 書き出しのコマンド
   - `river_synthetic_stream_command.main`を実装する。
   - 完了条件: design.mdの「書き出し」のtest（`load_single_stream_input`での読込み、飛ばす・止める、知らないデータの拒否、木の版の`run_single_stream`で1本を処理）がWSLで通る。
   - _Boundary: river_synthetic_stream_command_
   - _Depends: 2, 3_
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 5. 比較手法の研究ツールの検査
+- [x] 5. 比較手法の研究ツールの検査
   - `river_baselines.py`に、事前学習の標本の無い系列を事前学習ありで渡したときに処理の前に止まる検査を足す。
   - 完了条件: 研究ツールのtest（`test_river_synthetic_stream_command.py`。止まり、出力先を作らない。`--without-pretraining`では処理できる）がWSLで通る。
   - _Boundary: river_baselines（研究ツール）_

@@ -226,6 +226,18 @@ def main(command_arguments=None):
     )
     if not stream_paths:
         raise ValueError(f"系列がありません: {arguments.streams}")
+    if not arguments.without_pretraining:
+        # 事前学習の標本を書かない系列（単一ストリームの合成データの系列など）を、出力先を作る前に見つけて止める。
+        missing = []
+        for path in stream_paths:
+            with np.load(path, allow_pickle=False) as loaded:
+                if not {"pretraining_features", "pretraining_labels"} <= set(loaded.files):
+                    missing.append(path.stem)
+        if missing:
+            raise ValueError(
+                "事前学習の標本の無い系列です（--without-pretrainingを付けてください）: "
+                + " ".join(missing)
+            )
     arguments.output.mkdir(parents=True, exist_ok=True)
     started = time.strftime("%Y%m%d_%H%M%S")
     (arguments.output / f"river_provenance_{started}.json").write_text(
