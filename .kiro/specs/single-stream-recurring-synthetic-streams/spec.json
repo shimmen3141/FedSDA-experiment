@@ -1,0 +1,37 @@
+{
+  "feature_name": "single-stream-recurring-synthetic-streams",
+  "created_at": "2026-11-19T06:00:00Z",
+  "updated_at": "2026-11-19T06:00:00Z",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": null,
+      "approved_revision": null,
+      "approved_sha256_lf": null
+    }
+  },
+  "ready_for_implementation": false,
+  "specification_review": {
+    "status": "pending",
+    "reviewer": "Claude Haiku 5.5（effort medium、読むだけ、独立CLI）",
+    "fallback_reason": "GPT-6 Lunaは使用量の上限（2026-11-22 23:07まで回復しない）で使えない"
+  }
+}
