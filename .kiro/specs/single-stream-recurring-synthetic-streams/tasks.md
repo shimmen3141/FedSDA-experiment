@@ -1,12 +1,12 @@
 # Implementation Plan
 
-- [ ] 1. 概念列
+- [x] 1. 概念列
   - `random_concept_schedule.generate_random_concept_schedule`を実装し、境界のtestのriverを使わないmoduleの一覧へ足す。
   - 完了条件: 概念列のtest（製品の`generate_random_client_concept_traces`との一致と乱数の状態の一致、既定値が製品の`fedsda`の既定と同じ、引数の拒否、渡した乱数以外を変えない）と境界のtest（`RIVER_FREE_PACKAGE_MODULES`に概念列のmoduleを足し、別processの検査にriverの不在を加えたもの）が、Windowsの固定venvで通る。
   - _Boundary: random_concept_schedule_
   - _Requirements: 1.1, 1.2, 1.3, 6.2, 6.3_
 
-- [ ] 2. 読込みのクラス数
+- [x] 2. 読込みのクラス数
   - `load_single_stream_input`がJSONの`class_count`を使い、製品の定義との不一致・不正な値を拒否するようにする。
   - 完了条件: 読込みのtest（採用、不一致・1・bool・文字列の拒否、`class_count`の無い既存の形式は従来どおり）がWindowsで通り、既存の読込みのtestも通る。
   - _Boundary: single_stream_input_

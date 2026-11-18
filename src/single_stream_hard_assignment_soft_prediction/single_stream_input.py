@@ -35,6 +35,27 @@ class SingleStreamInput:
     array_sha256: str
 
 
+def _resolve_class_count(metadata: dict) -> int:
+    """JSONの`class_count`があればそれを使い（製品の同じ名前の定義があれば一致を確かめる）、無ければ製品の定義から取る。"""
+    dataset_name = metadata["dataset_name"]
+    try:
+        product_class_count = get_dataset_definition(dataset_name=dataset_name).class_count
+    except (KeyError, ValueError):
+        product_class_count = None
+    if "class_count" not in metadata:
+        if product_class_count is None:
+            raise ValueError(f"データセットの定義がありません: {dataset_name}")
+        return product_class_count
+    class_count = metadata["class_count"]
+    if type(class_count) is not int or class_count < 2:
+        raise ValueError(f"系列のJSONのclass_countは2以上の整数が必要です: {class_count!r}")
+    if product_class_count is not None and class_count != product_class_count:
+        raise ValueError(
+            f"系列のJSONのclass_count（{class_count}）が製品の{dataset_name}の定義（{product_class_count}）と違います。"
+        )
+    return class_count
+
+
 def load_single_stream_input(*, stream_path: Path) -> SingleStreamInput:
     """NPZとJSONを読み、hash・長さ・クラス数・ラベルの範囲を確かめる。"""
     stream_path = Path(stream_path)
@@ -55,10 +76,7 @@ def load_single_stream_input(*, stream_path: Path) -> SingleStreamInput:
         raise ValueError("featuresは2次元、labelsとconcept_idsは1次元が必要です。")
     if not len(features) == len(labels) == len(concept_ids):
         raise ValueError("features・labels・concept_idsの長さが違います。")
-    try:
-        class_count = get_dataset_definition(dataset_name=metadata["dataset_name"]).class_count
-    except (KeyError, ValueError) as error:
-        raise ValueError(f"データセットの定義がありません: {metadata['dataset_name']}") from error
+    class_count = _resolve_class_count(metadata)
     if labels.size and (labels.min() < 0 or labels.max() >= class_count):
         raise ValueError("ラベルは0以上class_count未満が必要です。")
     return SingleStreamInput(

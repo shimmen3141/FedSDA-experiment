@@ -25,6 +25,7 @@ RIVER_FREE_PACKAGE_MODULES = (
     "single_stream_settings",
     "single_stream_input",
     "single_stream_metrics",
+    "random_concept_schedule",
 )
 
 
@@ -62,7 +63,7 @@ def test_product_does_not_import_the_package():
         assert PACKAGE_NAME not in path.read_text(encoding="utf-8"), path
 
 
-def test_allowed_product_modules_and_river_free_package_modules_do_not_load_torch():
+def test_allowed_product_modules_and_river_free_package_modules_do_not_load_torch_or_river():
     modules = sorted(ALLOWED_PRODUCT_MODULES) + [
         f"{PACKAGE_NAME}.{name}" for name in RIVER_FREE_PACKAGE_MODULES
     ]
@@ -71,6 +72,7 @@ def test_allowed_product_modules_and_river_free_package_modules_do_not_load_torc
         f"for name in {modules!r}:\n"
         "    importlib.import_module(name)\n"
         "assert 'torch' not in sys.modules, sorted(m for m in sys.modules if m.startswith('torch'))\n"
+        "assert 'river' not in sys.modules, sorted(m for m in sys.modules if m.startswith('river'))\n"
         "print('ok')\n"
     )
     completed = subprocess.run(
@@ -90,3 +92,12 @@ def test_every_allowed_product_module_is_actually_imported():
     for path in PACKAGE_DIRECTORY.glob("*.py"):
         used |= imported_modules(path)
     assert ALLOWED_PRODUCT_MODULES <= used, sorted(ALLOWED_PRODUCT_MODULES - used)
+
+
+def test_concept_schedule_module_imports_neither_river_nor_torch():
+    """関数の中のimportも含め、概念列のmoduleはriverとtorchをimportしない（要求6.3）。"""
+    roots = {
+        name.split(".")[0]
+        for name in imported_modules(PACKAGE_DIRECTORY / "random_concept_schedule.py")
+    }
+    assert not roots & {"river", "torch"}, roots

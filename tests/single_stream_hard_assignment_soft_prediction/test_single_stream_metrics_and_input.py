@@ -125,7 +125,7 @@ def test_concept_identification_classification():
     )
 
 
-def write_stream(directory, *, labels=None, dataset_name="sine2", digest=None):
+def write_stream(directory, *, labels=None, dataset_name="sine2", digest=None, **extra_metadata):
     arrays = dict(
         features=np.arange(12, dtype=np.float32).reshape(6, 2),
         labels=np.array([0, 1, 0, 1, 1, 0] if labels is None else labels),
@@ -139,6 +139,7 @@ def write_stream(directory, *, labels=None, dataset_name="sine2", digest=None):
         dataset_name=dataset_name,
         random_seed=3,
         array_sha256=digest or compute_stream_array_digest(arrays),
+        **extra_metadata,
     )
     path.with_suffix(".json").write_text(json.dumps(metadata), encoding="utf-8")
     return path, arrays
@@ -168,3 +169,34 @@ def test_digest_matches_the_stream_export_tool():
 
     arrays = dict(features=np.ones((3, 2), dtype=np.float32), labels=np.array([0, 1, 1]))
     assert compute_stream_array_digest(arrays) == array_digest(arrays)
+
+
+def test_class_count_in_the_metadata_is_used_for_a_dataset_outside_the_product(tmp_path):
+    path, _ = write_stream(
+        tmp_path, dataset_name="stagger3", labels=[0, 1, 2, 1, 1, 0], class_count=3
+    )
+    stream = load_single_stream_input(stream_path=path)
+    assert stream.class_count == 3 and stream.dataset_name == "stagger3"
+
+
+def test_class_count_in_the_metadata_must_match_the_product_definition(tmp_path):
+    path, _ = write_stream(tmp_path, dataset_name="sine2", class_count=2)
+    assert load_single_stream_input(stream_path=path).class_count == 2
+    path, _ = write_stream(tmp_path, dataset_name="sine2", class_count=3)
+    with pytest.raises(ValueError, match="class_count"):
+        load_single_stream_input(stream_path=path)
+
+
+@pytest.mark.parametrize("class_count", [1, 0, True, "2", 2.0, None])
+def test_invalid_class_count_in_the_metadata_is_rejected(tmp_path, class_count):
+    path, _ = write_stream(tmp_path, dataset_name="stagger3", class_count=class_count)
+    with pytest.raises(ValueError, match="class_count"):
+        load_single_stream_input(stream_path=path)
+
+
+def test_labels_outside_the_metadata_class_count_are_rejected(tmp_path):
+    path, _ = write_stream(
+        tmp_path, dataset_name="stagger3", labels=[0, 1, 2, 1, 1, 0], class_count=2
+    )
+    with pytest.raises(ValueError, match="ラベル"):
+        load_single_stream_input(stream_path=path)
