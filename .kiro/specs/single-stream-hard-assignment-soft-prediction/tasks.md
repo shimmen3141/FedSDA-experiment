@@ -13,7 +13,7 @@
   - _Depends: 1_
   - _Requirements: 1.1, 1.6, 2.1, 2.2, 2.3_
 
-- [ ] 3. 警報の時点のMDLによる選択
+- [x] 3. 警報の時点のMDLによる選択
   - `select_alarm_interval_assignment`を実装する（保有モデルのMDL用の損失、resetとkeepの学習者の逆順の前置きの和、製品の比較の関数）と、選ばれた学習者を作り直す関数。
   - 完了条件: design.mdの「MDL」の(a)〜(f)のtestが通る（WSL）。
   - _Boundary: single_stream_hard_assignment_soft_prediction（MDL）_
