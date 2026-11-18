@@ -6,7 +6,7 @@
   - _Boundary: single_stream_hard_assignment_soft_prediction（設定）_
   - _Requirements: 1.5, 7.3_
 
-- [ ] 2. 概念モデル
+- [x] 2. 概念モデル
   - `HoeffdingTreeConceptModel`（平滑化した確率、監視用・MDL用の損失、1件の学習、写し、空の新しいモデル、節点の数）と、特徴の変換を実装する。
   - 完了条件: 概念モデルのtest（design.mdの「概念モデル」の項目）がWSLのRiver環境で通る。
   - _Boundary: single_stream_hard_assignment_soft_prediction（概念モデル）_
