@@ -73,3 +73,12 @@ def test_allowed_product_modules_and_river_free_package_modules_do_not_load_torc
     )
     assert completed.returncode == 0, completed.stderr
     assert completed.stdout.strip() == "ok"
+
+
+def test_every_allowed_product_module_is_actually_imported():
+    """許可集合が広すぎないこと: 許可した製品のmoduleは、どれもパッケージのどこかでimportされている。"""
+    used = set()
+    for path in PACKAGE_DIRECTORY.glob("*.py"):
+        used |= imported_modules(path)
+    assert ALLOWED_PRODUCT_MODULES <= used, sorted(ALLOWED_PRODUCT_MODULES - used)
+

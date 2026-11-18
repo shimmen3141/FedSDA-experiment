@@ -46,25 +46,54 @@ def traced_run():
     processor = SingleStreamHardAssignmentSoftPredictionProcessor(
         settings=build_default_single_stream_settings(), class_count=2
     )
+    # 監視の部品は損失の低下で基準を下げるときにも自分でresetを呼ぶので、警報の処理の中のresetだけを記録する。
     resets = []
-    monitor_reset = None
+    in_alarm_handling = [False]
+    original_handle = processor._handle_detector_signal
+
+    def handling(*, sample_index):
+        in_alarm_handling[0] = True
+        try:
+            return original_handle(sample_index=sample_index)
+        finally:
+            in_alarm_handling[0] = False
+
+    processor._handle_detector_signal = handling
+    # 割り当てた監視用の損失を、モデルごとに独立に記録する（基準値の期待値を、統計の部品を使わずに作るため）。
+    assigned_losses = {}
+    original_record = processor.loss_statistics_store.record_assigned_loss
+
+    def recording_loss(*, model_id, observed_loss, observed_class_id):
+        assigned_losses.setdefault(model_id, []).append(observed_loss)
+        return original_record(model_id=model_id, observed_loss=observed_loss, observed_class_id=observed_class_id)
+
+    processor.loss_statistics_store.record_assigned_loss = recording_loss
+    monitor_wrapped = False
     records = []
+    pending_after_alarm = {}
     for i, (x, y, c) in enumerate(STREAM):
-        if processor.loss_change_monitor is not None and monitor_reset is None:
+        if processor.loss_change_monitor is not None and not monitor_wrapped:
             monitor = processor.loss_change_monitor
             original_reset = monitor.reset
 
             def tracking_reset(*, baseline_loss_mean, _original=original_reset):
-                resets.append((processor.processed_sample_count, baseline_loss_mean))
+                if in_alarm_handling[0]:
+                    losses = assigned_losses.get(processor.current_model_id, [])
+                    expected = 0.01 if not losses else min(1.0 - 1e-6, max(0.01, sum(losses) / len(losses)))
+                    resets.append((processor.processed_sample_count, baseline_loss_mean, expected))
                 return _original(baseline_loss_mean=baseline_loss_mean)
 
             monitor.reset = tracking_reset
-            monitor_reset = tracking_reset
+            monitor_wrapped = True
+        alarm_count_before = len(processor.alarm_records)
         records.append(
             processor.process_sample(sample_index=i, features=x, observed_class_id=y, observed_concept_id=c)
         )
+        new_alarms = processor.alarm_records[alarm_count_before:]
+        if any(a.alarm_raised for a in new_alarms):
+            pending_after_alarm[i] = processor.pending_sample_indices
     patcher.undo()
-    return processor, records, learned, weights_seen, resets
+    return processor, records, learned, weights_seen, (resets, pending_after_alarm)
 
 
 def raised(processor):
@@ -102,35 +131,68 @@ def test_each_sample_is_assigned_and_learned_once_by_a_held_model(traced_run):
 
 
 def test_alarm_empties_the_pending_buffer_and_restarts_monitoring_with_the_destination_baseline(traced_run):
-    processor, records, _, _, resets = traced_run
+    processor, _, _, _, (resets, pending_after_alarm) = traced_run
     alarms = raised(processor)
-    # 監視の部品は、損失の低下で基準を下げるときにも自分で始め直すので、警報の標本での始め直しがあることを確かめる。
-    reset_positions = {count_at_reset for count_at_reset, _ in resets}
+    assert alarms
+    # 警報の処理の中の始め直しは、警報1回につき1回で、警報の標本の処理の中。
+    assert [count for count, _, _ in resets] == [a.sample_index for a in alarms]
+    # 基準値は、帰属先に割り当てた監視用の損失の平均を[0.01, 1−1e-6]に制限した値（統計の部品を使わずに作った期待値）。
+    for _, baseline, expected in resets:
+        assert baseline == pytest.approx(expected)
+    # 警報の標本の処理の直後に、保留は空。
     for alarm in alarms:
-        assert alarm.sample_index in reset_positions  # 警報の標本の処理の中で始め直す
-    assert all(0.01 <= baseline <= 1 - 1e-6 for _, baseline in resets)
-    for alarm in alarms:
-        position = alarm.sample_index
-        assert records[position].current_model_id is not None
-    # 警報の直後の標本の時点で、保留はその標本だけ。
-    assert alarms[0].sample_index + 1 < len(STREAM)
+        assert pending_after_alarm[alarm.sample_index] == ()
 
 
-def test_short_window_after_an_alarm_does_not_raise_and_selection_is_retried(traced_run):
-    processor, _, _, _, _ = traced_run
-    too_short = [a for a in processor.alarm_records if a.adaptation_outcome == "too_short"]
-    for alarm in too_short:
-        assert not alarm.alarm_raised
-        assert alarm.window_sample_count < 5
-    # 待った合図の次の標本でも合図が続けば、その標本で選択をやり直している（番号が連続する）。
-    indices = [a.sample_index for a in processor.alarm_records]
-    for alarm in too_short:
-        later = [i for i in indices if i > alarm.sample_index]
-        if later and later[0] == alarm.sample_index + 1:
-            break
-    else:
-        if too_short:
-            pytest.skip("待った後に合図が続く場面がこの系列に無い")
+def test_short_window_after_an_alarm_waits_and_retries_the_selection(monkeypatch):
+    """検出器の合図を差し替えて、警報の直後（保留が少ない）に合図が続く場面を必ず作る。"""
+    from dataclasses import replace
+
+    from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
+        OverallAndTrueClassLossMonitor,
+    )
+
+    forced = {300, 301, 302, 303, 304}
+    original_observe = OverallAndTrueClassLossMonitor.observe_loss_after_label_observation
+
+    def forcing(self, **kwargs):
+        observation = original_observe(self, **kwargs)
+        return replace(observation, drift_detected=kwargs["sample_index"] in forced)
+
+    monkeypatch.setattr(OverallAndTrueClassLossMonitor, "observe_loss_after_label_observation", forcing)
+    processor = SingleStreamHardAssignmentSoftPredictionProcessor(
+        settings=build_default_single_stream_settings(), class_count=2
+    )
+    resets = []
+    stream = make_stream([(0, 310)])
+    pending_after = {}
+    for i, (x, y, c) in enumerate(stream):
+        if processor.loss_change_monitor is not None and not resets and not hasattr(processor, "_wrapped"):
+            monitor = processor.loss_change_monitor
+            original_reset = monitor.reset
+
+            def tracking_reset(*, baseline_loss_mean, _original=original_reset):
+                resets.append(processor.processed_sample_count)
+                return _original(baseline_loss_mean=baseline_loss_mean)
+
+            monitor.reset = tracking_reset
+            processor._wrapped = True
+        processor.process_sample(sample_index=i, features=x, observed_class_id=y, observed_concept_id=c)
+        pending_after[i] = processor.pending_sample_indices
+    by_index = {a.sample_index: a for a in processor.alarm_records}
+    # 300: 保留が31件で選択でき、警報になり、保留が空になる。
+    assert by_index[300].alarm_raised and by_index[300].window_sample_count == 31
+    assert pending_after[300] == ()
+    # 301〜304: 保留が1〜4件（<5）なので警報とせず、毎標本、その標本を最後に含む列で選択をやり直す。
+    for offset, index in enumerate((301, 302, 303, 304), start=1):
+        alarm = by_index[index]
+        assert alarm.adaptation_outcome == "too_short" and not alarm.alarm_raised
+        assert alarm.window_sample_count == offset
+        assert pending_after[index] == tuple(range(301, index + 1))
+    # 待った標本では検出器を始め直さない（始め直しは300の警報の1回だけ。内部の基準の引き下げは除く）。
+    assert 300 in resets and not any(index in resets for index in (301, 302, 303, 304))
+    # 305以降は合図が無く、保留は容量まで溜まり続ける。
+    assert pending_after[309] == tuple(range(301, 310))
 
 
 def test_fixed_share_weights_reset_to_uniform_only_when_the_model_set_changes(traced_run):
