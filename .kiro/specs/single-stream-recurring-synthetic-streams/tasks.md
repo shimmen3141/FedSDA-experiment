@@ -56,7 +56,7 @@
 ### 全体の検証（主担当）
 - Windowsの全pytest（固定venv、OMP/MKL 1 thread、12 worker、`FDE_FASHION_MNIST_DATA_DIR`を設定）: 13,967 passed、16 skipped、失敗0。対象commit `5641c2d7`。JUnit: `venv/refactoring-tests/single-stream-recurring-synthetic-streams-full.xml`。
 - 件数の照合（前のspec `single-stream-hard-assignment-soft-prediction`のJUnitと比べた）: 13,983−13,947＝36件を足した（Windowsで動く34件と、riverが要る2ファイルのskip 2件）。skipは14→16。
-- WSLの`~/river-env`（Python 3.12、river 0.27.0、torchなし）: `tests/single_stream_hard_assignment_soft_prediction`は99 passed、3 skipped（torchが要るもの）。
+- WSLの`~/river-env`（Python 3.14.4、river 0.27.0、numpy 2.5.5、torchなし）: `tests/single_stream_hard_assignment_soft_prediction`は99 passed、3 skipped（torchが要るもの）。
 - Ruff（check・format）: 0件。`spec_checks.py names`: 未登録なし。製品`src/federated_learning_experiments/`の差分なし。
 - 未実施: pyright（riverの型をWindowsの環境で読めない）。
 
