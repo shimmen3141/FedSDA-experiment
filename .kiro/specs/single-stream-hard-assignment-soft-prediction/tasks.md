@@ -48,7 +48,7 @@
   - _Depends: 6_
   - _Requirements: 6.4, 6.5_
 
-- [ ] 8. 製品との境界と全体の検証
+- [x] 8. 製品との境界と全体の検証
   - 境界のtest（静的なimportの検査、製品が新しいパッケージをimportしない、WSLでtorchが読み込まれない）を足す。naming.mdを実装に合わせる。独立CLIの実装レビューの指摘を反映した後、Windowsの全pytestとWSLの新しいtestの全件、Ruffを通す。
   - 完了条件: Windowsの全pytestが通り、件数が「前の件数＋新しいtestのうちWindowsで動く数」と、skipの数が「前のskip＋riverを使う新しいtestの数」と一致する。goldenと既存の識別子が変わらない。WSLで新しいtestが全件通る（設定の一致のtestはtorchが無いので飛ぶ）。件数とcommitをImplementation Notesへ記録する。
   - _Depends: 7_
@@ -102,4 +102,11 @@
   - 任意 2（監視の包み込みの条件が読みにくい）: 採用。局所のフラグにした（直す前の条件は、最初の始め直しまで包み込みを重ねうる形だった）。
   - 任意 3（Windowsの結果は新しいtestの証拠にならない）: 採用。記録ではWSLの結果を新しいtestの証拠とする。
 - Ruffの対象: これまで`pyproject.toml`の`include`が`src/`と`tests/refactoring/`だけで、新しいtest（`tests/single_stream_hard_assignment_soft_prediction/`）はRuffの対象外だった（「All checks passed」と出ても検査されていなかった）。`include`に1行足して対象にし、整形とimportの並べ替えをかけた（designのファイル計画に無い変更）。
+
+### 全体の検証（主担当）
+- Windowsの全pytest（固定venv、OMP/MKL 1 thread、12 worker、`FDE_FASHION_MNIST_DATA_DIR`を設定）: 13,933 passed、14 skipped、失敗0。対象commit `e2c35d9a`。JUnit: `venv/refactoring-tests/single-stream-hard-assignment-soft-prediction-full.xml`。
+- 件数の照合（前のspec `fedsda-soft-training-own-assigned-models`のJUnitと比べた）: 新しいtest 31件を足した（Windowsで動く25件がpassed、riverを使う6件がskipped）。13,947−13,916＝31、skipは8→14。消えたtest・結果が変わったtestは無い。goldenと既存の識別子は変わらない。
+- WSLの`~/river-env`（Python 3.12、river 0.27.0、torchなし）: 新しいtest 61 passed、2 skipped（torchが要る、製品の既定との比較とstream_exportのhashの比較）。新しいtestの証拠はこちら。
+- Ruff（check・format、新しいtestを対象に入れた後）: 0件。`spec_checks.py names`: 未登録なし。
+- 未実施: pyright（新しいパッケージはriverの型を読めないWindowsの環境では検査できない）。
 
