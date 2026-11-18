@@ -129,6 +129,9 @@ def test_agrawal_perturbation_is_passed_to_the_generator():
     ((x_without, y_without),) = independent_generator("agrawal4", 0, 0, perturbation=0.0).take(1)
     assert int(arrays["labels"][0]) == y_with == y_without
     np.testing.assert_array_equal(arrays["features"][0], [float(v) for v in x_with.values()])
+    # 摂動するのは数値の特徴（salary・commission・age・hvalue・hyears・loan）。全体で違うことを確かめる。
+    numeric = ("salary", "commission", "age", "hvalue", "hyears", "loan")
+    assert [x_with[k] for k in numeric] != [x_without[k] for k in numeric]
     assert x_with["salary"] != x_without["salary"]
 
 

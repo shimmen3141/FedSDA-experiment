@@ -11,6 +11,7 @@
 """
 
 import argparse
+import inspect
 import json
 import os
 import sys
@@ -32,6 +33,9 @@ def _write_one(task: tuple[str, int, int, str]) -> str:
     import numpy as np
     import river
 
+    from single_stream_hard_assignment_soft_prediction.random_concept_schedule import (
+        generate_random_concept_schedule,
+    )
     from single_stream_hard_assignment_soft_prediction.river_synthetic_recurring_streams import (
         RIVER_SYNTHETIC_STREAM_DEFINITIONS,
         generate_river_synthetic_stream,
@@ -69,10 +73,14 @@ def _write_one(task: tuple[str, int, int, str]) -> str:
         array_sha256=compute_stream_array_digest(arrays),
         concept_change_count=int(np.count_nonzero(np.diff(arrays["concept_ids"]))),
         generator_settings=dict(definition.fixed_generator_arguments),
-        concept_schedule_settings=dict(
-            minimum_sample_index_gap_before_change_trial=300,
-            per_eligible_sample_concept_change_probability=0.0015,
-        ),
+        # 生成に使った概念列の既定値を、関数の既定から読んで記録する（記録と生成がずれないように）。
+        concept_schedule_settings={
+            name: parameter.default
+            for name, parameter in inspect.signature(
+                generate_random_concept_schedule
+            ).parameters.items()
+            if parameter.default is not inspect.Parameter.empty
+        },
         river_version=river.__version__,
     )
     temporary_json = path.with_suffix(".tmp.json")

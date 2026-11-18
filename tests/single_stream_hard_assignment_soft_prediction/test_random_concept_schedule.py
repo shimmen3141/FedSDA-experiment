@@ -98,7 +98,7 @@ def test_defaults_are_the_product_fedsda_defaults():
     )
 
 
-def test_three_concepts_use_every_concept_and_never_repeat_the_current_one():
+def test_three_concepts_use_every_concept_and_changes_are_separated_by_the_gap():
     schedule = generate_random_concept_schedule(
         sample_count=50000, concept_count=3, python_random_generator=random.Random(0)
     )
