@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. 設定
+- [x] 1. 設定
   - `src/single_stream_hard_assignment_soft_prediction/`（`__init__.py`）と`requirements-single-stream.txt`を作り、設定の型と既定値の組立てを実装する（design.mdの設定の一覧）。riverとtorchをimportしない。
   - 完了条件: 設定のtest（「製品と同じ」の行の値が製品の既定と同じ、範囲外の拒否）がWindowsの固定venvで通る。
   - _Boundary: single_stream_hard_assignment_soft_prediction（設定）_

@@ -1,0 +1,5 @@
+# 単一ストリームの手法（src/single_stream_hard_assignment_soft_prediction）を動かす環境（WSLの~/river-env）。
+# 製品の判断の部品（torchを使わない）はPYTHONPATH=srcで読む。torchは要らない。
+river==0.27.0
+numpy
+pytest
