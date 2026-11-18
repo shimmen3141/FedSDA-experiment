@@ -2,7 +2,7 @@
 
 - [ ] 1. 概念列
   - `random_concept_schedule.generate_random_concept_schedule`を実装し、境界のtestのriverを使わないmoduleの一覧へ足す。
-  - 完了条件: 概念列のtest（製品の`generate_random_client_concept_traces`との一致と乱数の状態の一致、既定値が製品の`fedsda`の既定と同じ、引数の拒否、渡した乱数以外を変えない）と境界のtest（概念列のmoduleがriverもtorchも読まない）が、Windowsの固定venvで通る。
+  - 完了条件: 概念列のtest（製品の`generate_random_client_concept_traces`との一致と乱数の状態の一致、既定値が製品の`fedsda`の既定と同じ、引数の拒否、渡した乱数以外を変えない）と境界のtest（`RIVER_FREE_PACKAGE_MODULES`に概念列のmoduleを足し、別processの検査にriverの不在を加えたもの）が、Windowsの固定venvで通る。
   - _Boundary: random_concept_schedule_
   - _Requirements: 1.1, 1.2, 1.3, 6.2, 6.3_
 
@@ -44,3 +44,4 @@
 
 ### 仕様レビュー
 - 1回目（Haiku 5.5、effort medium、session `e23d1a72-76ab-4839-9765-d02e03a6e838`、対象`48b1d8a3`）: FAIL（Major 1、Minor 8）。全部採用した。Major: 要求6.3（概念列のmoduleがriverを読まない）を確かめるtestが無い→境界のtestに概念列のmoduleのriver・torchの検査を足す設計にした。Minor: Random RBFの特徴の鍵が整数（`str()`して比べる）、比較手法の研究ツールの検査を出力先の作成より前に置く、書き出しの一時ファイルの名前と片方だけの系列の一括検査、直前の変化の初期値0、既定値は公開の組立ての関数から読む、要求1.3・2.3・3.1のtest、task 5の依存の理由とtestのファイル、moduleの名前を`random_concept_schedule`へ（関数の名前と揃える）。
+- 2回目（同、session `fb2a287c-0b86-4ab7-a9f7-edea80787325`、対象`4e0125a0`）: FAIL（Major 1、Minor 2、任意2）。Major: riverの検査の書き方が二通りでtestが特定されていない→既存の別processの検査を広げる形（`RIVER_FREE_PACKAGE_MODULES`へ足し、riverの不在を加える）に決めて、design.md・tasks.mdを揃えた。Minor: 製品の`random_concept_schedule_generation`との違いを命名表へ書いた。`--seeds`の書式を木の版のコマンドと同じ整数の列に決めた。任意: Agrawalの摂動の中身は主担当がWSLのRiver 0.27.0のsourceで確かめた（research.md）。

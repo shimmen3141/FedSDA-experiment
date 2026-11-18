@@ -53,7 +53,7 @@
 3. `features`（float64、標本数×特徴数）、`labels`（int64）、`concept_ids`（int64）を返す。
 
 ### 書き出し（`river_synthetic_stream_command.main`）
-- 引数: `--datasets`（必須、定義にある名前だけ）、`--seeds`（整数の列）、`--sample-count`（既定5000）、`--output`、`--workers`（既定1）。
+- 引数: `--datasets`（必須、定義にある名前だけ）、`--seeds`（必須、0以上の整数を空白で並べた列。木の版の`single_stream_command`と同じ書式で、範囲の書式は持たない。研究ツール`stream_export`の範囲の書式はtorchを読むmoduleにあるので使わない）、`--sample-count`（既定5000）、`--output`、`--workers`（既定1）。
 - ファイル名は既存と同じ`<データ>_seed<seed>_n<標本数>.npz`と同じ名前の`.json`。書く前に、対象の全系列について、NPZとJSONの片方だけがある系列が無いことをまとめて確かめ、あれば何も書かずに止める（片方だけの系列の名前を示す）。両方ある系列は飛ばす。各系列は、NPZを`.tmp.npz`に書いて置き換え、続けてJSONを`.tmp.json`に書いて置き換える（途中で止まるとNPZだけが残り、次の実行は止まる。そのときは残ったNPZを消してやり直す）。木の版・比較手法は`.tmp.npz`を読まない。
 - JSON: `export_format_version`（1）、`stream_source`（`river_synthetic_generator`）、`dataset_name`、`random_seed`、`sample_count`、`class_count`、`concept_count`、`feature_count`、`feature_names`、`array_sha256`（`compute_stream_array_digest`）、`concept_change_count`、`generator_settings`（生成器の名前・固定の引数・seedの決め方）、`concept_schedule_settings`（最小の間隔・確率）、`river_version`。
 
@@ -92,4 +92,4 @@
 - 書き出し（WSL）: 書いたNPZ・JSONを`load_single_stream_input`で読め、hash・クラス数が合う。JSONの鍵の集合がdesign.mdの一覧と一致し、`generator_settings`がデータの定義と同じ（要求3.1）。両方あれば飛ばし、片方だけの系列が1つでもあれば何も書かずに止める。知らないデータの拒否。木の版の`run_single_stream`が1本を処理できる。
 - 読込み（Windows）: JSONのクラス数の採用、製品の定義との不一致・不正な値（1、bool、文字列）の拒否、クラス数の無い既存の形式の系列は従来どおり。
 - 比較手法の研究ツール（WSL）: 事前学習の標本の無い系列を`--without-pretraining`なしで渡すと、結果を書く前に止まり、付けると処理できる。
-- 境界: 既存の境界のtest（許可した製品のmodule、torchを読まない）に新しいmoduleが含まれて通る。概念列のmoduleは、別processでimportしたときに`river`も`torch`も`sys.modules`に入らないことを確かめる（要求6.3。既存のtestは`river`を許可した第三者のpackageとして扱うので、概念列のmoduleだけ`river`も確かめるtestを足す）。
+- 境界: 既存の境界のtest（許可した製品のmodule、torchを読まない）に新しいmoduleが含まれて通る。要求6.3は、既存の`test_single_stream_boundaries.py`の`test_allowed_product_modules_and_river_free_package_modules_do_not_load_torch`（別processで、許可した製品のmoduleと`RIVER_FREE_PACKAGE_MODULES`をimportする）を広げて確かめる: 一覧`RIVER_FREE_PACKAGE_MODULES`へ`random_concept_schedule`を足し、別processの検査に「`river`が`sys.modules`に無い」を加える（今の一覧の3つのmoduleと許可した製品のmoduleもriverを読まないので、一覧の名前と検査が一致する）。test関数の名前は、検査に合わせて`..._do_not_load_torch_or_river`へ変える。Windowsの固定venvで通す。
