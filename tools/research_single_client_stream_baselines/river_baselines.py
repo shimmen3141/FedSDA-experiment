@@ -1,9 +1,14 @@
 """書き出した1クライアントの系列で、Riverのストリーム学習の比較手法を予測→学習の順（prequential）で評価する。
 
 プロジェクトのコードは読み込まない（numpyとRiverだけの別のvenvで動かす。プロジェクトの固定のvenvへRiverを
-入れると、numpyなどの版が変わりうるため）。各手法は、FedHASPの初期モデルと同じ事前学習の標本（概念0）を
-先に学習し（評価しない）、その後の系列の全標本で、予測してから学習する。精度は全標本の正解の割合で、
-製品の`prediction_accuracy`（全標本の正解の割合）と同じ定義。
+入れると、numpyなどの版が変わりうるため）。各手法は、既定では、FedHASPの初期モデルと同じ事前学習の標本
+（概念0）を先に学習し（評価しない）、その後の系列の全標本で、予測してから学習する。`--without-pretraining`を
+付けると、事前学習の標本を学習せず、系列の最初の標本から予測→学習する（単一ストリームの既存手法の条件。
+単一ストリームの手法`single_stream_hard_assignment_soft_prediction`と同じ条件で比べるため。2026-11-19追加）。
+精度は全標本の正解の割合で、製品の`prediction_accuracy`（全標本の正解の割合）と同じ定義。
+手法が予測を返さない（Noneを返す。何も学習していないとき）標本は、クラス0を予測したとみなす（単一ストリームの
+手法の空の木が一様分布を返し、同点で最小のクラスを予測するのと同じ扱い。2026-11-19に、誤りとして数える扱いから
+変えた。事前学習の後は全体の予測がNoneになることは無いので、事前学習ありの結果は変わらない）。
 
 手法（Riverの既定の値。DWMはRiverに無いので、Kolter & Maloof (2007) のアルゴリズム1を実装する）:
 - arf: forest.ARFClassifier
@@ -16,7 +21,8 @@
 
 使い方（Riverのvenv）:
     python tools/research_single_client_stream_baselines/river_baselines.py \
-        --streams <書き出し先> --output <出力先> --methods arf srp leveraging_bagging hoeffding_adaptive_tree dwm --workers 8
+        --streams <書き出し先> --output <出力先> --methods arf srp leveraging_bagging hoeffding_adaptive_tree dwm --workers 8 \
+        [--without-pretraining]
 """
 
 import argparse
@@ -134,16 +140,20 @@ def _as_feature_dictionary(row):
     return {index: float(value) for index, value in enumerate(row)}
 
 
-def evaluate_method_on_stream(*, method_name, arrays, random_seed):
-    """事前学習の標本を学習してから、系列を予測→学習の順で処理し、各標本の正誤を返す。"""
+def evaluate_method_on_stream(*, method_name, arrays, random_seed, use_pretraining=True):
+    """（既定では事前学習の標本を学習してから）系列を予測→学習の順で処理し、各標本の正誤を返す。
+
+    予測がNoneの標本は、クラス0を予測したとみなす。
+    """
     model = make_model(method_name, random_seed)
-    for row, label in zip(arrays["pretraining_features"], arrays["pretraining_labels"]):
-        model.learn_one(_as_feature_dictionary(row), int(label))
+    if use_pretraining:
+        for row, label in zip(arrays["pretraining_features"], arrays["pretraining_labels"]):
+            model.learn_one(_as_feature_dictionary(row), int(label))
     correct = np.zeros(len(arrays["labels"]), dtype=bool)
     for index, (row, label) in enumerate(zip(arrays["features"], arrays["labels"])):
         x = _as_feature_dictionary(row)
         prediction = model.predict_one(x)
-        correct[index] = prediction is not None and int(prediction) == int(label)
+        correct[index] = (0 if prediction is None else int(prediction)) == int(label)
         model.learn_one(x, int(label))
     return correct
 
@@ -153,7 +163,7 @@ def _source_sha256():
 
 
 def _run_one(task):
-    stream_path, method_name, output_directory = task
+    stream_path, method_name, output_directory, use_pretraining = task
     stream_path = Path(stream_path)
     metadata = json.loads(stream_path.with_suffix(".json").read_text(encoding="utf-8"))
     stem = f"{stream_path.stem}_{method_name}"
@@ -166,7 +176,10 @@ def _run_one(task):
         raise RuntimeError(f"系列の内容が書き出しの記録と違います: {stream_path}")
     started = time.perf_counter()
     correct = evaluate_method_on_stream(
-        method_name=method_name, arrays=arrays, random_seed=metadata["random_seed"]
+        method_name=method_name,
+        arrays=arrays,
+        random_seed=metadata["random_seed"],
+        use_pretraining=use_pretraining,
     )
     elapsed = time.perf_counter() - started
     result_path.parent.mkdir(parents=True, exist_ok=True)
@@ -182,6 +195,8 @@ def _run_one(task):
         stream_array_sha256=metadata["array_sha256"],
         # 書き出しの特徴の表現（記録の無い古い書き出しは生の特徴）。
         feature_representation=metadata.get("feature_representation", "raw"),
+        # 事前学習の標本を学習したか（記録の無い古い結果は学習した）。
+        pretraining_samples_learned=use_pretraining,
         river_baselines_source_sha256=_source_sha256(),
     )
     temporary = result_path.with_suffix(".tmp.json")
@@ -196,6 +211,11 @@ def main(command_arguments=None):
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--methods", nargs="+", choices=METHOD_NAMES, required=True)
     parser.add_argument("--workers", type=int, required=True)
+    parser.add_argument(
+        "--without-pretraining",
+        action="store_true",
+        help="事前学習の標本を学習せず、系列の最初の標本から予測→学習する",
+    )
     arguments = parser.parse_args(command_arguments)
     if arguments.workers < 1:
         raise ValueError("workersは正の整数にしてください")
@@ -217,6 +237,7 @@ def main(command_arguments=None):
                 platform=platform.platform(),
                 methods=arguments.methods,
                 streams=str(arguments.streams),
+                pretraining_samples_learned=not arguments.without_pretraining,
                 river_baselines_source_sha256=_source_sha256(),
             ),
             ensure_ascii=False,
@@ -227,7 +248,7 @@ def main(command_arguments=None):
     # 重いMNIST系を先に始める（並列の終わりの待ちを減らす）。
     tasks = sorted(
         (
-            (str(path), method_name, str(arguments.output))
+            (str(path), method_name, str(arguments.output), not arguments.without_pretraining)
             for path in stream_paths
             for method_name in arguments.methods
         ),

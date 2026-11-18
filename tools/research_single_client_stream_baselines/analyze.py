@@ -193,6 +193,9 @@ def load_river(river_directory, streams_directory):
             raise ValueError(f"Riverの結果の系列が書き出しと一致しません: {path.name}")
         representation = result.get("feature_representation", "raw")
         method = f"river:{result['method_name']}" + ("" if representation == "raw" else f"@{representation}")
+        # 事前学習なしの結果は、事前学習ありの結果と混ざらないよう、別の手法として並べる。
+        if not result.get("pretraining_samples_learned", True):
+            method += "@without-pretraining"
         runs_by_method[method][(key[0], None, key[1])] = dict(
             accuracy=result["prediction_accuracy"],
             sample_count=result["sample_count"],
