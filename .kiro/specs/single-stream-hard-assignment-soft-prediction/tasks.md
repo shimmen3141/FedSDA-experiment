@@ -34,7 +34,7 @@
   - _Depends: 3, 4_
   - _Requirements: 5.4, 5.5, 5.6_
 
-- [ ] 6. runと指標
+- [x] 6. runと指標
   - `run_single_stream`（系列の検査、全標本の処理、経過時間）と`compute_prequential_metrics`（精度、Kappa系、変化点の後の精度、概念の同定、資源）を実装する。
   - 完了条件: 指標が手で計算した値と一致（端の場合を含む）、概念の同定の分類が期待どおり、不正な系列・hashの不一致・K未満でないラベルの拒否のtestが通る（WSL）。
   - _Boundary: single_stream_hard_assignment_soft_prediction（run・指標）_
@@ -81,4 +81,9 @@
 - 3回目（同じHaiku 5.5、session `4339927f-e5e0-4537-8938-254c12fdaa61`、対象 `e53ae3b9..e6330b97`）: FAIL（Major 1、Minor 3）。2回目のMajor 1・2とMinor 3〜8・10は解消と確認された。レビュー担当は、残るMajorを文書だけの修正で足り再レビューは不要と判定した。
   - Major 1（L_swのMについて「製品と論文で定義が違う」は誤り。製品の「帰属先の候補の数＋1」は、保有モデルがすべて統計を持つので保有モデルの数と等しく、論文の式M=|M|と同じ。ずれているのは論文4章の実装注記の「+1」の方）: 採用。designの対応表と設定の一覧を直した。論文の注記の修正は再開案内の次の候補へ残す。文書だけの修正なので、規約（agent-handoffの「承認と独立レビュー」6）に従い再確認を求めない。
   - Minor 2（ウォームアップ中の監視と対数e値）、3（概念の同定の`new`の対象）、4（「写し」の語）: 採用。
+
+### 実装（主担当）
+- 設計との違い: riverを使わない部分（系列の読み込みと検査、指標と概念の同定）を、`single_stream_input`と`single_stream_metrics`の2つのmoduleに分けた（designは`compute_prequential_metrics`を`single_stream_run`に置き、系列の読み込みのmoduleを持たなかった）。riverの無いWindowsの全pytestでも、指標と入力の検査を確かめられるようにするため。公開名はnaming.mdに足した。`build_selected_new_concept_model`（`alarm_interval_assignment`）もnaming.mdに足した。
+- testの順: 各taskで新しいtestを先に書いてから実装した。新しいmoduleだけのtaskなので、moduleが無いための収集の失敗はREDとして数えていない（規約）。
+- testの直し（実装の誤りではない）: (1) 再来でのモデルの再利用のtestは、最初「モデル0を再利用する」と期待していたが、実際は、警報で現在のモデルの写し（keep）から作られAの知識を保つモデル1が再利用された。「再利用したモデルがAの標本を正しく予測する」を確かめる形にした。(2) 学習の回数を`id(self)`で数えていたが、捨てたMDLの学習者と後で作ったモデルとでidが重なりうるので、インスタンス自身に回数を持たせた。(3) 監視の部品は損失の低下で基準を下げるときにも自分で`reset`を呼ぶので、「警報の標本で始め直しがある」を確かめる形にした。(4) Kappa-Mの手計算で同点を小さい番号にし忘れていたのを直した。
 

@@ -13,6 +13,8 @@
 | `SingleStreamHardAssignmentSoftPredictionProcessor.process_sample` | 同上 | 標本1件を、上の順で処理し、その標本の記録を返す | 製品の`process_observed_sample`（関数）に当たるメソッド |
 | `SampleProcessingRecord` | 同上 | 標本ごとの記録（予測クラス、正誤、観測クラス、真のコンセプト、現在のモデル、保有モデル数、監視の対数e値） | 製品の`SamplePredictionRecord`より項目が少ない |
 | `AlarmRecord` | 同上 | 警報ごとの記録（標本の番号、選んだ仮説、k、帰属先、新しいモデルの学習者、符号長、警報としたか） | 製品の警報の記録と選択の記録を1つにしたもの |
-| `single_stream_run` / `run_single_stream` / `SingleStreamRunResult` / `compute_prequential_metrics` | 同上 | 系列1本の処理、記録、指標（精度、Kappa、Kappa-M、Kappa-Temporal）、経過時間 | 製品の`execute_fedsda_experiment_run`（連合学習の全体run）ではない |
+| `single_stream_input` / `SingleStreamInput` / `load_single_stream_input` / `compute_stream_array_digest` | 同上 | 書き出した系列のNPZ・JSONを読み、hash・長さ・クラス数・ラベルの範囲を確かめる。hashは研究ツール`stream_export.array_digest`と同じ計算。riverとtorchを使わない | 事前学習の標本は持たない（この手法は使わない） |
+| `single_stream_metrics` / `compute_prequential_metrics` / `classify_concept_identification` | 同上 | prequentialの指標（精度、Kappa、Kappa-M、Kappa-Temporal、変化点の後の精度）と、警報の選択の概念の同定の分類。riverとtorchを使わない | 製品の指標の導出（連合学習のrunの指標）とは別 |
+| `single_stream_run` / `run_single_stream` / `SingleStreamRunResult` | 同上 | 系列1本の処理、記録の名前付きの配列、要約（指標・資源・経過時間） | 製品の`execute_fedsda_experiment_run`（連合学習の全体run）ではない |
 | `single_stream_artifacts` / `save_single_stream_run` / `load_single_stream_run` | 同上 | 成果物のJSON・NPZの保存と読込み | 製品の成果物の形式とは別 |
 | `single_stream_command` / `main` | 同上 | 系列のファイルを並列に処理し、成果物と一覧のCSVを書く実行コマンド | 製品の`run_experiment_sweep.py`（連合学習の掃引）ではない |
