@@ -1,7 +1,7 @@
 {
   "feature_name": "single-stream-recurring-synthetic-streams",
   "created_at": "2026-11-19T06:00:00Z",
-  "updated_at": "2026-11-19T06:00:00Z",
+  "updated_at": "2026-11-19T08:00:00Z",
   "language": "ja",
   "phase": "tasks-generated",
   "approvals": {
@@ -28,10 +28,30 @@
       "approved_sha256_lf": null
     }
   },
-  "ready_for_implementation": false,
+  "ready_for_implementation": true,
   "specification_review": {
-    "status": "pending",
+    "status": "passed",
     "reviewer": "Claude Haiku 5.5（effort medium、読むだけ、独立CLI）",
-    "fallback_reason": "GPT-6 Lunaは使用量の上限（2026-11-22 23:07まで回復しない）で使えない"
+    "fallback_reason": "GPT-6 Lunaは使用量の上限（2026-11-22 23:07まで回復しない）で使えない",
+    "sessions": [
+      {
+        "round": 1,
+        "session_id": "e23d1a72-76ab-4839-9765-d02e03a6e838",
+        "target": "48b1d8a3",
+        "verdict": "FAIL（Major 1、Minor 8。全部採用）"
+      },
+      {
+        "round": 2,
+        "session_id": "fb2a287c-0b86-4ab7-a9f7-edea80787325",
+        "target": "4e0125a0",
+        "verdict": "FAIL（Major 1、Minor 2。全部採用）"
+      },
+      {
+        "round": 3,
+        "session_id": "880c934b-d022-4e02-b6d7-f061b8f667d1",
+        "target": "dd909d3c",
+        "verdict": "PASS（Minor 4。文書だけを直した）"
+      }
+    ]
   }
 }
