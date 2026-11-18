@@ -16,5 +16,5 @@
 | `single_stream_input` / `SingleStreamInput` / `load_single_stream_input` / `compute_stream_array_digest` | 同上 | 書き出した系列のNPZ・JSONを読み、hash・長さ・クラス数・ラベルの範囲を確かめる。hashは研究ツール`stream_export.array_digest`と同じ計算。riverとtorchを使わない | 事前学習の標本は持たない（この手法は使わない） |
 | `single_stream_metrics` / `compute_prequential_metrics` / `classify_concept_identification` | 同上 | prequentialの指標（精度、Kappa、Kappa-M、Kappa-Temporal、変化点の後の精度）と、警報の選択の概念の同定の分類。riverとtorchを使わない | 製品の指標の導出（連合学習のrunの指標）とは別 |
 | `single_stream_run` / `run_single_stream` / `SingleStreamRunResult` | 同上 | 系列1本の処理、記録の名前付きの配列、要約（指標・資源・経過時間） | 製品の`execute_fedsda_experiment_run`（連合学習の全体run）ではない |
-| `single_stream_artifacts` / `save_single_stream_run` / `load_single_stream_run` | 同上 | 成果物のJSON・NPZの保存と読込み | 製品の成果物の形式とは別 |
-| `single_stream_command` / `main` | 同上 | 系列のファイルを並列に処理し、成果物と一覧のCSVを書く実行コマンド | 製品の`run_experiment_sweep.py`（連合学習の掃引）ではない |
+| `single_stream_artifacts` / `save_single_stream_run` / `load_single_stream_run` | 同上 | 成果物のJSON・NPZの保存と読込み（上書きしない、pickleなし）。`RESULT_FORMAT_VERSION`・`METHOD_NAME`は成果物の形式と手法の名前の定数 | 製品の成果物の形式とは別 |
+| `single_stream_command` / `main` / `select_stream_paths` / `write_run_summary_table` | 同上 | 系列のファイルを並列に処理し、成果物と一覧のCSVを書く実行コマンド。系列の選択（データ・seedで絞る）と、成果物からの一覧のCSVの作り直しも公開する | 製品の`run_experiment_sweep.py`（連合学習の掃引）ではない |

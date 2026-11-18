@@ -41,7 +41,7 @@
   - _Depends: 5_
   - _Requirements: 1.7, 6.1, 6.2, 6.3_
 
-- [ ] 7. 成果物と実行コマンド
+- [x] 7. 成果物と実行コマンド
   - JSON・NPZの保存と読込みと、系列のファイルを並列に処理して成果物と一覧のCSVを書く実行コマンドを実装する。
   - 完了条件: 保存→読込みの往復、上書きの拒否のtestが通る（WSL）。書き出した系列（SINE2・SEA4・MNIST4、5,000標本、seed 0〜2）で実行コマンドが動き、成果物と一覧のCSVができる（WSL）。
   - _Boundary: single_stream_hard_assignment_soft_prediction（成果物・コマンド）_
@@ -86,4 +86,5 @@
 - 設計との違い: riverを使わない部分（系列の読み込みと検査、指標と概念の同定）を、`single_stream_input`と`single_stream_metrics`の2つのmoduleに分けた（designは`compute_prequential_metrics`を`single_stream_run`に置き、系列の読み込みのmoduleを持たなかった）。riverの無いWindowsの全pytestでも、指標と入力の検査を確かめられるようにするため。公開名はnaming.mdに足した。`build_selected_new_concept_model`（`alarm_interval_assignment`）もnaming.mdに足した。
 - testの順: 各taskで新しいtestを先に書いてから実装した。新しいmoduleだけのtaskなので、moduleが無いための収集の失敗はREDとして数えていない（規約）。
 - testの直し（実装の誤りではない）: (1) 再来でのモデルの再利用のtestは、最初「モデル0を再利用する」と期待していたが、実際は、警報で現在のモデルの写し（keep）から作られAの知識を保つモデル1が再利用された。「再利用したモデルがAの標本を正しく予測する」を確かめる形にした。(2) 学習の回数を`id(self)`で数えていたが、捨てたMDLの学習者と後で作ったモデルとでidが重なりうるので、インスタンス自身に回数を持たせた。(3) 監視の部品は損失の低下で基準を下げるときにも自分で`reset`を呼ぶので、「警報の標本で始め直しがある」を確かめる形にした。(4) Kappa-Mの手計算で同点を小さい番号にし忘れていたのを直した。
+- 実データでの確認（task 7、WSLの~/river-env）: `results/fedhasp-single-client-pilot-v16/streams-seeds0-29`（生の特徴）のSINE2・SEA4・MNIST4、5,000標本、seed 0〜2の9系列で、実行コマンド（9 workers）が全部動き、成果物と一覧のCSVができた（出力はscratchpad、計約8秒）。精度はSINE2 0.92〜0.93、SEA4 0.82〜0.86、MNIST4 0.58〜0.65。MNIST4では木が5,000標本の間に分岐せず、葉1つ（ナイーブベイズの予測）のままだった（既定のdelta 1e-7、784次元の生の画素）。比較手法の木と同じ条件なので、仕様の範囲ではこのままとする。
 
