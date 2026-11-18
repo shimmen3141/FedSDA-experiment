@@ -18,7 +18,7 @@
 
 ## Requirements
 
-### Requirement 1: 既存手法に合わせた条件
+### Requirement 1: 既存手法に合わせる条件
 **Objective:** As a 研究者, I want 単一ストリームの既存手法と同じ条件で動かす, so that 学習器と条件の違いを除いて仕組みを比べられる
 
 #### Acceptance Criteria
@@ -28,7 +28,7 @@
 4. The system shall 真のコンセプトのIDを、記録と評価にだけ使い、予測・監視・選択・学習には使わない。
 5. The system shall 手法のハイパーパラメータ（design.mdの設定の一覧）を、データによらず固定し、runの記録に残す。
 6. The system shall 特徴を、比較手法の研究ツール`river_baselines.py`と同じ変換（各行を、列の番号をキーとしfloatを値とする辞書）でHoeffding treeへ渡す。
-7. The system shall クラス数Kを、系列のJSONに`class_count`があればその値、無ければ製品のデータセットの定義（`dataset_name`で引く）から取り、ラベルから推定しない。ラベルが0以上K未満でなければ処理の前に拒否する。
+7. The system shall クラス数Kを、製品のデータセットの定義（系列のJSONの`dataset_name`で`get_dataset_definition`を引いた`class_count`）から取り、ラベルから推定しない。定義の無いデータセット名と、ラベルが0以上K未満でない系列は、処理の前に拒否する。
 
 ### Requirement 2: 概念モデル
 **Objective:** As a 研究者, I want 各概念モデルから、監視とMDLに使える確率と損失を得る, so that 製品と同じ判断の部品へ渡せる
@@ -44,7 +44,7 @@
 #### Acceptance Criteria
 1. When 標本が到着したとき, the system shall 保有する全概念モデルの平滑化した確率を、製品の`FixedShareWeightController.get_weights_before_label_observation`の重みで混ぜ、最大の確率のクラス（同点は小さいクラス番号）を予測とする。
 2. When ラベルを観測したとき, the system shall 予測に使った重みと、各概念モデルの監視用の損失を渡して、`FixedShareWeightController.update_weights_after_loss_observation`で重みを更新する。
-3. The system shall 保有モデルの集合が変わったときの重みの同期を`FixedShareWeightController`に任せ、警報のときに重みを作り直さない（製品の既定と同じく、Fixed-Shareの重みは警報の前後で保つ）。
+3. The system shall 保有モデルの集合が変わったときの重みの同期を`FixedShareWeightController`に任せる（新しいモデルを作った後は、この部品が重みを一様に戻す）。保有モデルの集合が変わらない警報（`stay`・`reuse`）では、重みを作り直さない。
 
 ### Requirement 4: 監視と帰属の保留
 **Objective:** As a 研究者, I want 現在のモデルの損失を製品と同じ検出器で監視し、標本を保留してから割り当てる, so that FedHASPの固い割り当てを再現する
@@ -62,7 +62,7 @@
 1. When 検出器が合図したとき, the system shall 帰属の保留の標本（警報の標本を最後に含む、古い順）の列W（長さn）で、変化区間の長さk（5以上n以下、1件刻み）と帰属先（現在のモデルのまま、損失の統計を持つ現在のモデル以外の保有モデル、新しいモデル）を、製品の`select_assignment_by_minimum_description_length`で選ぶ。現在のモデルのままを選んだときは、製品と同じくk=nとする。
 2. The system shall 保有モデルの各標本の符号長をMDL用の損失とし、新しいモデルの予測的符号長を、警報の時点の空の概念モデル（reset）と警報の時点の現在のモデルの写し（keep）に、Wの標本を新しいものから順に1件ずつ「MDL用の損失を足す→学習する」で求めた前置きの和（長さkまで）とする。`select_new_model_learner`で短い方＋ln 2と学習者の名前を得て、切り替わりの符号長は`compute_switching_code_length(switching_probability=1/T, destination_count=帰属先の候補の数+1)`とする。
 3. The system shall 符号長を測るための学習者を保有モデルとは別に作り、保有モデルの状態を変えない。
-4. If 検出器の合図はあったが、min(n, k)が5より小さいとき, then the system shall 警報とせず、警報の無い標本として処理を続ける（検出器は始め直さない）。
+4. If 検出器の合図はあったが、min(n, k)が5より小さいとき（変化区間の探索はk≥5なので、実質はn<5のとき）, then the system shall 警報とせず、警報の無い標本として処理し（容量を超えた最古の標本だけを割り当てる）、検出器は始め直さない。次の標本で検出器の合図が続けば、その標本を最後に含む列Wで選択をやり直す（製品の待つ方針と同じ）。
 5. When 警報としたとき, the system shall 次の順で処理する: (a) 帰属先が新しいモデルなら、選ばれた学習者と同じ作り方（resetは空の木、keepは警報の時点の現在のモデルの写し）で新しい概念モデルを作り、Wの後のk件を新しいものから順に「監視用の損失を統計へ記録→学習」して保有モデルへ加える。(b) Wの前のn−k件を古い順に現在のモデルへ割り当てる（要求4.4）。(c) 帰属先が保有モデルなら、後のk件を古い順にそのモデルへ割り当てる（要求4.4）。帰属先が現在のモデルのままなら、全n件を古い順に現在のモデルへ割り当てる。(d) 現在のモデルを帰属先に替え、帰属の保留を空にし、帰属先の損失の統計から`select_loss_monitoring_baseline_mean_loss`で選んだ基準値で`OverallAndTrueClassLossMonitor.reset`を呼ぶ。
 6. The system shall 検出器の合図ごとに、標本の番号、選んだ仮説、k、帰属先、新しいモデルの学習者、符号長、警報としたか、適応の結果（`stay`＝現在のモデルのまま、`reuse`＝保有モデルへ、`new`＝新しいモデルへ、`too_short`＝min(n,k)<5で警報としない）を記録する。
 

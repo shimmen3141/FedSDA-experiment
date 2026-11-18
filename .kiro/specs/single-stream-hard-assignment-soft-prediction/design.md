@@ -50,7 +50,7 @@
 |---|---|---|
 | モデル: 共有の特徴抽出器＋adapter＋出力層 | 神経網 | Hoeffding tree（共有部なし）。確率を一様分布と0.01で混ぜて平滑化 |
 | 予測: 全モデルをFixed-Shareの重み$w_m$で混ぜ、同期の版と局所の版を$v$で混ぜる | 両方（既定は`mixture_of_synchronized_and_local_parameters`） | 局所の版だけ（製品と違う点1） |
-| 重みの更新: 誤り$e_m=1-p_m(x)_y$でFixed-Share（T=120、ηは累積の分散から） | `FixedShareWeightController` | 同じ部品。警報の前後で重みを保つ（製品の既定`restart_adahedge_preserve_fixed_share_prediction_state`と同じ） |
+| 重みの更新: 誤り$e_m=1-p_m(x)_y$でFixed-Share（T=120、ηは累積の分散から） | `FixedShareWeightController` | 同じ部品。保有モデルの集合が変わると、この部品が重みを一様に戻す（新しいモデルを作った警報の後）。集合が変わらない警報では重みを保つ |
 | 監視: 現在のモデルの誤りをe-detectorで、全体とクラスごとに監視（α=0.001、低下で基準を下げる） | `OverallAndTrueClassLossMonitor`（事前学習の5分割交差検証の統計で開始） | 同じ部品と設定。200件のウォームアップの後、現在のモデルの損失の統計で開始（製品と違う点5） |
 | 帰属の保留: FIFO 30、容量を超えた最古の標本を現在のモデルへ | 保留の部品（torchの標本の型と組） | 同じ規則を、このパッケージの小さいFIFOで持つ |
 | 警報: 合図があり、min(n,k)≥5（待つ方針） | 同じ | 同じ |
@@ -74,7 +74,7 @@
 |---|---|---|
 | `pending_assignment_buffer_capacity_samples` | 30 | 製品と同じ |
 | `minimum_change_interval_sample_count` | 5 | 製品と同じ |
-| `fixed_share_weight_redistribution_time_scale_samples`（T） | 120 | 製品と同じ。`switching_probability=1/T` |
+| `fixed_share_weight_redistribution_time_scale_samples`（T） | 120 | 製品と同じ。`switching_probability=1/T`。`L_sw`の「帰属先の候補の数＋1」は製品と同じで、論文4.3節の$M=|\mathcal{M}|$とは定義が違う（論文の4章の実装の注記は「保持モデルの数+1」）。論文側で揃える |
 | `loss_change_detection_settings` | 製品の既定の`LossChangeDetectionSettings`（e_sr、`overall_and_true_class_losses`、α=0.001、`lower_baseline_on_loss_decrease`、待つ方針、ADWINの値は使わない） | 製品と同じ（全field） |
 | `loss_monitor_betting_fractions` | (0.05, 0.1, 0.2, 0.4, 0.8) | 製品と同じ |
 | `loss_monitor_maximum_retained_candidate_count` | 1000 | 製品と同じ |
@@ -90,9 +90,9 @@
 製品の`process_observed_sample`の順（予測→重みの更新→監視→保留→警報の判定→割り当て・学習）と同じにする。
 1. **予測**: 保有モデル（作った順）の平滑化した確率を求め、`get_weights_before_label_observation(model_ids=保有の順)`の重みで混ぜ、最大のクラス（同点は小さい番号）を予測とする。
 2. **重みの更新**: 各モデルの監視用の損失と、1の重み（ラベル観測前の重み）を渡して`update_weights_after_loss_observation`を呼ぶ（製品の`observed_sample_prediction.py`の呼び方と同じ）。
-3. **監視**: ウォームアップの後なら、現在のモデルの監視用の損失、正解クラス、標本の番号、`select_loss_monitoring_baseline_mean_loss(loss_moments=現在のモデルの全体の損失の統計)`を渡して`observe_loss_after_label_observation`を呼ぶ。ウォームアップ中は呼ばない（対数e値はNaN）。
+3. **監視**: ウォームアップの後なら、現在のモデルの監視用の損失、正解クラス、標本の番号、`select_loss_monitoring_baseline_mean_loss(loss_moments=現在のモデルの統計の`overall_loss_moments`)`を渡して`observe_loss_after_label_observation`を呼ぶ。ウォームアップ中は呼ばない（対数e値はNaN）。
 4. **保留**: 標本をFIFOへ加える。
-5. **警報の判定**: 検出器が合図すれば、FIFOの列W（n件）で`select_alarm_interval_assignment`を呼ぶ。min(n, k)<5なら警報としない（`too_short`を記録）。
+5. **警報の判定**: 検出器が合図すれば、FIFOの列W（n件）で`select_alarm_interval_assignment`を呼ぶ。min(n, k)<5なら警報としない（`too_short`を記録）。変化区間の探索はk≥5なので、実質はn<5（警報の直後で保留が少ない）のときだけ起きる。このときは7へ進み、検出器は始め直さないので、次の標本で合図が続けば、その標本を最後に含むWで選択をやり直す。
 6. **警報**: 要求5.5の(a)〜(d)の順。
 7. **警報でない**: FIFOが容量を超えていれば、最古の標本を現在のモデルへ割り当てる（統計に記録→学習）。
 8. **ウォームアップの終わり**: 200件目の処理の最後に、現在のモデルの統計から選んだ基準値で監視の部品を作る。
@@ -103,7 +103,7 @@
 - 新しいモデル: n≥5なら、Wを逆順にし、resetの学習者（空の概念モデル）とkeepの学習者（現在のモデルの写し）それぞれに、「MDL用の損失を足す→学習」を1件ずつ行い、前置きの和の列を作る。k=5..nについて`select_new_model_learner`で短い方＋ln 2と学習者の名前を得る。
 - `compute_switching_code_length(switching_probability=1/T, destination_count=帰属先の候補の数+1)`。
 - `select_assignment_by_minimum_description_length(..., change_interval_grid_sample_count=5, change_interval_step_sample_count=1)`。
-- 戻り値: 製品の`MinimumDescriptionLengthAssignmentSelection`（そのまま）。新しいモデルは、要求5.5(a)で、選ばれた学習者と同じ作り方で作り直す（学習者の状態を保存しないので、測った学習者のk件目の状態を、同じ手順で再現する）。
+- 戻り値: 製品の`MinimumDescriptionLengthAssignmentSelection`（そのまま）。新しいモデルは、要求5.5(a)で、選ばれた学習者と同じ作り方で作り直す。「測った学習者のk件目の状態」は、同じ初期状態（警報の時点の空の木か現在のモデルの写し）から、Wの新しい順のk件を学習し終えた状態と定義する。前置きの和のk件目の値は、その学習の前の予測で測る値なので、状態とは1件ずれる。学習者の状態を保存しないので、同じ手順で再現する。
 
 ### 指標（`compute_prequential_metrics`）
 - prequential精度: 正解の割合。
@@ -111,8 +111,8 @@
 - Kappa-M: (p0−pm)/(1−pm)。pmは「その標本より前に最も多く観測したクラス」（観測が無いときと同点のときは、小さいクラス番号）を予測する分類器のprequential精度。
 - Kappa-Temporal: (p0−pt)/(1−pt)。ptは「直前の標本の観測クラス」（最初の標本はクラス0）を予測する分類器のprequential精度。
 - 分母が0のときはNaN。
-- 真の変化点の後の精度: 真のコンセプトが変わった標本から、次の変化点までの最初の30・100・500件（区間がそれより短ければ区間の全部）の正解の割合を、全変化点でまとめた値。
-- 概念の同定（警報としたものだけ）: 最後の時点で各モデルの概念＝そのモデルに割り当てた標本の最多の真のコンセプト（同点は小さい番号）。警報の後のk件の最多の真のコンセプトを、その警報の「新しい概念」とする。分類: `reuse`で帰属先の概念＝新しい概念なら正しい再利用、違えば誤った再利用。`new`で、その時点までに作ったモデル（現在のモデル以外を含む）の中に新しい概念を概念とするモデルがあれば「再来なのに新規作成」、無ければ「初めての概念での新規作成」。`stay`はそのまま。
+- 真の変化点の後の精度: 真のコンセプトが変わった標本から、次の変化点までの最初の30・100・500件（区間がそれより短ければ区間の全部）について、全変化点の該当標本をまとめた正解の割合（標本数で重み付け）。
+- 概念の同定（警報としたものだけ）: 各モデルの概念は、最後の時点でそのモデルに割り当てた全標本の最多の真のコンセプト（同点は小さい番号。割り当てた標本の無いモデルは概念なし）。各警報の「新しい概念」は、Wの末尾k件（警報の標本を含む）の最多の真のコンセプト（同点は小さい番号）。分類: `reuse`は、帰属先の概念＝新しい概念なら正しい再利用、違うか概念なしなら誤った再利用。`new`は、その警報より前に作ったモデル（その警報の時点で保有していたモデル）の中に、最後の時点の概念が新しい概念と同じモデルがあれば「再来なのに新規作成」、無ければ「初めての概念での新規作成」。`stay`はそのまま。
 
 ## Components and Interfaces
 
@@ -141,7 +141,7 @@
 - 設定: 既定の「製品と同じ」の値が製品の既定と同じ（Windows）。範囲外の拒否。
 - 概念モデル: 空の木は一様分布、平滑化で最大のクラスが変わらない、和が1、木が返さないクラスが0から平滑化される、損失の式、写しが独立に学ぶ、新しいモデルが空、特徴の変換が`river_baselines._as_feature_dictionary`と同じ（WSL）。
 - MDL: 手で作った列で、(a)現在のモデルが合うと`stay`（k=n）、(b)保有モデルが合うとそのモデルへ、(c)どれも合わないと新しいモデル、(d)保有モデルの状態が変わらない、(e)前置きの和が逆順の1件ずつの「損失を足す→学習」で作られる（同じ手順を手で行った値と一致）、(f)作り直した新しいモデルが、測った学習者のk件目の状態と同じ予測をする。
-- 1標本の処理: 手で作ったA→B→Aの系列で、ウォームアップ中は監視も警報も無い、容量を超えた最古の標本だけが学習される、各標本が1回だけ学習される（学習の回数を数える）、警報の後に保留が空になり監視が始め直される、再来で保有モデルが再利用される、min(n,k)<5で警報としない、Fixed-Shareの重みが警報で作り直されない、真のコンセプトのIDを替えても予測・学習が変わらない。
+- 1標本の処理: 手で作ったA→B→Aの系列で、ウォームアップ中は監視も警報も無い、容量を超えた最古の標本だけが学習される、各標本が1回だけ学習される（学習の回数を数える）、警報の後に保留が空になり監視が始め直される、再来で保有モデルが再利用される、n<5で警報とせず次の標本で合図が続けば選択をやり直す、Fixed-Shareの重みが再利用の警報では保たれ新しいモデルの警報では一様に戻る、真のコンセプトのIDを替えても予測・学習が変わらない。
 - run・指標・成果物: 指標が手で計算した値と一致（Kappa系の定義の端の場合を含む）、概念の同定の分類が手で作った記録で期待どおり、保存→読込みの往復、上書きの拒否、不正な系列・hashの不一致の拒否。
 - 境界: 新しいパッケージのmoduleが許可した製品のmodule以外の製品のmoduleとtorchをimportしない（ソースの静的な検査）、製品のmoduleが新しいパッケージをimportしない（Windows）、WSLのRiver環境でパッケージをimportしてもtorchが読み込まれない（WSL）。
 - 実データでの確認: 書き出した系列（SINE2・SEA4・MNIST4、5,000標本、seed 0〜2）で実行コマンドが動き、成果物と一覧のCSVができる（WSL）。
