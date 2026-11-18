@@ -18,3 +18,9 @@
 | `single_stream_run` / `run_single_stream` / `SingleStreamRunResult` | 同上 | 系列1本の処理、記録の名前付きの配列、要約（指標・資源・経過時間） | 製品の`execute_fedsda_experiment_run`（連合学習の全体run）ではない |
 | `single_stream_artifacts` / `save_single_stream_run` / `load_single_stream_run` | 同上 | 成果物のJSON・NPZの保存と読込み（上書きしない、pickleなし）。`RESULT_FORMAT_VERSION`・`METHOD_NAME`は成果物の形式と手法の名前の定数 | 製品の成果物の形式とは別 |
 | `single_stream_command` / `main` / `select_stream_paths` / `write_run_summary_table` | 同上 | 系列のファイルを並列に処理し、成果物と一覧のCSVを書く実行コマンド。系列の選択（データ・seedで絞る）と、成果物からの一覧のCSVの作り直しも公開する | 製品の`run_experiment_sweep.py`（連合学習の掃引）ではない |
+| `convert_features_to_dictionary` | `hoeffding_tree_concept_model` | 特徴の1行を、列の番号をキーとしfloatを値とする辞書にする（比較手法の研究ツールと同じ変換） | — |
+| `HoeffdingTreeConceptModel.create_empty` / `create_empty_like` / `copy` | 同上 | 空の木から始める概念モデル（既定のハイパーパラメータ）／同じクラス数・平滑化の空の概念モデル／元と独立に学習できる写し | `create_empty_like`はresetの学習者、`copy`はkeepの学習者と新しいモデルの作り方に使う |
+| `HoeffdingTreeConceptModel.predict_class_probabilities` / `monitoring_loss` / `description_length_loss` / `learn_one` / `node_count` | 同上 | K個のクラスの平滑化した確率／監視用の損失 1−p／MDL用の損失 −ln p／1件で1回学習／木の節点の数（空は0） | `learn_one`はRiverの同名のメソッドを包み、クラスの範囲を確かめる |
+| `SingleStreamHardAssignmentSoftPredictionProcessor.pending_sample_indices` | `single_stream_processing` | 帰属の保留にある標本の番号（古い順） | — |
+| `SingleStreamHardAssignmentSoftPredictionSettings.fixed_share_weight_redistribution_time_scale_samples` / `switching_probability` | `single_stream_settings` | Fixed-ShareのT（予測の設定から読む）／MDLの切り替わりの確率1/T | 製品の`switching_probability`（clientの設定から1/Tで作る値）と同じ値 |
+
