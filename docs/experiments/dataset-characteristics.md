@@ -151,8 +151,8 @@ Windowsでは`Get-FileHash -Algorithm MD5 data/fashion-mnist/*.gz`で上の値�
 - Agrawalの尺度: salary (x−20000)/130000、commission x/75000、age (x−20)/60、elevel x/4、car (x−1)/19、zipcode x/8、
   hvalue x/900000、hyears (x−1)/29、loan x/500000。範囲は摂動0.05の出力が取りうる値を覆う。特徴の桁が1〜5×10⁵まで違い、
   そのままでは神経網の学習が成り立ちにくいため写す。STAGGERも0〜1へそろえる。SEA（0〜10）は既存のとおり写さない。
-- Random RBFは値に上限・下限が無いので写さない。seed 0の各概念2万標本の実測: 最小−2.28〜−1.46、最大2.56〜3.44、
-  1%点−0.26〜−0.19、99%点1.24〜1.28。
+- Random RBFは値に上限・下限が無いので写さない。実測（概念ごとに`RandomState(0)`で生成器を作り直し、その概念の2万標本の
+  全10特徴の値をまとめて数える。4概念の範囲）: 最小−2.20〜−1.46、最大2.45〜2.72、1%点−0.27〜−0.19、99%点1.24〜1.28。
 - Riverとの一致は、Riverのある環境（WSLの`~/river-env`）のtest
   （`tests/single_stream_hard_assignment_soft_prediction/test_recurring_synthetic_generators_match_river.py`）で確かめる:
   分類の関数（STAGGERは27通りの全入力、Agrawalは摂動なしの1万標本）、Random RBFの全中心、各概念2万標本のクラス1の割合と
