@@ -1474,7 +1474,17 @@ def main():
         whole_run_summaries[0]["absorbed_model_count"],
     )
     # sine2以外のdataset（MNISTは、`FDE_MNIST_DATA_DIR`か、リポジトリ直下の`data/mnist`のファイルを読む）でも、同じ条件を2回実行して、同じ結果になる（特徴数と概念数は、datasetの定義から）。
-    for dataset_name in ("sea2", "sea4", "circle2", "mnist2", "mnist4"):
+    for dataset_name in (
+        "sea2",
+        "sea4",
+        "circle2",
+        "mnist2",
+        "mnist4",
+        "stagger3",
+        "agrawal4",
+        # randomrbf4は、この小さい条件（事前学習40標本）では、偶然の正解率を超える判定が成り立たない
+        # （seed 7で0.5以下）。全体runの完了は`test_recurring_synthetic_dataset_runs.py`が確かめる。
+    ):
         dataset_run_summaries = [
             run_whole_stream_protocol_run(
                 run_client_settings=whole_run_client_settings,

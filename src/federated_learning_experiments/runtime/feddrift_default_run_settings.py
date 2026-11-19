@@ -36,6 +36,10 @@ _LOSS_INCREASE_THRESHOLDS_BY_DATASET = {
     "fmnist4": 0.10,
     "rotmnist2": 0.10,
     "rotmnist4": 0.10,
+    # 公式の表に無い再来の合成データ。公式の4値のうちcircle・MNISTの0.10を仮に使う（本規模の前に調整する）。
+    "stagger3": 0.10,
+    "agrawal4": 0.10,
+    "randomrbf4": 0.10,
 }
 
 _MODEL_DEFAULTS_BY_DATASET = {
@@ -49,6 +53,9 @@ _MODEL_DEFAULTS_BY_DATASET = {
     "fmnist4": ((1568,), 0.001),
     "rotmnist2": ((1568,), 0.001),
     "rotmnist4": ((1568,), 0.001),
+    "stagger3": ((32, 32), 0.01),
+    "agrawal4": ((32, 32), 0.01),
+    "randomrbf4": ((32, 32), 0.01),
 }
 
 
