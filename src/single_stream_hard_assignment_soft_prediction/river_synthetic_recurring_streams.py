@@ -3,7 +3,8 @@
 概念列は`random_concept_schedule`（製品のランダムな概念列と同じ規則）を`random.Random(系列のseed)`で作る。
 概念ごとに専用の生成器（seedは`1000 × 系列のseed + 概念の番号`）を持ち、その概念の標本は生成器の続きから
 取る（再来で同じ標本を繰り返さない）。概念の中身（STAGGER・Agrawalの分類の関数、Random RBFの中心の配置）は
-系列のseedによらず固定で、標本だけがseedで変わる。製品のデータセットの定義とは別で、名前は重ならない。
+系列のseedによらず固定で、標本だけがseedで変わる。製品の同じ名前のデータ（`federated_learning_experiments.data`の
+`stagger3`・`agrawal4`・`randomrbf4`）は、概念の中身が同じで、標本をrunのNumPyの乱数で作る（値の列は違う）。
 """
 
 import random
@@ -111,13 +112,16 @@ def _validate_arguments(
             raise TypeError(f"{name}はbool以外のbuiltin intが必要です。")
         if value < 0:
             raise ValueError(f"{name}は0以上が必要です。")
-    try:
-        get_dataset_definition(dataset_name=dataset_name)
-    except (KeyError, ValueError):
-        pass
-    else:
-        raise ValueError(f"製品のデータセットと同じ名前です: {dataset_name}")
-    return RIVER_SYNTHETIC_STREAM_DEFINITIONS[dataset_name]
+    definition = RIVER_SYNTHETIC_STREAM_DEFINITIONS[dataset_name]
+    # 製品の同じ名前のデータ（概念の中身が同じ。標本の乱数の列は違う）と、概念数・クラス数・特徴数が一致すること。
+    product_definition = get_dataset_definition(dataset_name=dataset_name)
+    if (
+        product_definition.concept_count,
+        product_definition.class_count,
+        product_definition.input_feature_count,
+    ) != (definition.concept_count, definition.class_count, len(definition.feature_names)):
+        raise ValueError(f"製品の{dataset_name}の定義と、概念数・クラス数・特徴数が違います。")
+    return definition
 
 
 def generate_river_synthetic_stream(

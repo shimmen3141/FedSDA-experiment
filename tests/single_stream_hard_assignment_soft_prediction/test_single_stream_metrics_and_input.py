@@ -173,10 +173,10 @@ def test_digest_matches_the_stream_export_tool():
 
 def test_class_count_in_the_metadata_is_used_for_a_dataset_outside_the_product(tmp_path):
     path, _ = write_stream(
-        tmp_path, dataset_name="stagger3", labels=[0, 1, 2, 1, 1, 0], class_count=3
+        tmp_path, dataset_name="unknown_recurring_stream3", labels=[0, 1, 2, 1, 1, 0], class_count=3
     )
     stream = load_single_stream_input(stream_path=path)
-    assert stream.class_count == 3 and stream.dataset_name == "stagger3"
+    assert stream.class_count == 3 and stream.dataset_name == "unknown_recurring_stream3"
 
 
 def test_class_count_in_the_metadata_must_match_the_product_definition(tmp_path):

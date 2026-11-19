@@ -52,8 +52,13 @@ def test_definitions():
         assert (
             "1000" in arguments["seed_rule"] and arguments["generator"] == definition.generator_name
         )
-        with pytest.raises((KeyError, ValueError)):
-            get_dataset_definition(dataset_name=name)
+        # 製品の同じ名前のデータと、概念数・クラス数・特徴数が一致する。
+        product_definition = get_dataset_definition(dataset_name=name)
+        assert (
+            product_definition.concept_count,
+            product_definition.class_count,
+            product_definition.input_feature_count,
+        ) == (definition.concept_count, definition.class_count, len(definition.feature_names))
     assert (
         RIVER_SYNTHETIC_STREAM_DEFINITIONS["agrawal4"].fixed_generator_arguments["perturbation"]
         == 0.05
@@ -133,6 +138,27 @@ def test_agrawal_perturbation_is_passed_to_the_generator():
     numeric = ("salary", "commission", "age", "hvalue", "hyears", "loan")
     assert [x_with[k] for k in numeric] != [x_without[k] for k in numeric]
     assert x_with["salary"] != x_without["salary"]
+
+
+@pytest.mark.parametrize(
+    ("field_name", "changed_value"),
+    [("concept_count", 5), ("class_count", 3), ("input_feature_count", 2)],
+)
+def test_a_product_definition_that_differs_is_rejected(monkeypatch, field_name, changed_value):
+    import dataclasses
+
+    from single_stream_hard_assignment_soft_prediction import river_synthetic_recurring_streams
+
+    real = river_synthetic_recurring_streams.get_dataset_definition
+
+    def differing_definition(*, dataset_name):
+        return dataclasses.replace(real(dataset_name=dataset_name), **{field_name: changed_value})
+
+    monkeypatch.setattr(
+        river_synthetic_recurring_streams, "get_dataset_definition", differing_definition
+    )
+    with pytest.raises(ValueError, match="製品"):
+        generate_river_synthetic_stream(dataset_name="agrawal4", random_seed=0, sample_count=10)
 
 
 @pytest.mark.parametrize(
