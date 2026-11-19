@@ -1,0 +1,44 @@
+# Implementation Plan
+
+依存: 1.1・1.2・1.3（互いに独立） → 2.1 → 2.2 → 3.1 → 3.2。
+
+- [ ] 1. 生成器
+- [ ] 1.1 STAGGERの生成器 (P)
+  - 要求1・4の定義のtest（値の範囲、ラベルの規則、尺度、再現性、拒否、構築で乱数を使わない）を先に書き、REDを確かめてから`data/stagger/`を実装する。
+  - 完了条件: 新しいtestが通る。
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 4.1, 4.2, 4.3_
+  - _Boundary: StaggerSampleGenerator_
+- [ ] 1.2 Agrawalの生成器 (P)
+  - 同じ形のtestを先に書く。摂動の後の値が設計書の範囲に収まること、hvalueが`(9 - zipcode) * 100000`か0になること、commissionがsalary 75000以上で0になることを含める。
+  - 完了条件: 新しいtestが通る。
+  - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 4.1, 4.2, 4.3_
+  - _Boundary: AgrawalSampleGenerator_
+- [ ] 1.3 Random RBFの生成器 (P)
+  - 同じ形のtestを先に書く。中心がrunのseedに依らないこと、ラベルが選んだ中心のラベルであることを含める。
+  - 完了条件: 新しいtestが通る。
+  - _Requirements: 3.1, 3.2, 3.3, 4.1, 4.2, 4.3_
+  - _Boundary: RandomRbfSampleGenerator_
+
+- [ ] 2. 製品への接続
+- [ ] 2.1 定義・実行条件・生成器の表
+  - データの定義のtest・`is_observed_sample_generator_of_dataset`のtestを先に直し、3データを`dataset_definitions.py`・`experiment_run_conditions.py`・`observed_sample_generation.py`へ足す。新しい3moduleを依存境界の許可集合へ登録する。
+  - 完了条件: 定義・生成器の表・依存境界のtestが通り、既存のデータのtestが値を変えずに通る。
+  - _Requirements: 1.1, 2.1, 3.1, 4.4_
+  - _Depends: 1.1, 1.2, 1.3_
+- [ ] 2.2 全手法の設定・掃引・全体run
+  - 要求7.2の(iii)〜(v)のtestを先に書き、FedSDA・FedDriftの表に3データを足す。
+  - 完了条件: 3手法の設定のtest、全体run（各データ1 run）、掃引の計画のtestが通り、全版のgoldenが通る。
+  - _Requirements: 5.1, 5.2, 5.3, 7.1, 7.2_
+  - _Depends: 2.1_
+
+- [ ] 3. 単一ストリームの版と文書
+- [ ] 3.1 単一ストリームの名前の検査とRiverとの照合
+  - 名前の一致の検査のtestを先に書き、`river_synthetic_recurring_streams.py`の検査を替える。要求6.2の照合のtest（`importorskip("river")`、torchをimportしない）を足し、WSLの`~/river-env`で実行する。
+  - 完了条件: Windowsでは照合のtestがskipの理由を出し、WSLで照合のtestと既存の単一ストリームのtestが通る。
+  - _Requirements: 6.1, 6.2_
+  - _Depends: 2.1_
+- [ ] 3.2 文書と確認
+  - `docs/experiments/dataset-characteristics.md`へ3データを足す。全pytest、ruff、pyright。独立CLIの実装レビュー1回。
+  - 完了条件: 文書に要求8.1の項目があり、全pytestが通り、実装レビューがPASSである。
+  - _Requirements: 8.1, 8.2, 7.1_
+  - _Depends: 2.2, 3.1_
