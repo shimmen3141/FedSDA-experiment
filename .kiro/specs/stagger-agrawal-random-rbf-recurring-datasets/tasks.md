@@ -27,21 +27,21 @@
   - _Requirements: 1.1, 2.1, 3.1, 4.4_
   - _Depends: 1.1, 1.2, 1.3_
 - [ ] 2.2 全手法の設定・掃引・全体run
-  - 要求7.2の(iii)〜(v)のtestを先に書き、FedSDA・FedDriftの表に3データを足す。
+  - 要求7.2の(iii)〜(v)のtestを先に書き、FedSDA・FedDriftの表に3データを足す。データ名を固定の一覧で持つ既存のtest（`test_fedavg_experiment_run.py`、`test_feddrift_experiment_sweep.py`、`fresh_process_smoke.py`）は、設計書のTesting Strategyの規則で扱う。
   - 共用script`tests/refactoring/fresh_process_smoke.py`へ、3データのFedSDAの全体runの流れを足す。
-  - 完了条件: 3手法の設定のtest、全体run（各データ1 run）、掃引の計画のtest、fresh smokeが通り、全版のgoldenが通る。
+  - 完了条件: 4手法（FedSDA・FedDrift・FedAvg・DWM）の設定のtest、全体run（各データ1 runずつ）、掃引の計画のtest、fresh smokeが通り、全版のgoldenが通る。
   - _Requirements: 5.1, 5.2, 5.3, 7.1, 7.2_
   - _Depends: 2.1_
 
 - [ ] 3. 単一ストリームの版と文書
 - [ ] 3.1 単一ストリームの名前の検査とRiverとの照合
-  - 名前の一致の検査のtestを先に書き（既存の`test_river_synthetic_recurring_streams.py`の「製品の定義が無い」testを替える）、`river_synthetic_recurring_streams.py`の検査を替える。`test_single_stream_metrics_and_input.py`の`stagger3`を製品の外の名前として使うtestを、製品に無い名前へ替える。
-  - 要求6.2の照合のtest（`importorskip("river")`、torchをimportしない）を足し、WSLの`~/river-env`で実行する。
+  - 名前の一致の検査のtestを先に書き（既存の`test_river_synthetic_recurring_streams.py`の「製品の定義が無い」testを替える）、`river_synthetic_recurring_streams.py`の検査を替える。`test_single_stream_metrics_and_input.py`の`stagger3`を製品の外の名前として使うtestを、製品に無い名前`unknown_recurring_stream3`へ替える。
+  - 要求6.2の照合のtest（(i)〜(iii)の全て。`importorskip("river")`、torchをimportしない）を足し、WSLの`~/river-env`で実行する。
   - 完了条件: Windowsでは照合のtestがskipの理由を出し、WSLで照合のtestと既存の単一ストリームのtestが通る。
   - _Requirements: 6.1, 6.2_
   - _Depends: 2.1_
 - [ ] 3.2 文書と確認
-  - `docs/experiments/dataset-characteristics.md`へ3データを足す（Random RBFの実測の範囲を含む）。全pytest、ruff、pyright。独立CLIの実装レビュー1回。
+  - `docs/experiments/dataset-characteristics.md`へ3データを足す（Random RBFの実測の範囲を含む）。`python -m tools.generate_option_docs`を実行し、`docs/reference/options.md`に差が出れば再生成の結果を含める。全pytest、ruff、pyright。独立CLIの実装レビュー1回。
   - 完了条件: 文書に要求8.1の項目があり、全pytestが通り、実装レビューがPASSである。
   - _Requirements: 8.1, 8.2, 7.1_
   - _Depends: 2.2, 3.1_

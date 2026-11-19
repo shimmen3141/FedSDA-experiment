@@ -41,17 +41,17 @@
 4.4 The data shall 概念の時系列・clientへの分け方・事前学習（概念0の標本）・評価を、今のデータと同じ経路で使う。
 
 ### Requirement 5: 全手法の設定と掃引
-5.1 The settings shall 3データで、FedSDA・FedDrift・FedAvgのネットワークと学習率を、今の合成データ（`sea4`など）と同じにする。
+5.1 The settings shall 3データで、FedSDA・FedDrift・FedAvg・DWM（`dwm-neural-network`。FedAvgの設定を使う）のネットワークと学習率を、今の合成データ（`sea4`など）と同じにする。
 5.2 The FedDrift default settings shall 3データのδの既定を0.10にする（公式の`default_deltas`に3データの値は無い。設計書と文書に開示する）。
 5.3 The sweep shall 3データを`--datasets`で指定でき、実行の重さの見積りで今の合成データと同じに扱う。
 
 ### Requirement 6: 単一ストリームの版との整合
 6.1 The single-stream generator shall 製品と同じ名前のデータを拒否せず、製品の定義の概念数・クラス数・特徴数が、単一ストリームの定義と一致することを確かめる（一致しなければ拒否する）。単一ストリームの系列の値は変えない。製品の外の名前としてこれらの名前を使っていた既存の単一ストリームのtestは、製品に無い名前へ替える（読込みが確かめる内容は変えない）。
-6.2 When Riverを使える環境でtestを実行するとき, the tests shall 次を確かめる: (i) STAGGER・Agrawalの分類の関数が、Riverの関数と、同じ入力で全て同じラベルを返す（入力は、摂動なしのRiverの生成器の特徴とする）。(ii) Random RBFの中心が、Riverの中心と一致する。(iii) 3データの各概念で、製品の生成器とRiverの生成器（Riverの特徴は製品と同じ尺度へ写す）の、クラス1の割合と各特徴の平均の差が、2万標本ずつで、差の標準誤差の4倍以内である。Riverの無い環境では、理由を出してskipする。
+6.2 When Riverを使える環境でtestを実行するとき, the tests shall 次を確かめる: (i) STAGGER・Agrawalの分類の関数が、Riverの関数と、同じ入力で全て同じラベルを返す（STAGGERは27通りの全ての入力、Agrawalは摂動なしのRiverの生成器の特徴）。(ii) Random RBFの中心が、Riverの中心と一致する。(iii) 3データの各概念で、製品の生成器とRiverの生成器（Agrawalは摂動0.05。Riverの特徴は製品と同じ尺度へ写す）の、クラス1の割合と各特徴の平均の差が、2万標本ずつで、差の標準誤差の4倍以内である。Riverの無い環境では、理由を出してskipする。
 
 ### Requirement 7: 既存の値の維持と検証
 7.1 The goldens shall 全版のgoldenの値を変えない。`BEHAVIOR_BASELINE_VERSION`は上げない。
-7.2 The tests shall 次を確かめる: (i) 要求1〜3の定義（特徴の値の範囲、ラベルの規則、尺度）。(ii) 要求4.1の再現性と4.2の拒否。(iii) 3手法の設定が要求5.1・5.2のとおりになる。(iv) 全体runが3データで3手法とも完了する（各データ1 run、10 client、各client 100標本、集約間隔50）。(v) 掃引の`--datasets`で3データを指定でき（計画の作成）、重さの見積りが今の合成データと同じになる。
+7.2 The tests shall 次を確かめる: (i) 要求1〜3の定義（特徴の値の範囲、ラベルの規則、尺度）。(ii) 要求4.1の再現性と4.2の拒否。(iii) 4手法の設定が要求5.1・5.2のとおりになる。(iv) 全体runが3データで4手法とも完了する（各データ1 run、10 client、各client 100標本、集約間隔50）。(v) 掃引の`--datasets`で3データを指定でき（計画の作成）、重さの見積りが今の合成データと同じになる。
 
 ### Requirement 8: 文書
 8.1 The docs shall `docs/experiments/dataset-characteristics.md`に、3データの定義・根拠（Riverの版とクラス）・特徴の尺度・開示する差（標本の乱数の列はRiverと違う、Agrawalのhvalueの摂動はRiverの引数の並びのまま、δの既定に公式の値は無い）を足す（今の状態の正本）。
