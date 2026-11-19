@@ -3,6 +3,10 @@
 MNIST・回転MNISTはFDE_MNIST_DATA_DIR、Fashion-MNISTは
 FDE_FASHION_MNIST_DATA_DIR（未指定ならdata/fashion-mnist）から読む。
 Oracleは決めた規則の診断であり、精度の上限ではない。
+
+--configurationで、差し替えを掛ける製品の構成を選ぶ（既定は`fedsda`。`fedsda-single-model-prediction`にすると、
+予測を今の学習先のモデル1つだけで行うハード予測の構成で同じ差し替えを掛ける。2026-11-19追加）。
+出力先の変種の記録に構成も書き、別の構成の記録がある出力先は使わない。
 """
 
 import argparse
@@ -43,6 +47,7 @@ from tools.research_oracle_concept_assignment.policy import (  # noqa: E402
 _VARIANT_ENVIRONMENT_VARIABLE = "FDE_ORACLE_CONCEPT_ASSIGNMENT_VARIANT"
 _DIAGNOSTICS_DIRECTORY_NAME = "oracle_concept_assignment_diagnostics"
 _VARIANT_RECORD_NAME = "oracle_concept_assignment_variant.json"
+CONFIGURATIONS = ("fedsda", "fedsda-single-model-prediction")
 # 差し替える前の、製品のrunの実行の関数（このモジュールを読み込んだ時点の値）。
 _execute_planned_experiment_run = experiment_sweep_execution.execute_planned_experiment_run
 
@@ -88,14 +93,23 @@ def _run_variant(arguments, variant):
     output_directory = arguments.output.resolve() / variant
     record_path = output_directory / _VARIANT_RECORD_NAME
     if record_path.exists():
-        if _read_json(record_path).get("variant") != variant:
+        record = _read_json(record_path)
+        if record.get("variant") != variant:
             raise ValueError(f"出力先に別の変種の記録があります: {record_path}")
+        # 構成の記録が無い古い記録は`fedsda`で作ったもの。
+        if record.get("configuration", "fedsda") != arguments.configuration:
+            raise ValueError(f"出力先に別の構成の記録があります: {record_path}")
     elif output_directory.exists() and any(output_directory.iterdir()):
         # 変種の記録は製品のコマンドを呼ぶ前に書くので、記録のない出力先は、この入口で作ったものではない。
         raise ValueError(
             f"変種の記録のない出力先は使えません（別の出力先を指定してください）: {output_directory}"
         )
     sweep_arguments = _sweep_arguments(arguments, variant, output_directory)
+    # 共通の組立て（`research_loss_monitor_rebaseline`）は構成`fedsda`を渡すので、選んだ構成に置き換える。
+    configuration_index = sweep_arguments.index("--configurations") + 1
+    if sweep_arguments[configuration_index] != "fedsda":
+        raise ValueError("掃引の引数の構成が想定と違います")
+    sweep_arguments[configuration_index] = arguments.configuration
     if arguments.pending_assignment_fifo_capacity is not None:
         # 判断の窓を広げる診断。製品の掃引の軸をそのまま使い、既定と変種に同じ容量を渡す。
         sweep_arguments += [
@@ -107,7 +121,10 @@ def _run_variant(arguments, variant):
     # 変種の記録を、製品のコマンドを呼ぶ前に置く（途中で止まっても、出力先と変種の対応が残る）。
     if not record_path.exists():
         output_directory.mkdir(parents=True, exist_ok=True)
-        _write_json(record_path, dict(variant=variant, **_provenance()))
+        _write_json(
+            record_path,
+            dict(variant=variant, configuration=arguments.configuration, **_provenance()),
+        )
     previous_variant = os.environ.get(_VARIANT_ENVIRONMENT_VARIABLE)
     os.environ[_VARIANT_ENVIRONMENT_VARIABLE] = variant
     experiment_sweep_execution.execute_planned_experiment_run = _execute_run_with_variant
@@ -150,6 +167,7 @@ def _run_parser():
     parser.add_argument("--pending-assignment-fifo-capacity", type=int)
     parser.add_argument("--purpose", default="FedHASP基準版16の固い割り当てを真の概念に合わせた診断")
     parser.add_argument("--print-plan", action="store_true")
+    parser.add_argument("--configuration", choices=CONFIGURATIONS, default="fedsda")
     return parser
 
 

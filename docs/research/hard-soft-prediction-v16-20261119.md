@@ -30,3 +30,10 @@
 | 真の概念のモデル1つ（FedDrift-Oracle） | 90.60 | 82.96 | 90.17 | 90.35 | 90.56 | 91.42 | 91.95 | 92.43 | 93.09 |
 
 - まとめ（数値をそのまま述べる）: 変化の直後0〜4標本は、ソフト予測とハード予測（今のモデル）がほぼ同じ（60.71と59.51）で、どちらも前の概念のモデルで予測している。5〜49標本でソフト予測が6〜7pp上回り、回復が速い。変化の無い時期（最初の変化の前、500標本以降）でもソフト予測が1.4〜2.6pp上。真の概念のモデル1つは、変化の標本からモデルを切り替えるので0〜4標本で82.96%と高く、ソフト予測との差は変化から200標本ほどでほぼ消え、500標本以降は同じ（93.09）。FedHASPを土台にしたハード予測のOracle（真の概念に割り当て、予測は今のモデルだけ）は、研究ツール（`research_oracle_concept_assignment`）が`fedsda`の構成だけを流すので、まだ無い。
+
+## FedHASPのハード予測のOracle（計画と準備、2026-11-19、主担当）
+
+- 目的: 同じFedHASP（学習の仕方を揃えて）で、割り当てを真の概念に合わせ、予測を今のモデル1つだけにしたとき（ハード予測のOracle）、ソフト予測（FedHASP）とソフト予測のOracle（割り当てだけ真の概念）を上回るかを確かめる。FedDrift-Oracleは学習の仕方も違うので、その代わり。
+- 研究ツール`tools/research_oracle_concept_assignment`に`--configuration`を足した（既定`fedsda`、選べるのは`fedsda-single-model-prediction`）。差し替えは製品の構成に共通の関数に掛かるので、同じ規則（警報は真の変化の5標本目、帰属先はそのclientの割当の記録で真の概念が多数派の保有モデル、統合も多数派の同じ対だけ）のまま、予測だけが今のモデル1つになる。
+- 手元の確認（SEA2・MNIST4、間隔50、seed 0、10 client×600標本）: 差し替えなし（`product-default`）は、製品の`fedsda-single-model-prediction`を直接流した結果と、2 runの全258配列と要約（秒・時刻を除く）が一致した。Oracle（`product-default-oracle-concept-assignment`）は警報の区間の確認2回、混入0で動いた。研究ツールの既存の検査46件が通った（Windows、12並列、548秒）。
+- 本規模（uranium）: Oracleの変種だけ、10データ×間隔50・500×seed 0〜9、200 run。今のモデルだけの予測の既定（差し替えなし）は既存の結果（`fedsda-component-ablation-v16`・`fedsda-component-ablation-new-datasets-v16`）を使う。結果は`hard_soft_prediction.py`・`post_change_profile.py`に変種として足して集計する。
