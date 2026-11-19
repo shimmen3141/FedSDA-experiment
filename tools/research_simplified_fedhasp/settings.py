@@ -29,6 +29,10 @@ ADAPTER_ABLATION_CONFIGURATION_NAME = "fedsda-without-concept-specific-adapter"
 VARIANT_ABLATIONS = {
     "simplified": DETAIL_ABLATION_CONFIGURATION_NAMES,
     "simplified-without-adapter": (*DETAIL_ABLATION_CONFIGURATION_NAMES, ADAPTER_ABLATION_CONFIGURATION_NAME),
+    # 簡素版で予測の上乗せを外した段（2026-11-19追加）。モデルの混合だけ（手元の版だけで予測）と、
+    # 柔らかい予測を全部外して今のモデル1つで予測する基盤だけ。
+    "simplified-local-model-mixture": (*DETAIL_ABLATION_CONFIGURATION_NAMES, "fedsda-local-parameter-prediction"),
+    "simplified-hard-prediction": (*DETAIL_ABLATION_CONFIGURATION_NAMES, "fedsda-single-model-prediction"),
 }
 
 

@@ -31,7 +31,11 @@ CONDITIONS = [
     )
     for dataset, interval, seed in (("sine2", 50, 0), ("mnist4", 500, 3), ("fmnist2", 50, 7), ("sea4", 500, 1))
 ]
-ALL_ABLATIONS = simplified.VARIANT_ABLATIONS["simplified-without-adapter"]
+ALL_ABLATIONS = (
+    *simplified.VARIANT_ABLATIONS["simplified-without-adapter"],
+    "fedsda-local-parameter-prediction",
+    "fedsda-single-model-prediction",
+)
 
 
 @pytest.mark.parametrize("conditions", CONDITIONS, ids=lambda c: c.dataset_name)
@@ -51,13 +55,15 @@ def test_one_ablation_reproduces_that_configuration_exactly(conditions, configur
 def test_simplified_differs_from_fedhasp_exactly_by_the_union_of_ablations(conditions):
     base = build_experiment_run_settings(configuration_name="fedsda", experiment_run_conditions=conditions)
     expected = {}
-    for name in ALL_ABLATIONS:
+    for name in simplified.VARIANT_ABLATIONS["simplified-without-adapter"]:
         expected.update(
             simplified.leaf_differences(
                 base, build_experiment_run_settings(configuration_name=name, experiment_run_conditions=conditions)
             )
         )
     for variant, names in simplified.VARIANT_ABLATIONS.items():
+        if variant not in ("simplified", "simplified-without-adapter"):
+            continue
         settings = simplified.build_simplified_run_settings(variant=variant, experiment_run_conditions=conditions)
         differences = simplified.leaf_differences(base, settings)
         wanted = {}
@@ -135,3 +141,28 @@ def test_patched_plan_uses_simplified_settings_only_for_fedsda():
         run_settings=build(configuration_name="fedsda", experiment_run_conditions=conditions),
     )
     assert plain != patched and plain.rsplit("_", 1)[0] == patched.rsplit("_", 1)[0]
+
+
+@pytest.mark.parametrize("conditions", CONDITIONS, ids=lambda c: c.dataset_name)
+@pytest.mark.parametrize(
+    "variant, prediction_configuration",
+    [
+        ("simplified-local-model-mixture", "fedsda-local-parameter-prediction"),
+        ("simplified-hard-prediction", "fedsda-single-model-prediction"),
+    ],
+)
+def test_prediction_ladder_variants_are_simplified_plus_that_prediction(conditions, variant, prediction_configuration):
+    """予測の段の変種は、簡素版のrun設定に、その予測の構成のfedsdaとの差を重ねたものと同じ。"""
+    base = build_experiment_run_settings(configuration_name="fedsda", experiment_run_conditions=conditions)
+    settings = simplified.build_simplified_run_settings(variant=variant, experiment_run_conditions=conditions)
+    expected = simplified.leaf_differences(
+        base, simplified.build_simplified_run_settings(variant="simplified", experiment_run_conditions=conditions)
+    )
+    expected.update(
+        simplified.leaf_differences(
+            base,
+            build_experiment_run_settings(configuration_name=prediction_configuration, experiment_run_conditions=conditions),
+        )
+    )
+    assert simplified.leaf_differences(base, settings) == expected
+
