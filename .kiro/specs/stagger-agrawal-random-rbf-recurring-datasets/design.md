@@ -34,7 +34,7 @@
 - `generate_sample(concept_id=...)`: 概念を検査してから乱数を使う。
 - Pythonの`random.Random`とNumPyの対応: `random()`→`random_sample()`、`randint(a, b)`（両端を含む）→`randint(a, b + 1)`、`gauss(0, 1)`→`standard_normal()`。1標本の中の乱数の使用の順序は、上の根拠のRiverの順序と同じにする。値の列はRiverと同じにならない（要求の範囲）。
 - 丸め: Agrawalのage・hyearsの`round`は、Pythonの`round`（偶数への丸め）をそのまま使う。
-- Random RBFの中心の選択: Riverの`random_index_based_on_weights`と同じく、Pythonのfloatで重みを先頭から逐次に足し、`<=`の比較で添字を決める（`numpy.cumsum`・`searchsorted`は使わない。境界の丸めで添字が変わりうるため）。重みの合計はPythonの`sum`で構築のときに計算する。
+- Random RBFの中心の選択: Riverの`random_index_based_on_weights`と同じく、Pythonのfloatで重みを先頭から逐次に足し、`<=`の比較で添字を決める（累積が`val`を超えた最初の添字。どれも超えなければ最後の添字。`numpy.cumsum`・`searchsorted`は使わない。境界の丸めで添字が変わりうるため）。重みの合計はPythonの`sum`で構築のときに計算する。
 - 分類の関数とRandom RBFの中心の生成は、Riverとの照合のtestから呼べるよう、公開の関数にする（`compute_stagger_class_label`、`compute_agrawal_class_label`、`generate_random_rbf_centroids`）。`generate_random_rbf_centroids`は、不変の記録`RandomRbfCentroid`（位置のtuple、ラベル、標準偏差、重み）のtupleを返す。
 - 3つのpackage（`data/stagger/`・`data/agrawal/`・`data/random_rbf/`）は、説明だけの`__init__.py`を持つ（再exportしない。既存の`data/sea/`と同じ）。
 - 特徴の尺度（要求1.4・2.5）:
@@ -66,15 +66,14 @@
 ## Testing Strategy
 - 定義（Windows venv）: 要求1〜3の値の範囲・ラベルの規則・尺度、要求4.1の再現性（同じseedで同じ標本）、4.2の拒否、構築で乱数を使わないこと。
 - Riverとの照合（WSLの`~/river-env`、`pytest.importorskip("river")`）: 要求6.2の(i)〜(iii)。
-  - (i) 摂動なし（`perturbation=0.0`）のRiverの`Agrawal`と、`STAGGER`の生成器の出す特徴とラベルを、製品の分類の関数へ渡し、各概念の1万標本で全てのラベルが一致すること（Agrawalは摂動の後の特徴ではラベルが決まらないため、摂動なしで比べる）。
-  - (ii) Random RBFの全中心（位置・ラベル・標準偏差・重み）の一致。
+  - (i) STAGGERは、27通りの整数の入力（size・color・shape）を、Riverの分類の関数と`compute_stagger_class_label`へ直接渡して比べる（生成器は通さない）。Agrawalは、摂動なし（`perturbation=0.0`）のRiverの`Agrawal`の出す特徴とラベルを`compute_agrawal_class_label`へ渡し、各概念の1万標本で全てのラベルが一致すること（摂動の後の特徴ではラベルが決まらないため、摂動なしで比べる）。
+  - (ii) Random RBFの全中心の一致（Riverの`centroids[i]`の位置・ラベル・標準偏差と、`centroid_weights[i]`の重みを、製品の`RandomRbfCentroid`のi番目と比べる）。
   - (iii) 各概念で、製品の生成器（固定seed）とRiverの生成器（摂動0.05、固定seed）の2万標本ずつで、クラス1の割合と各特徴の平均の差が、差の標準誤差（両方の標本の分散から計算）の4倍以内。Riverの特徴は製品と同じ尺度へ写してから比べる。seedは固定なので結果は決まる。4倍は、正しい実装で偶然に外れる確率が十分小さく（正規近似で約6×10⁻⁵／比較）、平均のずれ（例: 範囲の数%）を見逃さない幅として選ぶ。
   - (iii)の比較は約100あり、全体で偶然に1つ外れる確率は約0.6%。外れたときは、別のseedで同じ比較をして、同じ比較が再び外れるかを確かめ、結果をtasks.mdのImplementation Notesへ書く（許容を広げて通さない）。
-  - (i)のSTAGGERは、27通り×3概念の全てで比べる。
   - (i)〜(iii)は全て3.1のtestが持つ（Riverの環境で動く1つのmodule）。
   - このtestのmoduleはtorchをimportしない。
 - fresh process: 共用script`tests/refactoring/fresh_process_smoke.py`へ、3データのFedSDAの全体run（小さい条件）の流れを足す。
-- 設定と全体run: 要求7.2の(iii)〜(v)。(iv)は既存の`test_fmnist_and_rotated_mnist_runs.py`と同じ形（各データ1 run、10 client、各client 100標本、集約間隔50）で、FedSDA・FedDrift・FedAvg・DWMを流す。データ名を固定の一覧で持つ既存のtest（`tests/refactoring/test_dataset_definitions.py`の`DATASET_NAMES`、`test_fedavg_experiment_run.py`・`test_feddrift_experiment_sweep.py`のデータの一覧、`fresh_process_smoke.py`のデータの一覧）は、目的が全データを覆うことなら3データを足し、既存のデータの値を固定する目的なら変えない（実装のときに各箇所の目的を読んで決め、Implementation Notesへ書く）。
+- 設定と全体run: 要求7.2の(iii)〜(v)。(iv)は既存の`test_fmnist_and_rotated_mnist_runs.py`と同じ形（各データ1 run、10 client、各client 100標本、集約間隔50）で、FedSDA・FedDrift・FedAvg・DWMを流す。データ名を固定の一覧で持つ既存のtestの扱い（2026-11-20、主担当が各箇所の目的を読んで決めた）: `test_fedavg_experiment_run.py`（295行・613行）と`test_feddrift_experiment_sweep.py`（295行）は実旧の実装を正解にした照合で、旧に3データは無いので変えない。`fresh_process_smoke.py`（1477行）は全体runの再現性を各データで確かめる一覧なので、3データを足す（ファイルが要らない）。`test_dataset_definitions.py`の`DATASET_NAMES`は、`DEFINED_DATASET_NAMES`の順を固定する比較（23行）を3データ込みに直す。
 - 単一ストリームの版: 名前の一致の検査で、製品の定義と一致すれば生成でき、一致しない定義を拒否すること。既存の単一ストリームのtest（系列の値）が変わらず通ること（WSL）。
 - 回帰: 全版のgoldenが通る。依存境界: 新しい3moduleを`test_single_run_dependency_boundaries.py`の許可集合へ登録する。
 

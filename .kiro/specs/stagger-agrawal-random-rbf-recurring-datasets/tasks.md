@@ -27,7 +27,7 @@
   - _Requirements: 1.1, 2.1, 3.1, 4.4_
   - _Depends: 1.1, 1.2, 1.3_
 - [ ] 2.2 全手法の設定・掃引・全体run
-  - 要求7.2の(iii)〜(v)のtestを先に書き、FedSDA・FedDriftの表に3データを足す。データ名を固定の一覧で持つ既存のtest（`test_fedavg_experiment_run.py`、`test_feddrift_experiment_sweep.py`、`fresh_process_smoke.py`）は、設計書のTesting Strategyの規則で扱う。
+  - 要求7.2の(iii)〜(v)のtestを先に書き、FedSDA・FedDriftの表に3データを足す。`test_fedavg_experiment_run.py`・`test_feddrift_experiment_sweep.py`の実旧との照合の一覧は変えない（設計書のTesting Strategy）。
   - 共用script`tests/refactoring/fresh_process_smoke.py`へ、3データのFedSDAの全体runの流れを足す。
   - 完了条件: 4手法（FedSDA・FedDrift・FedAvg・DWM）の設定のtest、全体run（各データ1 runずつ）、掃引の計画のtest、fresh smokeが通り、全版のgoldenが通る。
   - _Requirements: 5.1, 5.2, 5.3, 7.1, 7.2_
@@ -35,7 +35,7 @@
 
 - [ ] 3. 単一ストリームの版と文書
 - [ ] 3.1 単一ストリームの名前の検査とRiverとの照合
-  - 名前の一致の検査のtestを先に書き（既存の`test_river_synthetic_recurring_streams.py`の「製品の定義が無い」testを替える）、`river_synthetic_recurring_streams.py`の検査を替える。`test_single_stream_metrics_and_input.py`の`stagger3`を製品の外の名前として使うtestを、製品に無い名前`unknown_recurring_stream3`へ替える。
+  - 名前の一致の検査のtestを先に書き（既存の`test_river_synthetic_recurring_streams.py`の「製品の定義が無い」testを替える）、`river_synthetic_recurring_streams.py`の検査を替える。`test_single_stream_metrics_and_input.py`の`stagger3`を製品の外の名前として使うtestを、製品に無い名前`unknown_recurring_stream3`へ替える（`stream.dataset_name`の確認も合わせて替える）。
   - 要求6.2の照合のtest（(i)〜(iii)の全て。`importorskip("river")`、torchをimportしない）を足し、WSLの`~/river-env`で実行する。
   - 完了条件: Windowsでは照合のtestがskipの理由を出し、WSLで照合のtestと既存の単一ストリームのtestが通る。
   - _Requirements: 6.1, 6.2_
@@ -45,3 +45,12 @@
   - 完了条件: 文書に要求8.1の項目があり、全pytestが通り、実装レビューがPASSである。
   - _Requirements: 8.1, 8.2, 7.1_
   - _Depends: 2.2, 3.1_
+
+## Implementation Notes
+
+### 仕様書群のレビュー（2026-11-20）
+- 3回。全てClaude Haiku 5.5（effort medium、読むだけ）。GPT-6 Lunaは使用量の上限で使えなかった。session・判定はspec.json。
+- 1回目（Major 6）: Agrawalの照合を摂動なしで行う、既存の単一ストリームのtest2件・製品のデータ名の一覧のtest・依存境界・fresh smokeを範囲に入れる、照合の許容を差の標準誤差の4倍にする。全部採用。
+- 2回目（Major 1）: DWMを対象に含める。Minorとして尺度の理由、δの根拠（1274行・455行のFedDriftの表、274行はDriftSurf）、重みの選択の逐次の累積和、多重比較の扱いなど。全部採用。
+- 3回目（PASS、Minor 6）: STAGGERの照合は27通りを直接、重みの選択の端、中心の重みの対応、既存の一覧のtestの扱いを先に決める、単一ストリームのtestの名前の確認。5件を文書で直した。
+  不採用1件: 「直書きのtupleと`DEFINED_DATASET_NAMES`の一致を確かめるtestが無い」は事実と違う（`tests/refactoring/test_dataset_definitions.py`の30行が`allowed_parameter_values == DEFINED_DATASET_NAMES`を確かめる）。

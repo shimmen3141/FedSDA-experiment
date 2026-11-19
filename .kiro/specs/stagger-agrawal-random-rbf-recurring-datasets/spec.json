@@ -5,16 +5,53 @@
   "language": "ja",
   "phase": "tasks-generated",
   "approvals": {
-    "requirements": {"generated": true, "approved": true, "approved_by": "ユーザー委任（主担当が記録）"},
-    "design": {"generated": true, "approved": true, "approved_by": "ユーザー委任（主担当が記録）"},
-    "tasks": {"generated": true, "approved": true, "approved_by": "ユーザー委任（主担当が記録）"},
-    "naming": {"generated": true, "approved": true, "revision": null, "approved_revision": null, "approved_sha256_lf": null}
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任（主担当が記録）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": null,
+      "approved_revision": null,
+      "approved_sha256_lf": null
+    }
   },
-  "ready_for_implementation": false,
+  "ready_for_implementation": true,
   "specification_review": {
-    "status": "pending",
+    "status": "passed",
     "reviewer": "Claude Haiku 5.5（effort medium、読むだけ、独立CLI）",
     "fallback_reason": "GPT-6 Lunaは使用量の上限（2026-11-22 23:07まで回復しない）で使えない",
-    "sessions": []
+    "sessions": [
+      {
+        "round": 1,
+        "session_id": "a8be22a3-b7df-44c0-830f-2f9bc98d26fd",
+        "target": "a20811b9",
+        "verdict": "FAIL（Major 6、Minor 6。全部採用）"
+      },
+      {
+        "round": 2,
+        "session_id": "db10fb77-589e-4e3c-9b9e-42bc4fb2b634",
+        "target": "df26d937",
+        "verdict": "FAIL（Major 1、Minor 11。全部採用）"
+      },
+      {
+        "round": 3,
+        "session_id": "f1d4edff-198b-4572-b53a-1ca650ac9d87",
+        "target": "cddc5498",
+        "verdict": "PASS（Minor 6。5件を文書で直し、1件は事実と違うので不採用）"
+      }
+    ]
   }
 }
