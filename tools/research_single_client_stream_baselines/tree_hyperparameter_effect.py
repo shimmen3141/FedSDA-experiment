@@ -1,9 +1,10 @@
 """木の版の、既定の木と、ハイパーパラメータを替えた木（`single_stream_tree_hyperparameters.py`）の結果を対にして比べる。
 
 入力: --default（既定の木の木の版の出力）と--variant（替えた木の出力）。どちらも`runs/*.json`を持つ。
+2026-11-19から、`tree_hyperparameters.json`の無い変種（木の値を替えない変種。例: 検出器を外した案A）も比べられる。
 照合: (データ, seed)の組と、各runの系列のhashが両方で一致すること。
 出力（--variantの下）: `analysis_tree_hyperparameter_effect.md`。データごとに、精度（%、seedの平均）、
-差（替えた木−既定、pp、seedで対にした95%t区間、上回ったseed）、警報の回数、作ったモデルの数、最後の木の節の数、
+差（変種−既定、pp、seedで対にした95%t区間、上回ったseed）、警報の回数、作ったモデルの数、最後の木の節の数、
 概念の同定の内訳（全seedの合計）、1 runの秒。
 
 使い方（プロジェクトのvenv）:
@@ -61,18 +62,26 @@ def main(command_arguments=None):
     for key in default:
         if default[key]["input"]["array_sha256"] != variant[key]["input"]["array_sha256"]:
             raise ValueError(f"系列のhashが違います: {key}")
-    record = json.loads((arguments.variant / "tree_hyperparameters.json").read_text(encoding="utf-8"))
+    record_path = arguments.variant / "tree_hyperparameters.json"
+    if record_path.exists():
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        variant_description = (
+            f"替えた木: grace period {record['grace_period']}、delta {record['delta']}。既定の木: grace period 200、delta 1e-7。"
+        )
+    else:
+        # 木の値を替えない変種（例: 検出器を外した案A）は、比べる2つの結果の場所だけを書く。
+        variant_description = f"変種: `{arguments.variant}`。比べる相手: `{arguments.default}`。"
     datasets = sorted({k[0] for k in default})
     seeds = sorted({k[1] for k in default})
     lines = [
-        "# 木のハイパーパラメータの効果（木の版）",
+        "# 木の版の変種と既定の対の比較",
         "",
-        f"- 替えた木: grace period {record['grace_period']}、delta {record['delta']}。既定の木: grace period 200、delta 1e-7。",
+        f"- {variant_description}",
         f"- データ{len(datasets)}、seed {seeds[0]}〜{seeds[-1]}（{len(seeds)}）。照合: 組と全runの系列のhashが一致した。",
         "",
-        "## 精度（%）と差（替えた木−既定、pp）",
+        "## 精度（%）と差（変種−既定、pp）",
         "",
-        "| データ | 既定 | 替えた木 | 差 | 95%区間 | 上のseed |",
+        "| データ | 既定 | 変種 | 差 | 95%区間 | 上のseed |",
         "|---|---|---|---|---|---|",
     ]
 
@@ -92,7 +101,7 @@ def main(command_arguments=None):
         )
     lines += [
         "",
-        "## 診断（seedの平均。概念の同定は全seedの合計。左が既定、右が替えた木）",
+        "## 診断（seedの平均。概念の同定は全seedの合計。左が既定、右が変種）",
         "",
         "| データ | 警報 | 作ったモデル | 最後の木の節 | 正しい再利用 | 誤った再利用 | 再来に新しいモデル | 初出に新しいモデル | 留まる | 1 runの秒 |",
         "|---|---|---|---|---|---|---|---|---|---|",
