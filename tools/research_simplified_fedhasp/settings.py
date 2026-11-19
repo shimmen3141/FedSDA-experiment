@@ -35,6 +35,40 @@ VARIANT_ABLATIONS = {
     "simplified-hard-prediction": (*DETAIL_ABLATION_CONFIGURATION_NAMES, "fedsda-single-model-prediction"),
 }
 
+# 最も簡素な形（2026-11-19追加）。予測の有無だけを比べる3変種。共通の部分:
+# 概念ごとに独立の神経網（共有部・adapterなし）、ADWINで全体の損失を監視して即警報、帰属の保留FIFO 30、
+# 警報で検出器の推定した変化点でFIFOを分け、変化の後の標本の平均損失の増加が許容量γ（0.1）以内の保有モデルを
+# 再利用・無ければ新しいモデル（基準版9までの扱い）、固い学習、モデルIDごとの集約、損失の距離による統合、
+# 事前学習あり、集約後の再較正なし。
+_MINIMAL_BASE_CONFIGURATION_NAMES = (
+    "fedsda-overall-loss-adwin-detection",
+    "fedsda-independent-models",
+    "fedsda-loss-distance-clustering",
+    "fedsda-minimum-interval-multiples-change-interval-search",
+    "fedsda-without-warm-started-learner",
+    "fedsda-without-prediction-weight-recalibration",
+)
+ASSIGNMENT_POLICY_PATH = (
+    "run_participant_settings",
+    "run_client_settings",
+    "training_data_assignment_settings",
+    "alarm_interval_assignment_policy",
+)
+_MINIMAL_OVERRIDES = {ASSIGNMENT_POLICY_PATH: "detector_change_span_and_mean_loss_increase_tolerance"}
+VARIANT_ABLATIONS.update(
+    {
+        "minimal-soft-prediction": _MINIMAL_BASE_CONFIGURATION_NAMES,
+        "minimal-local-model-mixture": (*_MINIMAL_BASE_CONFIGURATION_NAMES, "fedsda-local-parameter-prediction"),
+        "minimal-hard-prediction": (*_MINIMAL_BASE_CONFIGURATION_NAMES, "fedsda-single-model-prediction"),
+    }
+)
+# 構成の差の上に、直接指定する葉の値（構成として登録されていない値）。
+VARIANT_OVERRIDES = {
+    "minimal-soft-prediction": _MINIMAL_OVERRIDES,
+    "minimal-local-model-mixture": _MINIMAL_OVERRIDES,
+    "minimal-hard-prediction": _MINIMAL_OVERRIDES,
+}
+
 
 def leaf_differences(base, other, path=()):
     """2つの設定の、違う葉の{経路: otherの値}。dataclassの型が違えば、その位置を葉とみなす。"""
@@ -99,4 +133,14 @@ def build_simplified_run_settings(*, variant, experiment_run_conditions):
     base, merged, _ = merged_ablation_differences(
         configuration_names=VARIANT_ABLATIONS[variant], experiment_run_conditions=experiment_run_conditions
     )
-    return apply_leaf_values(base, merged)
+    overrides = VARIANT_OVERRIDES.get(variant, {})
+    for path, value in overrides.items():
+        # 直接指定する葉は、実在する葉で、構成の差と重ならないこと。
+        current = base
+        for name in path:
+            current = getattr(current, name)
+        if is_dataclass(current):
+            raise ValueError(f"直接指定する値が葉ではありません: {'.'.join(path)}")
+        if path in merged:
+            raise ValueError(f"直接指定する値が構成の差と重なります: {'.'.join(path)}")
+    return apply_leaf_values(base, {**merged, **overrides})

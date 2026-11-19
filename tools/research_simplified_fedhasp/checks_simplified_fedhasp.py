@@ -166,3 +166,53 @@ def test_prediction_ladder_variants_are_simplified_plus_that_prediction(conditio
     )
     assert simplified.leaf_differences(base, settings) == expected
 
+
+
+MINIMAL_VARIANTS = ("minimal-soft-prediction", "minimal-local-model-mixture", "minimal-hard-prediction")
+
+
+@pytest.mark.parametrize("conditions", CONDITIONS, ids=lambda c: c.dataset_name)
+@pytest.mark.parametrize("variant", MINIMAL_VARIANTS)
+def test_minimal_variants_are_the_union_of_configuration_differences_and_the_assignment_policy(conditions, variant):
+    """最小構成は、構成の差の和に、割り当ての規則の直接指定を足したものと同じで、製品の検査を通る。"""
+    base = build_experiment_run_settings(configuration_name="fedsda", experiment_run_conditions=conditions)
+    settings = simplified.build_simplified_run_settings(variant=variant, experiment_run_conditions=conditions)
+    settings.__post_init__()
+    expected = {}
+    for name in simplified.VARIANT_ABLATIONS[variant]:
+        expected.update(
+            simplified.leaf_differences(
+                base, build_experiment_run_settings(configuration_name=name, experiment_run_conditions=conditions)
+            )
+        )
+    expected[simplified.ASSIGNMENT_POLICY_PATH] = "detector_change_span_and_mean_loss_increase_tolerance"
+    assert simplified.leaf_differences(base, settings) == expected
+
+
+def test_minimal_variants_differ_only_in_prediction():
+    conditions = CONDITIONS[1]
+    soft, local, hard = (
+        simplified.build_simplified_run_settings(variant=v, experiment_run_conditions=conditions) for v in MINIMAL_VARIANTS
+    )
+    differing = {path[-1] for path in simplified.leaf_differences(soft, local)} | {
+        path[-1] for path in simplified.leaf_differences(soft, hard)
+    }
+    assert differing == {"prediction_model_parameter_source", "prediction_combination_strategy"}
+
+
+def test_override_must_be_an_existing_leaf_not_overlapping_configuration_differences(monkeypatch):
+    conditions = CONDITIONS[0]
+    monkeypatch.setitem(
+        simplified.VARIANT_OVERRIDES,
+        "minimal-soft-prediction",
+        {("run_participant_settings", "run_client_settings"): "x"},
+    )
+    with pytest.raises(ValueError, match="葉ではありません"):
+        simplified.build_simplified_run_settings(variant="minimal-soft-prediction", experiment_run_conditions=conditions)
+    monkeypatch.setitem(
+        simplified.VARIANT_OVERRIDES,
+        "minimal-soft-prediction",
+        {("run_participant_settings", "model_architecture_settings", "model_architecture_name"): "x"},
+    )
+    with pytest.raises(ValueError, match="重なります"):
+        simplified.build_simplified_run_settings(variant="minimal-soft-prediction", experiment_run_conditions=conditions)
