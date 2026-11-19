@@ -7,6 +7,8 @@
   `fedsda-component-ablation-v16`、新しい4データは`fedsda-component-ablation-new-datasets-v16`）。
 - soft-oracle-assignment: FedHASPの警報・帰属先・統合を真の概念に合わせ、予測は混ぜたままの診断
   （`fedhasp-oracle-v16`の`product-default-oracle-concept-assignment`）。
+- hard-oracle-assignment: 上の診断と同じ差し替えを、予測を今のモデル1つだけにした構成`fedsda-single-model-prediction`に掛けた
+  ハード予測のOracle（`fedhasp-oracle-v16/20261119_hard-prediction-oracle-seeds0-9`、2026-11-19追加）。
 - hard-oracle-feddrift: 真の概念でモデルを分け、その概念のモデル1つで予測するFedDrift（`feddrift-oracle-concept-assignment`）。
   学習の仕方（集約の時点だけでモデルを更新する、など）もFedHASPと違う。
 
@@ -47,12 +49,16 @@ VARIANTS = {
     "hard-oracle-feddrift": [
         "method-comparison-oracle-v16/20261101_194246_oracle-seeds0-9/feddrift-oracle-concept-assignment"
     ],
+    "hard-oracle-assignment": [
+        "fedhasp-oracle-v16/20261119_hard-prediction-oracle-seeds0-9/product-default-oracle-concept-assignment/fedsda-single-model-prediction"
+    ],
 }
 LABELS = {
     "soft": "ソフト予測（FedHASP）",
     "hard-current": "ハード予測（今のモデル）",
     "soft-oracle-assignment": "割り当てだけ真の概念（予測はソフト）",
     "hard-oracle-feddrift": "真の概念のモデル1つ（FedDrift-Oracle）",
+    "hard-oracle-assignment": "割り当てを真の概念・予測は今のモデル1つ（FedHASPのハード予測のOracle）",
 }
 
 

@@ -37,3 +37,17 @@
 - 研究ツール`tools/research_oracle_concept_assignment`に`--configuration`を足した（既定`fedsda`、選べるのは`fedsda-single-model-prediction`）。差し替えは製品の構成に共通の関数に掛かるので、同じ規則（警報は真の変化の5標本目、帰属先はそのclientの割当の記録で真の概念が多数派の保有モデル、統合も多数派の同じ対だけ）のまま、予測だけが今のモデル1つになる。
 - 手元の確認（SEA2・MNIST4、間隔50、seed 0、10 client×600標本）: 差し替えなし（`product-default`）は、製品の`fedsda-single-model-prediction`を直接流した結果と、2 runの全258配列と要約（秒・時刻を除く）が一致した。Oracle（`product-default-oracle-concept-assignment`）は警報の区間の確認2回、混入0で動いた。研究ツールの既存の検査46件が通った（Windows、12並列、548秒）。
 - 本規模（uranium）: Oracleの変種だけ、10データ×間隔50・500×seed 0〜9、200 run。今のモデルだけの予測の既定（差し替えなし）は既存の結果（`fedsda-component-ablation-v16`・`fedsda-component-ablation-new-datasets-v16`）を使う。結果は`hard_soft_prediction.py`・`post_change_profile.py`に変種として足して集計する。
+
+## FedHASPのハード予測のOracleの結果（2026-11-19、主担当）
+
+- 入力: `results/fedhasp-oracle-v16/20261119_hard-prediction-oracle-seeds0-9/product-default-oracle-concept-assignment`（uranium、commit `5551921c`、200 run、失敗0）。製品の掃引の記録は追跡するファイルの未commitの変更なし。研究ツールの各ファイルの記録したhashは`5551921c`の中身と一致した（変種の記録の`has_uncommitted_changes: true`は追跡外のファイルによるとみる）。各runで正誤の平均が要約の精度と一致した。集計は`hard_soft_prediction.py`・`post_change_profile.py`に変種`hard-oracle-assignment`として足した。
+- 全体（10データの等重み、seedの平均 ± 標準偏差）:
+
+| 間隔 | ソフト予測（FedHASP） | ハード予測（今のモデル） | ソフト予測のOracle | ハード予測のOracle | FedDrift-Oracle |
+|---|---|---|---|---|---|
+| 50 | 91.70 ± 0.18 | 89.73 ± 0.19 | 92.15 ± 0.11 | 90.65 ± 0.10 | 92.16 ± 0.06 |
+| 500 | 89.53 ± 0.19 | 88.37 ± 0.19 | 89.89 ± 0.21 | 89.31 ± 0.10 | 90.60 ± 0.17 |
+
+- ハード予測のOracle−ソフト予測（FedHASP）: 間隔50で−1.05 ± 0.13pp [−1.14, −0.95]（0/10 seedで上）、500で−0.22 ± 0.17 [−0.34, −0.09]（1/10）。ハード予測のOracle−ソフト予測のOracle: −1.51 ± 0.05、−0.58 ± 0.15（どちらも0/10）。
+- 変化からの経過（間隔50）: ハード予測のOracleは警報（変化の5標本目）の後すぐに正しいモデルへ切り替わり、5〜49標本で約87.7%とソフト予測（75.2〜89.2%）より高い。一方、変化の無い時期は低い（最初の変化の前87.77対90.28、500標本以降92.22対93.09）。
+- まとめ（数値をそのまま述べる）: 同じFedHASP（学習の仕方を揃えた）では、割り当てを真の概念に合わせても、ハード予測はソフト予測（推定した割り当てのまま）を下回った（間隔50で−1.05pp、10/10 seedで下）。変化の直後はハード予測のOracleが速いが、変化の無い時期のソフト予測の上乗せ（モデルと同期・手元の版の混合）の方が大きい。FedDrift-Oracleがソフト予測を上回るのは、ハード予測だからではなく、学習の仕方（集約の時点だけでモデルを更新する）の違いによるとみる（直接は確かめていない）。
