@@ -38,6 +38,7 @@ csv.field_size_limit(10**9)
 DATASETS = ["sine2", "circle2", "sea2", "sea4", "mnist2", "mnist4", "fmnist2", "fmnist4", "rotmnist2", "rotmnist4"]
 _PILOT = "fedhasp-single-client-pilot-v16/20261117_101402_single-client-seeds0-29"
 _SIMPLIFIED = "fedhasp-simplified-v16/20261119_simplified-seeds0-9"
+_MINIMAL = "fedhasp-simplified-v16/20261119_minimal-seeds0-9"
 SETTINGS = {
     "federated": dict(
         intervals=[50, 100, 200, 500],
@@ -73,6 +74,17 @@ SETTINGS = {
             "3s-na": [f"{_SIMPLIFIED}/simplified-without-adapter/fedsda"],
         },
     ),
+    # 最も簡素な形（2026-11-19追加、結果は2026-11-20）。独立の神経網、ADWIN＋即警報、FIFO 30、
+    # 検出器の変化点とγ（0.1）での再利用、固い学習、損失の距離による統合、事前学習あり、再較正なし。予測だけを変える。
+    "federated-minimal": dict(
+        intervals=[50, 500],
+        seeds=list(range(10)),
+        levels={
+            "1m": [f"{_MINIMAL}/minimal-hard-prediction/fedsda"],
+            "2m": [f"{_MINIMAL}/minimal-local-model-mixture/fedsda"],
+            "3m": [f"{_MINIMAL}/minimal-soft-prediction/fedsda"],
+        },
+    ),
     "single-client": dict(
         intervals=[50, 5000],
         seeds=list(range(30)),
@@ -94,9 +106,24 @@ LEVEL_LABELS = {
     "2s": "2s 簡素版＋モデルの混合",
     "3s": "3s 簡素版（＋版の混合）",
     "3s-na": "3s-na 簡素版からさらにadapterを外す",
+    "1m": "1m 最小形（予測は今のモデル1つ）",
+    "2m": "2m 最小形＋モデルの混合",
+    "3m": "3m 最小形＋版の混合（柔らかい予測の全部）",
 }
-# 簡素版と、細部を残した同じ段の対。
-SIMPLIFIED_PAIRS = (("1s", "1"), ("2s", "2"), ("3s", "3"), ("3s-na", "3"))
+# 比べる対（左−右）。簡素版・最小形と、細部を残した同じ段。最小形の中の予測の差。
+SIMPLIFIED_PAIRS = (
+    (("federated-simplified", "1s"), ("federated", "1")),
+    (("federated-simplified", "2s"), ("federated", "2")),
+    (("federated-simplified", "3s"), ("federated", "3")),
+    (("federated-simplified", "3s-na"), ("federated", "3")),
+    (("federated-minimal", "2m"), ("federated-minimal", "1m")),
+    (("federated-minimal", "3m"), ("federated-minimal", "1m")),
+    (("federated-minimal", "3m"), ("federated-minimal", "2m")),
+    (("federated-minimal", "1m"), ("federated-simplified", "1s")),
+    (("federated-minimal", "3m"), ("federated-simplified", "3s-na")),
+    (("federated-minimal", "1m"), ("federated", "1")),
+    (("federated-minimal", "3m"), ("federated", "3")),
+)
 _UPLOAD = "communication_volume.uploaded_byte_count"
 _DOWNLOAD = "communication_volume.downloaded_byte_count"
 _MAC = "computation_cost_summary.client_forward_and_backward_multiply_accumulate_count_per_processed_sample"
@@ -186,6 +213,7 @@ def main(command_arguments=None):
             + {
                 "federated": "連合学習（10 client）",
                 "federated-simplified": "連合学習（10 client）、細部を全部外した簡素版",
+                "federated-minimal": "連合学習（10 client）、最小形（ADWIN＋γ、独立の神経網）",
                 "single-client": "1クライアント",
             }[setting],
             "",
@@ -226,12 +254,12 @@ def main(command_arguments=None):
             )
         lines.append("")
     lines += [
-        "## 簡素版−細部を残した同じ段（連合学習、pp、seedで対にした95%区間、簡素版が上回ったseed）",
+        "## 対の差（左−右、連合学習、pp、seedで対にした95%区間、左が上回ったseed）",
         "",
         "| 対 | 間隔 | 差（全標本） | 95%区間 | 上のseed | 差（直後） | 差（それ以外） |",
         "|---|---|---|---|---|---|---|",
     ]
-    for simplified_level, full_level in SIMPLIFIED_PAIRS:
+    for (left_setting, simplified_level), (right_setting, full_level) in SIMPLIFIED_PAIRS:
         for interval in SETTINGS["federated-simplified"]["intervals"]:
             seeds = SETTINGS["federated-simplified"]["seeds"]
 
@@ -242,7 +270,7 @@ def main(command_arguments=None):
 
             cells = []
             for name in ("overall", "post", "rest"):
-                cells.append(per_seed("federated-simplified", simplified_level, name) - per_seed("federated", full_level, name))
+                cells.append(per_seed(left_setting, simplified_level, name) - per_seed(right_setting, full_level, name))
             differences = cells[0]
             half = stats.t.ppf(0.975, len(seeds) - 1) * differences.std(ddof=1) / np.sqrt(len(seeds))
             lines.append(
