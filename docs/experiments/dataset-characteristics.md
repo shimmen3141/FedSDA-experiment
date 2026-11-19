@@ -132,6 +132,45 @@ Windowsでは`Get-FileHash -Algorithm MD5 data/fashion-mnist/*.gz`で上の値�
 読込み時には既存MNISTと同じIDXの検査を行い、MD5は再検査しない。ファイルが無い・形式が違う場合は拒否し、自動取得しない。
 画像ファイルはGit管理へ追加しない。
 
+## STAGGER・Agrawal・Random RBFの再来（`stagger3`・`agrawal4`・`randomrbf4`）
+
+単一ストリームの比較（River）で標準的に使われる3つの生成器を、全手法（FedSDA・FedDrift・FedAvg・DWM）のデータとして足した
+（2026-11-20、spec `stagger-agrawal-random-rbf-recurring-datasets`）。概念の中身は、単一ストリームの版
+（`src/single_stream_hard_assignment_soft_prediction/river_synthetic_recurring_streams.py`）が使うRiver 0.27.0の
+`river.datasets.synth`と同じにし、製品はRiverに依存しない。
+
+| データ | 入力 | 概念 | クラス | 概念cの中身（River） | 特徴の尺度 |
+|---|---|---|---|---|---|
+| `stagger3` | 3（size・color・shape） | 3 | 2 | `STAGGER(classification_function=c)`。0: sizeがsmallかつcolorがred、1: colorがgreenまたはshapeがcircle、2: sizeがmediumかlarge | 値/2（0・0.5・1） |
+| `agrawal4` | 9（salary・commission・age・elevel・car・zipcode・hvalue・hyears・loan） | 4 | 2 | `Agrawal(classification_function=c, perturbation=0.05)`。関数0〜3（年齢・給与・学歴の規則） | 固定の範囲で0〜1へ線形に写す |
+| `randomrbf4` | 10 | 4 | 2 | `RandomRBF(seed_model=c, n_classes=2, n_features=10, n_centroids=50)`。概念ごとに50個の中心 | 写さない |
+
+- 標本: runが貸すNumPyの`RandomState`で、Riverと同じ式・同じ順序で作る（Pythonの`random()`を`random_sample()`、
+  `randint(a, b)`を`randint(a, b + 1)`、`gauss(0, 1)`を`standard_normal()`に置き換える）。特徴はSEAと同じくfloat32へ丸める。
+  Random RBFの中心はrunのseedに依らず、Riverの`seed_model=c`と同じ値（Pythonの`random.Random(c)`）。
+- Agrawalの尺度: salary (x−20000)/130000、commission x/75000、age (x−20)/60、elevel x/4、car (x−1)/19、zipcode x/8、
+  hvalue x/900000、hyears (x−1)/29、loan x/500000。範囲は摂動0.05の出力が取りうる値を覆う。特徴の桁が1〜5×10⁵まで違い、
+  そのままでは神経網の学習が成り立ちにくいため写す。STAGGERも0〜1へそろえる。SEA（0〜10）は既存のとおり写さない。
+- Random RBFは値に上限・下限が無いので写さない。seed 0の各概念2万標本の実測: 最小−2.28〜−1.46、最大2.56〜3.44、
+  1%点−0.26〜−0.19、99%点1.24〜1.28。
+- Riverとの一致は、Riverのある環境（WSLの`~/river-env`）のtest
+  （`tests/single_stream_hard_assignment_soft_prediction/test_recurring_synthetic_generators_match_river.py`）で確かめる:
+  分類の関数（STAGGERは27通りの全入力、Agrawalは摂動なしの1万標本）、Random RBFの全中心、各概念2万標本のクラス1の割合と
+  各特徴の平均（差が差の標準誤差の4倍以内）。
+
+### 開示する差
+- 標本の乱数の列: 製品はrunのNumPyの乱数で作るので、分布はRiverと同じだが、値の列は単一ストリームの版の系列と違う。
+- 概念の時系列とclientへの分け方: ほかの製品のデータと同じ（ランダムな変化点、全手法で共通）。単一ストリームの版の1本の系列とは違う。
+- Agrawalのhvalueの摂動: Riverは`_perturb_value(hvalue, (9 - zipcode) * 100000, 0, 135000)`を
+  `(val, val_min, val_max, val_range)`として受けるので、hvalueは`(9 - zipcode) * 100000`か0になる
+  （MOAの`perturbValue(val, range, min, max)`の引数の並びと食い違うためと見られる）。単一ストリームの版と同じ定義にするため、このまま再現した。
+  分類の関数0〜3はhvalueを使わないので、ラベルには影響しない。
+- 特徴の尺度: 神経網のためSTAGGER・Agrawalを0〜1へ写す。単一ストリームの木の版は写していない（木は尺度に依らない）。
+- FedDriftのδの既定0.10は公式の値ではなく仮定である。公式FedDriftの表（`FedAvgEnsDataLoader.py`の`default_deltas`:
+  sea 0.04・sine 0.20・circle 0.10・MNIST 0.10）に3データは無い。本規模の比較の前に、評価に使わないseedで調整する
+  （[fmnist・rotmnistの調整](../research/feddrift-delta-tuning-new-datasets-v16-20261101.md)と同じ手順）。
+- ネットワークと学習率は、全手法でほかの合成データ（`sea4`など）と同じ（隠れ層(32, 32)、学習率0.01）。
+
 ## 手法比較での注意
 
 FedSDAはサンプル単位の損失変化を起点にモデル操作を行う。一方、FedDriftは検出バッチごとに
