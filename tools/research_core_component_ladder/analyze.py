@@ -37,6 +37,7 @@ from tools.research_post_change_accuracy_breakdown.analyze import post_change_ma
 csv.field_size_limit(10**9)
 DATASETS = ["sine2", "circle2", "sea2", "sea4", "mnist2", "mnist4", "fmnist2", "fmnist4", "rotmnist2", "rotmnist4"]
 _PILOT = "fedhasp-single-client-pilot-v16/20261117_101402_single-client-seeds0-29"
+_SIMPLIFIED = "fedhasp-simplified-v16/20261119_simplified-seeds0-9"
 SETTINGS = {
     "federated": dict(
         intervals=[50, 100, 200, 500],
@@ -61,6 +62,17 @@ SETTINGS = {
             ],
         },
     ),
+    # 細部を全部外した簡素版（研究ツール`research_simplified_fedhasp`、2026-11-19追加）。
+    "federated-simplified": dict(
+        intervals=[50, 500],
+        seeds=list(range(10)),
+        levels={
+            "1s": [f"{_SIMPLIFIED}/simplified-hard-prediction/fedsda"],
+            "2s": [f"{_SIMPLIFIED}/simplified-local-model-mixture/fedsda"],
+            "3s": [f"{_SIMPLIFIED}/simplified/fedsda"],
+            "3s-na": [f"{_SIMPLIFIED}/simplified-without-adapter/fedsda"],
+        },
+    ),
     "single-client": dict(
         intervals=[50, 5000],
         seeds=list(range(30)),
@@ -78,7 +90,13 @@ LEVEL_LABELS = {
     "1": "1 基盤（予測は今のモデル1つ）",
     "2": "2 基盤＋モデルの混合（手元の版だけ）",
     "3": "3 FedHASP（＋同期・手元の版の混合）",
+    "1s": "1s 簡素版の基盤（予測は今のモデル1つ）",
+    "2s": "2s 簡素版＋モデルの混合",
+    "3s": "3s 簡素版（＋版の混合）",
+    "3s-na": "3s-na 簡素版からさらにadapterを外す",
 }
+# 簡素版と、細部を残した同じ段の対。
+SIMPLIFIED_PAIRS = (("1s", "1"), ("2s", "2"), ("3s", "3"), ("3s-na", "3"))
 _UPLOAD = "communication_volume.uploaded_byte_count"
 _DOWNLOAD = "communication_volume.downloaded_byte_count"
 _MAC = "computation_cost_summary.client_forward_and_backward_multiply_accumulate_count_per_processed_sample"
@@ -164,7 +182,12 @@ def main(command_arguments=None):
     for setting, spec in SETTINGS.items():
         seeds = spec["seeds"]
         lines += [
-            f"## {'連合学習（10 client）' if setting == 'federated' else '1クライアント'}",
+            "## "
+            + {
+                "federated": "連合学習（10 client）",
+                "federated-simplified": "連合学習（10 client）、細部を全部外した簡素版",
+                "single-client": "1クライアント",
+            }[setting],
             "",
             "| 段 | 間隔 | 精度（全標本） | 前の段からの増分 | 直後 | それ以外 | 通信（MB） | MAC/標本 |",
             "|---|---|---|---|---|---|---|---|",
@@ -202,6 +225,32 @@ def main(command_arguments=None):
                 + " |"
             )
         lines.append("")
+    lines += [
+        "## 簡素版−細部を残した同じ段（連合学習、pp、seedで対にした95%区間、簡素版が上回ったseed）",
+        "",
+        "| 対 | 間隔 | 差（全標本） | 95%区間 | 上のseed | 差（直後） | 差（それ以外） |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for simplified_level, full_level in SIMPLIFIED_PAIRS:
+        for interval in SETTINGS["federated-simplified"]["intervals"]:
+            seeds = SETTINGS["federated-simplified"]["seeds"]
+
+            def per_seed(setting, level, name):
+                return np.array(
+                    [st.mean(values[(setting, level, d, interval, s)][name] for d in DATASETS) for s in seeds]
+                )
+
+            cells = []
+            for name in ("overall", "post", "rest"):
+                cells.append(per_seed("federated-simplified", simplified_level, name) - per_seed("federated", full_level, name))
+            differences = cells[0]
+            half = stats.t.ppf(0.975, len(seeds) - 1) * differences.std(ddof=1) / np.sqrt(len(seeds))
+            lines.append(
+                f"| {LEVEL_LABELS[simplified_level]} − {LEVEL_LABELS[full_level]} | {interval} | {differences.mean():+.2f} | "
+                f"[{differences.mean() - half:+.2f}, {differences.mean() + half:+.2f}] | {int((differences > 0).sum())}/{len(seeds)} | "
+                f"{cells[1].mean():+.2f} | {cells[2].mean():+.2f} |"
+            )
+    lines.append("")
     output = arguments.output / "analysis_core_component_ladder.md"
     output.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"wrote {output}")
