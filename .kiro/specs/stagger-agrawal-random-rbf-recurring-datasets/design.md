@@ -34,11 +34,12 @@
 - `generate_sample(concept_id=...)`: 概念を検査してから乱数を使う。
 - Pythonの`random.Random`とNumPyの対応: `random()`→`random_sample()`、`randint(a, b)`（両端を含む）→`randint(a, b + 1)`、`gauss(0, 1)`→`standard_normal()`。1標本の中の乱数の使用の順序は、上の根拠のRiverの順序と同じにする。値の列はRiverと同じにならない（要求の範囲）。
 - 丸め: Agrawalのage・hyearsの`round`は、Pythonの`round`（偶数への丸め）をそのまま使う。
-- 分類の関数とRandom RBFの中心の生成は、Riverとの照合のtestから呼べるよう、公開の関数にする（`compute_stagger_class_label`、`compute_agrawal_class_label`、`generate_random_rbf_centroids`）。
+- 分類の関数とRandom RBFの中心の生成は、Riverとの照合のtestから呼べるよう、公開の関数にする（`compute_stagger_class_label`、`compute_agrawal_class_label`、`generate_random_rbf_centroids`）。`generate_random_rbf_centroids`は、不変の記録`RandomRbfCentroid`（位置のtuple、ラベル、標準偏差、重み）のtupleを返す。
+- 3つのpackage（`data/stagger/`・`data/agrawal/`・`data/random_rbf/`）は、説明だけの`__init__.py`を持つ（再exportしない。既存の`data/sea/`と同じ）。
 - 特徴の尺度（要求1.4・2.5）:
   - STAGGER: 値/2。
   - Agrawal: salary (x−20000)/130000、commission x/75000、age (x−20)/60、elevel x/4、car (x−1)/19、zipcode x/8、hvalue x/900000、hyears (x−1)/29、loan x/500000。範囲は、摂動の後に取りうる値の範囲（hvalueは上の挙動で0〜900000）。
-  - Random RBF: 写さない（中心は[0,1)、多くの値は−3〜4程度）。
+  - Random RBF: 写さない。値に上限・下限が無い（中心は[0,1)、中心からの距離は標準正規×標準偏差）ので固定の範囲を決められず、中心の位置がすでに0〜1の尺度にあるため。実測の範囲（seed 0の各概念の2万標本の最小・最大）を文書に書く。
 - 特徴は、尺度を写した後にfloat32へ丸め、Pythonのfloatのtupleで`ObservedSample`へ入れる（SEAと同じ）。
 
 ## 製品への接続
@@ -49,17 +50,25 @@
 - `fedavg_run_settings.py`: 3データは画像でない側（合成データの設定）になることをtestで確かめる。分岐の書き方は変えない（明示の画像データの集合に含まれない）。
 - `experiment_sweep_execution.py`の重さ: 3データは表に無い（0）、今の合成データと同じ。`experiment_sweep_command.py`の画像の読込みの前検査には入らない。
 - 単一ストリームの版（`river_synthetic_recurring_streams.py`の`_validate_arguments`）: 製品と同じ名前の拒否を、製品の定義の`concept_count`・`class_count`・`input_feature_count`と単一ストリームの定義（`concept_count`・`class_count`・`len(feature_names)`）の一致の検査に替える。単一ストリームの系列の生成（Riverの生成器）は変えない。
+- 単一ストリームの読込み（`single_stream_input.py`の`_resolve_class_count`）は変えない。系列のJSONの`class_count`（2）が製品の定義（2）と一致するので、3データの既存の系列はそのまま読める。
+- 既存の単一ストリームのtestで直すもの: `tests/single_stream_hard_assignment_soft_prediction/test_river_synthetic_recurring_streams.py`の「製品の定義が無い」ことを確かめるtestを、定義の一致の検査（一致すれば生成でき、概念数などが違う定義を拒否する）のtestへ替える。`test_single_stream_metrics_and_input.py`の、`stagger3`を製品の外の名前として`class_count=3`を受け入れるtestは、製品に無い名前へ替える。
+- 既存の製品のtestで直すもの: データ名の一覧を完全一致で比べる`tests/refactoring/test_dataset_definitions.py`・`test_run_settings_validation.py`（`allowed_parameter_values`）・`test_synthetic_sample_generation.py`（生成器の表）。依存境界の`tests/refactoring/test_single_run_dependency_boundaries.py`は、3packageを`package_boundary_paths`とpackageごとの一覧へ足し、3moduleの許可集合（`numpy`・`math`・`random`と`ObservedSample`の、実際にimportする名前の組）を既存の`sea_sample_generation`と同じ形で登録する。
 
 ## 開示する差（文書に書く）
 - 標本の乱数の列: Riverの`random.Random`ではなく、runが貸すNumPyの`RandomState`。分布は同じで、値の列は単一ストリームの版と違う。
 - 概念の時系列とclientへの分け方: 今の製品のデータと同じ（ランダムな変化点、全手法で共通）。単一ストリームの版の1本の系列とは違う。
 - Agrawalのhvalueの摂動: Riverの引数の並びのまま（上の根拠）。
 - 特徴の尺度: 神経網のため、STAGGER・Agrawalを固定の範囲で0〜1へ写す。単一ストリームの木の版は写していない（木は尺度に依らない）。
-- FedDriftのδの既定0.10は公式の値ではない。
+- FedDriftのδの既定0.10は公式の値ではない。公式の`default_deltas`の4値は、手元の`references/code/FedDrift/fedml_api/distributed/fedavg_ens/FedAvgEnsDataLoader.py`の1274行で確認した（2026-11-20、主担当）。
 
 ## Testing Strategy
 - 定義（Windows venv）: 要求1〜3の値の範囲・ラベルの規則・尺度、要求4.1の再現性（同じseedで同じ標本）、4.2の拒否、構築で乱数を使わないこと。
-- Riverとの照合（WSLの`~/river-env`、`pytest.importorskip("river")`）: 要求6.2の(i)〜(iii)。(i)は、Riverの生成器の出す特徴を製品の分類の関数へ渡し、全標本でラベルが一致すること（STAGGER・Agrawalの各概念で多数の標本）。(ii)はRandom RBFの全中心の値の一致。(iii)は、各概念で2万標本の、クラス1の割合（差0.015以内）と、尺度を写す前の各特徴の平均（差は特徴の範囲の2%以内）。このtestのmoduleはtorchをimportしない。
+- Riverとの照合（WSLの`~/river-env`、`pytest.importorskip("river")`）: 要求6.2の(i)〜(iii)。
+  - (i) 摂動なし（`perturbation=0.0`）のRiverの`Agrawal`と、`STAGGER`の生成器の出す特徴とラベルを、製品の分類の関数へ渡し、各概念の1万標本で全てのラベルが一致すること（Agrawalは摂動の後の特徴ではラベルが決まらないため、摂動なしで比べる）。
+  - (ii) Random RBFの全中心（位置・ラベル・標準偏差・重み）の一致。
+  - (iii) 各概念で、製品の生成器（固定seed）とRiverの生成器（摂動0.05、固定seed）の2万標本ずつで、クラス1の割合と各特徴の平均の差が、差の標準誤差（両方の標本の分散から計算）の4倍以内。Riverの特徴は製品と同じ尺度へ写してから比べる。seedは固定なので結果は決まる。4倍は、正しい実装で偶然に外れる確率が十分小さく（正規近似で約6×10⁻⁵／比較）、平均のずれ（例: 範囲の数%）を見逃さない幅として選ぶ。
+  - このtestのmoduleはtorchをimportしない。
+- fresh process: 共用script`tests/refactoring/fresh_process_smoke.py`へ、3データのFedSDAの全体run（小さい条件）の流れを足す。
 - 設定と全体run: 要求7.2の(iii)〜(v)。(iv)は既存の`test_fmnist_and_rotated_mnist_runs.py`と同じ形（各データ1 run、10 client、各client 100標本、集約間隔50）。
 - 単一ストリームの版: 名前の一致の検査で、製品の定義と一致すれば生成でき、一致しない定義を拒否すること。既存の単一ストリームのtest（系列の値）が変わらず通ること（WSL）。
 - 回帰: 全版のgoldenが通る。依存境界: 新しい3moduleを`test_single_run_dependency_boundaries.py`の許可集合へ登録する。

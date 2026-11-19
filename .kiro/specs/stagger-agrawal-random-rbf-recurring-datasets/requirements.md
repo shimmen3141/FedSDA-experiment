@@ -46,8 +46,8 @@
 5.3 The sweep shall 3データを`--datasets`で指定でき、実行の重さの見積りで今の合成データと同じに扱う。
 
 ### Requirement 6: 単一ストリームの版との整合
-6.1 The single-stream generator shall 製品と同じ名前のデータを拒否せず、製品の定義の概念数・クラス数・特徴数が、単一ストリームの定義と一致することを確かめる（一致しなければ拒否する）。単一ストリームの系列の値は変えない。
-6.2 When Riverを使える環境でtestを実行するとき, the tests shall 次を確かめる: (i) STAGGER・Agrawalの分類の関数が、Riverの関数と、同じ入力で全て同じラベルを返す。(ii) Random RBFの中心が、Riverの中心と一致する。(iii) 3データの各概念で、製品の生成器とRiverの生成器の、クラス1の割合と各特徴の平均が、多数の標本で許容の範囲で一致する。Riverの無い環境では、理由を出してskipする。
+6.1 The single-stream generator shall 製品と同じ名前のデータを拒否せず、製品の定義の概念数・クラス数・特徴数が、単一ストリームの定義と一致することを確かめる（一致しなければ拒否する）。単一ストリームの系列の値は変えない。製品の外の名前としてこれらの名前を使っていた既存の単一ストリームのtestは、製品に無い名前へ替える（読込みが確かめる内容は変えない）。
+6.2 When Riverを使える環境でtestを実行するとき, the tests shall 次を確かめる: (i) STAGGER・Agrawalの分類の関数が、Riverの関数と、同じ入力で全て同じラベルを返す（入力は、摂動なしのRiverの生成器の特徴とする）。(ii) Random RBFの中心が、Riverの中心と一致する。(iii) 3データの各概念で、製品の生成器とRiverの生成器（Riverの特徴は製品と同じ尺度へ写す）の、クラス1の割合と各特徴の平均の差が、2万標本ずつで、差の標準誤差の4倍以内である。Riverの無い環境では、理由を出してskipする。
 
 ### Requirement 7: 既存の値の維持と検証
 7.1 The goldens shall 全版のgoldenの値を変えない。`BEHAVIOR_BASELINE_VERSION`は上げない。
