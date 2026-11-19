@@ -4,6 +4,9 @@ from typing import Protocol
 
 from numpy.random import RandomState
 
+from federated_learning_experiments.data.agrawal.agrawal_sample_generation import (
+    AgrawalSampleGenerator,
+)
 from federated_learning_experiments.data.circle.circle_sample_generation import (
     CircleSampleGenerator,
 )
@@ -28,8 +31,14 @@ from federated_learning_experiments.data.observed_streams import (
     ClientObservedStream,
     ObservedSample,
 )
+from federated_learning_experiments.data.random_rbf.random_rbf_sample_generation import (
+    RandomRbfSampleGenerator,
+)
 from federated_learning_experiments.data.sea.sea_sample_generation import SeaSampleGenerator
 from federated_learning_experiments.data.sine.sine_sample_generation import SineSampleGenerator
+from federated_learning_experiments.data.stagger.stagger_sample_generation import (
+    StaggerSampleGenerator,
+)
 
 
 class ObservedSampleGenerator(Protocol):
@@ -50,6 +59,9 @@ _GENERATOR_TYPE_BY_DATASET_NAME: dict[str, type] = {
     "fmnist4": FashionMnistSampleGenerator,
     "rotmnist2": RotatedMnistSampleGenerator,
     "rotmnist4": RotatedMnistSampleGenerator,
+    "stagger3": StaggerSampleGenerator,
+    "agrawal4": AgrawalSampleGenerator,
+    "randomrbf4": RandomRbfSampleGenerator,
 }
 
 # 下の関数が返す、生成器の型（受け取る側の、exact型の検査に使う）。
@@ -72,9 +84,14 @@ def create_observed_sample_generator(
     if type(numpy_random_generator) is not RandomState:
         raise TypeError("numpy_random_generator must be exact numpy.random.RandomState")
     generator_type = _get_generator_type(dataset_name=dataset_name)
-    if generator_type is SeaSampleGenerator:
-        # SEAは、受け付ける概念IDの範囲を、datasetの概念数で決める。
-        return SeaSampleGenerator(
+    if generator_type in (
+        SeaSampleGenerator,
+        StaggerSampleGenerator,
+        AgrawalSampleGenerator,
+        RandomRbfSampleGenerator,
+    ):
+        # SEAと再来の合成データは、受け付ける概念IDの範囲を、datasetの概念数で決める。
+        return generator_type(
             numpy_random_generator=numpy_random_generator,
             concept_count=dataset_definition.concept_count,
         )
@@ -102,11 +119,20 @@ def create_observed_sample_generator(
 
 
 def is_observed_sample_generator_of_dataset(*, sample_generator: object, dataset_name: str) -> bool:
-    """生成器の型と、SEA・MNIST形式の画像なら概念数も、そのdatasetと一致するかを返す。"""
+    """生成器の型と、SEA・再来の合成データ・MNIST形式の画像なら概念数も、そのdatasetと一致するかを返す。"""
     dataset_definition = get_dataset_definition(dataset_name=dataset_name)
     if type(sample_generator) is not _get_generator_type(dataset_name=dataset_name):
         return False
-    if isinstance(sample_generator, (SeaSampleGenerator, MnistSampleGenerator)):
+    if isinstance(
+        sample_generator,
+        (
+            SeaSampleGenerator,
+            MnistSampleGenerator,
+            StaggerSampleGenerator,
+            AgrawalSampleGenerator,
+            RandomRbfSampleGenerator,
+        ),
+    ):
         return sample_generator.concept_count == dataset_definition.concept_count
     return True
 

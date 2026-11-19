@@ -14,6 +14,12 @@ from federated_learning_experiments.data.agrawal.agrawal_sample_generation impor
     AgrawalSampleGenerator,
     compute_agrawal_class_label,
 )
+from federated_learning_experiments.data.dataset_definitions import get_dataset_definition
+from federated_learning_experiments.data.observed_sample_generation import (
+    OBSERVED_SAMPLE_GENERATOR_TYPES,
+    create_observed_sample_generator,
+    is_observed_sample_generator_of_dataset,
+)
 from federated_learning_experiments.data.observed_streams import ObservedSample
 from federated_learning_experiments.data.random_rbf.random_rbf_sample_generation import (
     RandomRbfCentroid,
@@ -274,3 +280,61 @@ def test_random_rbf_samples_lie_near_a_centroid_with_its_label(concept_id):
             <= 6.0 * centroid.standard_deviation + 1e-5
         ]
         assert sample.class_label in {centroid.class_label for centroid in candidates}
+
+
+# ---- 製品への接続 ----
+
+DATASET_GENERATORS = (
+    ("stagger3", StaggerSampleGenerator, 3, 3),
+    ("agrawal4", AgrawalSampleGenerator, 4, 9),
+    ("randomrbf4", RandomRbfSampleGenerator, 4, 10),
+)
+
+
+@pytest.mark.parametrize(
+    ("dataset_name", "generator_type", "concept_count", "feature_count"), DATASET_GENERATORS
+)
+def test_dataset_definitions_and_created_generators(
+    dataset_name, generator_type, concept_count, feature_count
+):
+    definition = get_dataset_definition(dataset_name=dataset_name)
+    assert (definition.input_feature_count, definition.concept_count, definition.class_count) == (
+        feature_count,
+        concept_count,
+        2,
+    )
+    random_state = np.random.RandomState(9)
+    before = _random_state_snapshot(random_state)
+    generator = create_observed_sample_generator(
+        dataset_name=dataset_name, numpy_random_generator=random_state
+    )
+    _assert_same_random_state(before, random_state)
+    assert type(generator) is generator_type
+    assert generator.numpy_random_generator is random_state
+    assert generator.concept_count == concept_count
+    assert type(generator) in OBSERVED_SAMPLE_GENERATOR_TYPES
+
+
+@pytest.mark.parametrize("generator_dataset_name", [d[0] for d in DATASET_GENERATORS] + ["sea4"])
+@pytest.mark.parametrize("dataset_name", [d[0] for d in DATASET_GENERATORS] + ["sea4"])
+def test_generators_belong_only_to_their_own_dataset(generator_dataset_name, dataset_name):
+    generator = create_observed_sample_generator(
+        dataset_name=generator_dataset_name, numpy_random_generator=np.random.RandomState(0)
+    )
+    assert is_observed_sample_generator_of_dataset(
+        sample_generator=generator, dataset_name=dataset_name
+    ) == (generator_dataset_name == dataset_name)
+
+
+@pytest.mark.parametrize(
+    ("dataset_name", "generator_type", "concept_count", "feature_count"), DATASET_GENERATORS
+)
+def test_generators_with_another_concept_count_do_not_belong_to_the_dataset(
+    dataset_name, generator_type, concept_count, feature_count
+):
+    generator = generator_type(
+        numpy_random_generator=np.random.RandomState(0), concept_count=concept_count - 1
+    )
+    assert not is_observed_sample_generator_of_dataset(
+        sample_generator=generator, dataset_name=dataset_name
+    )

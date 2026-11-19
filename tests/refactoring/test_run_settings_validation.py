@@ -796,6 +796,9 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                     "fmnist4",
                     "rotmnist2",
                     "rotmnist4",
+                    "stagger3",
+                    "agrawal4",
+                    "randomrbf4",
                 )
                 if settings_field.name == "dataset_name"
                 else (

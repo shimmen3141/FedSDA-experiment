@@ -46,6 +46,16 @@ _DATASET_DEFINITIONS_BY_NAME = {
         DatasetDefinition(
             dataset_name="rotmnist4", input_feature_count=784, concept_count=4, class_count=10
         ),
+        # 再来の合成データ（概念の中身はRiverのSTAGGER・Agrawal・RandomRBFと同じ）。
+        DatasetDefinition(
+            dataset_name="stagger3", input_feature_count=3, concept_count=3, class_count=2
+        ),
+        DatasetDefinition(
+            dataset_name="agrawal4", input_feature_count=9, concept_count=4, class_count=2
+        ),
+        DatasetDefinition(
+            dataset_name="randomrbf4", input_feature_count=10, concept_count=4, class_count=2
+        ),
     )
 }
 

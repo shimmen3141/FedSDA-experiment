@@ -9,6 +9,9 @@ import pytest
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
 )
+from federated_learning_experiments.data.agrawal.agrawal_sample_generation import (
+    AgrawalSampleGenerator,
+)
 from federated_learning_experiments.data.circle.circle_sample_generation import (
     CircleSampleGenerator,
 )
@@ -30,8 +33,14 @@ from federated_learning_experiments.data.observed_streams import (
     ClientConceptTrace,
     ObservedSample,
 )
+from federated_learning_experiments.data.random_rbf.random_rbf_sample_generation import (
+    RandomRbfSampleGenerator,
+)
 from federated_learning_experiments.data.sea.sea_sample_generation import SeaSampleGenerator
 from federated_learning_experiments.data.sine.sine_sample_generation import SineSampleGenerator
+from federated_learning_experiments.data.stagger.stagger_sample_generation import (
+    StaggerSampleGenerator,
+)
 
 # 合成データのdataset（MNISTは、test_mnist_sample_generation.py）。
 DEFINED_DATASET_NAMES = ("sine2", "sea2", "sea4", "circle2")
@@ -91,12 +100,18 @@ def test_expected_generator_types_cover_all_defined_datasets(tmp_path, monkeypat
         "fmnist4",
         "rotmnist2",
         "rotmnist4",
+        "stagger3",
+        "agrawal4",
+        "randomrbf4",
     )
     assert set(OBSERVED_SAMPLE_GENERATOR_TYPES) == {
         *EXPECTED_GENERATOR_TYPE_BY_DATASET_NAME.values(),
         MnistSampleGenerator,
         FashionMnistSampleGenerator,
         RotatedMnistSampleGenerator,
+        StaggerSampleGenerator,
+        AgrawalSampleGenerator,
+        RandomRbfSampleGenerator,
     }
     assert all(
         type(

@@ -24,6 +24,9 @@ class ExperimentRunConditions:
                 "fmnist4",
                 "rotmnist2",
                 "rotmnist4",
+                "stagger3",
+                "agrawal4",
+                "randomrbf4",
             )
         },
     )

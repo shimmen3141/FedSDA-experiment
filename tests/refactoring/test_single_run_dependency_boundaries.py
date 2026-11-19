@@ -3405,6 +3405,9 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
         "federated_learning_experiments.data.mnist",
         "federated_learning_experiments.data.sea",
         "federated_learning_experiments.data.sine",
+        "federated_learning_experiments.data.stagger",
+        "federated_learning_experiments.data.agrawal",
+        "federated_learning_experiments.data.random_rbf",
         "federated_learning_experiments.execution",
         "federated_learning_experiments.learning",
         "federated_learning_experiments.learning.models",
@@ -4570,6 +4573,9 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.data.observed_streams.ObservedSample",
             "federated_learning_experiments.data.sea.sea_sample_generation.SeaSampleGenerator",
             "federated_learning_experiments.data.sine.sine_sample_generation.SineSampleGenerator",
+            "federated_learning_experiments.data.stagger.stagger_sample_generation.StaggerSampleGenerator",
+            "federated_learning_experiments.data.agrawal.agrawal_sample_generation.AgrawalSampleGenerator",
+            "federated_learning_experiments.data.random_rbf.random_rbf_sample_generation.RandomRbfSampleGenerator",
         )
     if source_module_path == "evaluation/run_metric_calculations.py":
         return imported_module_name in (
@@ -7432,6 +7438,9 @@ def test_single_run_package_boundaries_have_no_exports():
         "data/mnist",
         "data/sea",
         "data/sine",
+        "data/stagger",
+        "data/agrawal",
+        "data/random_rbf",
         "execution",
         "runtime",
         "learning/prediction",
