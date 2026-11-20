@@ -29,7 +29,7 @@ from federated_learning_experiments.sweep.experiment_sweep_plan import PlannedEx
 
 _REPOSITORY_DIRECTORY = Path(__file__).resolve().parents[3]
 # 全runが済んだ掃引の、runごとの開始の記録をまとめるzip（`.resume/`の下）。
-RUN_START_RECORD_ARCHIVE_NAME = "run_start_records.zip"
+_RUN_START_RECORD_ARCHIVE_NAME = "run_start_records.zip"
 _REPLACE_ATTEMPT_COUNT = 8
 _REPLACE_RETRY_SECONDS = 0.5
 
@@ -172,7 +172,7 @@ def _read_run_start_record(
     path = _start_record(output_directory, planned_run)
     if path.exists():
         return loads(path.read_text(encoding="utf-8")), path
-    archive_path = _safe_path(output_directory, ".resume", RUN_START_RECORD_ARCHIVE_NAME)
+    archive_path = _safe_path(output_directory, ".resume", _RUN_START_RECORD_ARCHIVE_NAME)
     if not archive_path.exists():
         return None, None
     member_name = f"{planned_run.configuration_name}/{planned_run.run_identifier}.json"
@@ -317,9 +317,9 @@ def pack_completed_sweep_run_start_records(output_directory: Path) -> str | None
     partial_path: Path | None = None
     try:
         resume_directory = _safe_path(output_directory, ".resume")
-        archive_path = _safe_path(output_directory, ".resume", RUN_START_RECORD_ARCHIVE_NAME)
+        archive_path = _safe_path(output_directory, ".resume", _RUN_START_RECORD_ARCHIVE_NAME)
         partial_path = _safe_path(
-            output_directory, ".resume", RUN_START_RECORD_ARCHIVE_NAME + ".partial"
+            output_directory, ".resume", _RUN_START_RECORD_ARCHIVE_NAME + ".partial"
         )
         partial_path.unlink(missing_ok=True)
         records: dict[str, tuple[Path, bytes]] = {}
