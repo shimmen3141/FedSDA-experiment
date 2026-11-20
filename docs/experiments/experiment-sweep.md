@@ -122,7 +122,14 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
 
 同じ出力先の実行・復旧・集計は`.sweep.lock`のOS排他で保護する。元processとworkerの終了を待ってから再開する。lockファイルは残るが、存在だけで実行中とは判断せず、process終了時にはOSが排他を解放する。共有ファイルシステムではOSのファイルロックが正しく働く環境が必要。
 
-NPZ・run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変更しない。追加されるのは上記の再開補助ファイルだけ。
+run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変更しない。追加されるのは上記の再開補助ファイルだけ。
+
+2026-11-20から（spec `lzma-record-tables-and-packed-run-start-records`）、次の2つを変えた。ファイルの数と容量を減らすため。
+- runの記録の表（NPZ）は、配列を変えずに、各配列をLZMAで圧縮して書く（それまではdeflate）。`numpy.load`でそのまま読め、配列の名前・型・形・値は変わらない。既に書いたdeflateのNPZも同じに読める。FedSDAの1 runで約12%、FedDriftで約1/5に小さくなる（書く時間は1 runあたり1秒未満増える）。
+- 全runが済んだ掃引（失敗0）は、終わりに、runごとの開始の記録（`.resume/<構成>/<識別子>.json`）を`.resume/run_start_records.zip`へまとめ、照合してから個別のファイルを消す。`sweep.json`と`recovered/`は残す。開始の記録は、個別のファイル、無ければzipの順に読むので、再開・中断したrunの直し・違う記録の拒否は今までと同じに働く。まとめに失敗しても、元を残して警告を出すだけで、掃引は失敗にしない。
+- LZMAにはPythonの標準の`lzma`が要る。掃引は、使えない環境ではrunの計算の前に止まる。uraniumと分析に使うPCで、最初に`python -c "import lzma"`が通ることを確かめる（LZMAのNPZを読む側にも要る）。
+- まとめた`run_start_records.zip`が壊れると、その出力先では、中にあるrunの直しと、新しいrunの開始が全部失敗する（ファイルは変わらない）。復旧するには、壊れたzipを出力先の外へ退ける。その場合、中の記録は無くなり、要約の無いNPZだけのrunは自動では直せなくなる（済んだrunの成果物には影響しない）。
+- 開始の記録は`src/`の全Pythonのhashを含むので、掃引の途中でこの変更（`src/`へのファイルの追加）を取り込むと、その掃引の中断したrunは直せない。掃引の途中でコードを更新しない。
 
 ## 出力
 
@@ -134,7 +141,10 @@ NPZ・run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変
     run_summary.csv                   一覧の表（1 runが1行）
     runs/
       <識別子>.json                   1 runの要約（run設定の全部、指標、実行環境、runの来歴）
-      <識別子>.npz                    1 runの記録の表（`表の名前.列の名前`の配列）
+      <識別子>.npz                    1 runの記録の表（`表の名前.列の名前`の配列。LZMA）
+  .resume/
+    sweep.json                        掃引の計画（再開の候補を探すのに使う）
+    run_start_records.zip             runごとの開始の記録（全runが済んだらまとめる。途中は<構成の名前>/<識別子>.json）
 ```
 
 - 識別子は、`<dataset>_interval<集約間隔>_seed<seed>_<hash>`。hashは、構成の名前と、run設定の全部から計算する
