@@ -554,7 +554,7 @@ def test_parallel_sweep_saves_the_same_content_as_sequential_sweep(
     # 結果は、計画の順で返る。
     assert [(outcome.run_identifier, outcome.run_status) for outcome in outcomes] == [
         (planned_run.run_identifier, "completed") for planned_run in planned_runs
-    ]
+    ], [outcome.failure_description for outcome in outcomes]
     assert len(progress_messages) == len(planned_runs)
     for planned_run in planned_runs:
         summary, record_tables = read_run_files(tmp_path, planned_run)

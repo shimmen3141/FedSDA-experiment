@@ -4822,6 +4822,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "platform.machine",
             "platform.python_version",
             "platform.system",
+            "time.sleep",
             "uuid.uuid4",
             "zipfile.ZIP_LZMA",
             "zipfile.ZipFile",

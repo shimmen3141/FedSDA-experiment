@@ -380,3 +380,25 @@ def test_a_sweep_stops_before_any_run_without_lzma(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError, match="lzma"):
         _sweep(tmp_path / "output", _runs())
     assert not (tmp_path / "output").exists()
+
+
+def test_a_temporarily_locked_zip_is_replaced_after_retrying(tmp_path, monkeypatch):
+    """Windowsで作ったばかりのzipを一時的に開かれて置き換えが拒否されても、やり直して置く。"""
+    runs = _runs(seeds=(0, 1))
+    _write_records(tmp_path, runs[:1])
+    resumption.pack_completed_sweep_run_start_records(tmp_path)
+    _write_records(tmp_path, runs[1:])
+    real_replace = resumption.replace_file
+    refusals = []
+
+    def refuse_twice(source, destination):
+        if len(refusals) < 2:
+            refusals.append(source)
+            raise PermissionError("simulated sharing violation")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(resumption, "replace_file", refuse_twice)
+    monkeypatch.setattr(resumption, "_REPLACE_RETRY_SECONDS", 0.0)
+    assert resumption.pack_completed_sweep_run_start_records(tmp_path) is None
+    assert len(refusals) == 2
+    assert len(_zip_members(tmp_path)) == 2

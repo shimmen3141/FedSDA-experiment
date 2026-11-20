@@ -10,6 +10,7 @@ from os import fsync, walk
 from os import replace as replace_file
 from pathlib import Path
 from platform import machine, python_version, system
+from time import sleep
 from uuid import uuid4
 from zipfile import ZIP_LZMA, ZipFile
 
@@ -29,6 +30,8 @@ from federated_learning_experiments.sweep.experiment_sweep_plan import PlannedEx
 _REPOSITORY_DIRECTORY = Path(__file__).resolve().parents[3]
 # 全runが済んだ掃引の、runごとの開始の記録をまとめるzip（`.resume/`の下）。
 RUN_START_RECORD_ARCHIVE_NAME = "run_start_records.zip"
+_REPLACE_ATTEMPT_COUNT = 8
+_REPLACE_RETRY_SECONDS = 0.5
 
 
 @dataclass(frozen=True)
@@ -277,6 +280,19 @@ def can_recover_interrupted_run(
         return False
 
 
+def _replace_with_retries(source: Path, destination: Path) -> None:
+    """置き換える。Windowsで、作ったばかりのファイルをほかのprocess（検査ソフトなど）が一時的に開いていて
+    `PermissionError`になったときだけ、少し待って数回やり直す。"""
+    for attempt in range(_REPLACE_ATTEMPT_COUNT):
+        try:
+            replace_file(source, destination)
+            return
+        except PermissionError:
+            if attempt == _REPLACE_ATTEMPT_COUNT - 1:
+                raise
+            sleep(_REPLACE_RETRY_SECONDS * (attempt + 1))
+
+
 def _verify_run_start_record_archive(archive_path: Path, expected: dict[str, bytes]) -> None:
     """書いたzipを読み戻し、名前の集合と各記録のバイト列が、まとめる前に読んだものと同じことを確かめる。"""
     with ZipFile(archive_path) as archive:
@@ -341,7 +357,7 @@ def pack_completed_sweep_run_start_records(output_directory: Path) -> str | None
             with partial_path.open("rb+") as stream:
                 fsync(stream.fileno())
             _verify_run_start_record_archive(partial_path, combined)
-            replace_file(partial_path, archive_path)
+            _replace_with_retries(partial_path, archive_path)
     except Exception as caught_exception:
         if partial_path is not None:
             try:
