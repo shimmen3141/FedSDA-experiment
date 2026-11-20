@@ -226,11 +226,13 @@ def unpack_configuration(configuration_directory: Path) -> dict:
 
 
 def _process(task):
-    action, configuration_directory, dry_run = task
+    action, configuration_directory, dry_run, include_incomplete = task
     if action == "pack":
         if (configuration_directory / ARCHIVE_NAME).exists():
             return configuration_directory, "skip（まとめ済み）", None
-        reason = _incomplete_reason(configuration_directory)
+        if not (configuration_directory / "runs").is_dir():
+            return configuration_directory, "skip（runsが無い）", None
+        reason = None if include_incomplete else _incomplete_reason(configuration_directory)
         if reason is not None:
             return configuration_directory, f"skip（{reason}）", None
         return configuration_directory, "pack", pack_configuration(configuration_directory, dry_run=dry_run)
@@ -245,11 +247,17 @@ def main(command_arguments=None) -> int:
     parser.add_argument("root", type=Path)
     parser.add_argument("--dry-run", action="store_true", help="packで、まとめる対象と元のバイト数だけを表示する")
     parser.add_argument("--workers", type=int, default=1, help="構成のフォルダを並列に処理するprocessの数")
+    parser.add_argument(
+        "--include-incomplete",
+        action="store_true",
+        help="packで、済んでいるかの判定（run_summary.csvと掃引の記録）を省く。"
+        "run_summary.csvを作らない形式の結果や、打ち切った掃引に使う。動いている掃引には使わない",
+    )
     arguments = parser.parse_args(command_arguments)
     if arguments.workers < 1:
         parser.error("--workersは1以上")
     tasks = [
-        (arguments.action, configuration_directory, arguments.dry_run)
+        (arguments.action, configuration_directory, arguments.dry_run, arguments.include_incomplete)
         for configuration_directory in find_configuration_directories(arguments.root)
     ]
     if arguments.workers == 1 or len(tasks) <= 1:

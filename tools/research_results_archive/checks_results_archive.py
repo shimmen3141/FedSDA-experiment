@@ -190,3 +190,15 @@ def test_a_failure_while_writing_the_zip_leaves_no_temporary_file(tmp_path, monk
     assert not list(configuration.glob("*.tmp"))
     assert not (configuration / archive.ARCHIVE_NAME).exists()
     _assert_same_snapshot(before, _snapshot(sweep))
+
+
+def test_include_incomplete_packs_a_configuration_without_a_summary(tmp_path):
+    sweep, configuration = _make_sweep(tmp_path)
+    (configuration / "run_summary.csv").unlink()
+    before = _snapshot(sweep)
+    archive.main(["pack", str(tmp_path)])
+    assert not (configuration / archive.ARCHIVE_NAME).exists()
+    archive.main(["pack", str(tmp_path), "--include-incomplete"])
+    assert (configuration / archive.ARCHIVE_NAME).exists()
+    archive.main(["unpack", str(tmp_path)])
+    _assert_same_snapshot(before, _snapshot(sweep))
