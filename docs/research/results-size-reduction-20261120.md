@@ -29,5 +29,5 @@
 - 削除（ユーザーの了承）: 作業の一時物（`_test_tmp`（pytestの一時フォルダ、20,677ファイル）、`_sol_tmp_b1`・`_sol_tmp_c`・`_s3_preview`・`_tool-checks`、空のフォルダ2つ）、参照の無い10月27日のオラクルの実行ログ4つ、`feddrift-tuned-delta-recurring-synthetic-v16`の直下にあったagrawal4の掃引の複製（転送でできたもの。中のフォルダとバイト列まで同じことを確かめた）。完了したspecが検証の証拠として名指しする`_feddrift_*`のログ7つは残した。
 - 古い結果（基準版7〜15の比較とablation、10月の診断）は残す（ユーザーの判断。後で消すこともできるため）。目的・結果・対応は、`server-capacity`（uraniumの所要時間とメモリの測定、記録への参照なし）を除き、台帳・研究記録・spec・論文のどれかから追える（研究の問いの名前での照合。掃引ごとの照合はしていない）。
 - まとめ（1回目、2026-11-20 22:57〜11-21 00:43、手元、12 workers）: 済んだ掃引の構成のフォルダ816個（79,158ファイル）を`runs.zip`へ。31.6GB→26.2GB、エラー0。`results/`のファイル数は104,734→26,393、容量は39GB（この日の初めは125,313ファイル・49GB）。ログは`results/_archive_pack_20261120.log`。
-- まとめ（2回目）: 1回目で飛ばした29か所（`run_summary.csv`を作らない形式の結果、打ち切ったδの調整の掃引3つ、研究ツールの検査の出力）を、済んでいるかの判定を省く設定`--include-incomplete`でまとめる。ログは`results/_archive_pack_20261121_incomplete.log`。
+- まとめ（2回目）: 1回目で飛ばした29か所（`run_summary.csv`を作らない形式の結果、打ち切ったδの調整の掃引3つ、研究ツールの検査の出力）を、済んでいるかの判定を省く設定`--include-incomplete`でまとめる。ログは`results/_archive_pack_20261121_incomplete.log`。29か所・702MB→192MB、エラー0。`results/`のファイル数は12,463、容量は39GB（残りのファイルは主に、1クライアントの版の系列、`_sol_prompts`・`_sol_tmp`、README・`run_summary.csv`・掃引の記録）。
 - 注意: まとめた構成のフォルダには`runs/`が無い。runのファイルを読む分析や、同じ出力先での掃引の流し直しの前に、`python -m tools.research_results_archive.archive unpack <フォルダ>`で戻す。
