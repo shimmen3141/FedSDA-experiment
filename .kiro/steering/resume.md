@@ -4,6 +4,7 @@
 
 ## 現在地
 
+- 2026-11-20: 同じブランチで、runの記録の表（NPZ）をLZMAで書き、全runが済んだ掃引の開始の記録を`.resume/run_start_records.zip`へまとめた（[spec](../specs/lzma-record-tables-and-packed-run-start-records/tasks.md)、仕様・実装レビューPASS（Haikuへ代替）、全pytest通過）。2026-11-17の`.resume`をまとめる指示はこれで済んだ。既存の結果をまとめる研究ツール`tools/research_results_archive`（実結果への適用はユーザーが対象を決める）。記録は[容量を減らす取り組み](../../docs/research/results-size-reduction-20261120.md)。
 - 2026-11-20: 同じブランチで、STAGGER・Agrawal・Random RBFの再来（`stagger3`・`agrawal4`・`randomrbf4`）を製品の全手法のデータに足した（[spec](../specs/stagger-agrawal-random-rbf-recurring-datasets/tasks.md)、仕様・実装レビューPASS（Haikuへ代替）、全pytestは環境によるDLLの拒否の2件を除き通過）。概念の中身はRiverと同じで、標本はrunのNumPyの乱数。FedDriftのδの調整（seed 100〜102）と本評価（seed 0〜9）のuraniumの各180 runはユーザーが実行する（台帳の2行）。
 - 2026-11-19: 同じブランチで、単一ストリームの再来の合成データ（`stagger3`・`agrawal4`・`randomrbf4`）の系列を作るコマンドを単一ストリームのパッケージに足した（[spec](../specs/single-stream-recurring-synthetic-streams/tasks.md)、仕様・実装レビューPASS（Haikuへ代替）、全pytest通過）。系列のJSONのクラス数を読込みが使う。製品は変えていない。結果（木の版はARF・SRP・LBに3データ平均で5〜11pp下回る）は[記録](../../docs/research/fedhasp-single-client-pilot-v16.md)。次の候補: 警報の多さ（真の変化の5〜11倍）と誤った再利用の多さの切り分け、学習器の既定（grace period・delta）の影響の確認、実データ（INSECTS、Electricity）、再来ドリフト向けの比較手法（PEARLほか）。
 - 2026-11-19: 同じブランチで、単一ストリームの手法のパッケージ`src/single_stream_hard_assignment_soft_prediction/`を追加した（[spec](../specs/single-stream-hard-assignment-soft-prediction/tasks.md)、仕様・実装レビューPASS（Lunaは使用量の上限でHaikuへ代替）、全pytest通過、Riverのtestは WSLの`~/river-env`で通過）。FedHASPの1クライアントの純粋な形をHoeffding treeで、既存の単一ストリームの手法と同じ条件（事前学習なし、最初の標本から評価、標本ごとに1回学習）で動かす。製品のtorchを使わない判断の部品だけを一方向にimportする。次の候補: (1) 比較手法の研究ツール`river_baselines.py`を事前学習なしでも流せるようにして、同じ条件で比べ直す。(2) 新しいデータ（STAGGER、Agrawal、RBF、INSECTS、Electricity）の系列の作成。(3) 再来ドリフト向けの比較手法（PEARL、SELeCT、FiCSUM、GroCH）の追加。(4) 論文4章の実装注記のL_swの「保持モデルの数+1」を、式（M=|M|）と製品の値に合わせて直す。
@@ -137,7 +138,7 @@
 
 ## 未解消の事項・次の候補
 
-- 2026-11-17ユーザー指示（未着手）: 掃引が全部完了したら、`.resume`（runごとの開始の記録のJSON。中断したrunの安全な再開にだけ使う）を1つの圧縮ファイルにまとめる。研究室サーバからの転送でファイル数が多く時間がかかるため。製品の変更なのでcc-sddのspecで進める。既存の結果の`.resume`は、同日のユーザー判断で削除してよいことになった。
+- 2026-11-17ユーザー指示（2026-11-20に済み、spec `lzma-record-tables-and-packed-run-start-records`）: 掃引が全部完了したら、`.resume`（runごとの開始の記録のJSON。中断したrunの安全な再開にだけ使う）を1つの圧縮ファイルにまとめる。研究室サーバからの転送でファイル数が多く時間がかかるため。製品の変更なのでcc-sddのspecで進める。既存の結果の`.resume`は、同日のユーザー判断で削除してよいことになった。
 - 候補検証を単純化しV/O両方に優位となる方式として、検証なし＋候補の共有部の固定を採用した（[研究記録](../../docs/research/fedsda-provisional-candidate-expert-20261019.md)）。検証なしのMNIST2の低下が共有部の上書きから来るという説明は、固定で低下が消えたことと合うが、直接の切り分けではない。
 - 純粋予測方式seed5〜9の240run、手法比較（間隔100/500）seed5〜9の180runは補完コマンドを提示済みだが、実行・結果受領は未確認。確認なしに完了扱い・再発注しない。
 - LEGACY/IMPROVE/NEW/UNPORTEDの現在の採否は[実装findings](../../docs/research/implementation-findings/README.md)と[改善候補](../../docs/research/improvement-candidates/README.md)が正本。10/13以降の修正・採否を、古い「残るLEGACYをまとめて判断」へ戻さない。
