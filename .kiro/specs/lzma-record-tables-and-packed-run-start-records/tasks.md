@@ -4,7 +4,7 @@
 
 - [ ] 1. 記録の表のLZMA
 - [ ] 1.1 書き出し関数
-  - `write_lzma_compressed_record_tables`のtest（全エントリがLZMA、`savez_compressed`と同じ配列）を先に書き、`runtime/lzma_record_table_files.py`を実装する。依存境界に新しいmoduleを登録する。
+  - `write_lzma_compressed_record_tables`と`ensure_lzma_compression_available`のtest（全エントリがLZMA、`savez_compressed`と同じ配列、lzmaが無ければ`RuntimeError`）を先に書き、`runtime/lzma_record_table_files.py`を実装する。依存境界に新しいmoduleを登録する。
   - 完了条件: 新しいtestと依存境界のtestが通る。
   - _Requirements: 1.1, 1.2_
   - _Boundary: lzma_record_table_files_
@@ -28,7 +28,7 @@
   - _Boundary: experiment_sweep_resumption_
   - _Depends: 2.1_
 - [ ] 2.3 掃引の終わりへの接続
-  - 掃引のtest（設計書の「(B) 掃引」）を先に書き、`execute_experiment_sweep`から呼ぶ。`test_experiment_sweep.py`の、完了した掃引から開始の記録を消して中断を作るtestを、設計書の「既存のtestの書き換え」のとおり直す（zipに証拠があれば直して再実行、証拠の無いzipの別のcaseでは今と同じく失敗）。`experiment_sweep_execution.py`の許可リストを更新する。fresh smokeにまとめの確認を足す。
+  - 掃引のtest（設計書の「(B) 掃引」と、lzmaが無ければrunの前に止まること）を先に書き、`execute_experiment_sweep`から`ensure_lzma_compression_available`とまとめを呼ぶ。`test_experiment_sweep.py`の、完了した掃引から開始の記録を消して中断を作るtestを、設計書の「既存のtestの書き換え」のとおり直す（zipに証拠があれば直して再実行、証拠の無いzipの別のcaseでは今と同じく失敗）。`experiment_sweep_execution.py`の許可リストを更新する。fresh smokeにまとめの確認を足す。
   - 完了条件: 掃引と再開のtest・依存境界のtest・fresh smokeが通る。
   - _Requirements: 2.1, 2.3, 2.5, 2.6_
   - _Depends: 2.2_
