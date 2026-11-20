@@ -155,7 +155,7 @@ def test_save_failure_cleans_its_files(monkeypatch, artifact_run, tmp_path, stag
     if stage == "table_build":
         monkeypatch.setattr(artifacts, "build_feddrift_run_record_tables", fail, raising=False)
     elif stage == "npz_write":
-        monkeypatch.setattr(artifacts, "savez_compressed", fail, raising=False)
+        monkeypatch.setattr(artifacts, "write_lzma_compressed_record_tables", fail, raising=False)
     elif stage == "json_write":
         monkeypatch.setattr(Path, "write_text", fail)
     else:

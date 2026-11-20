@@ -12,7 +12,7 @@ from platform import machine, python_version, system
 from uuid import uuid4
 
 from numpy import __version__ as numpy_version
-from numpy import load, ndarray, savez_compressed
+from numpy import load, ndarray
 from torch import __version__ as torch_version
 
 from federated_learning_experiments.core.run_provenance import (
@@ -28,6 +28,9 @@ from federated_learning_experiments.runtime.dynamic_weighted_majority_experiment
 )
 from federated_learning_experiments.runtime.dynamic_weighted_majority_run_record_tables import (
     build_dynamic_weighted_majority_run_record_tables,
+)
+from federated_learning_experiments.runtime.lzma_record_table_files import (
+    write_lzma_compressed_record_tables,
 )
 
 # 保存の形式の版。要約のキーや、表の名前・列の意味を変えるときに上げる。
@@ -119,7 +122,7 @@ def save_dynamic_weighted_majority_experiment_run(
     try:
         with temporary_record_table_file_path.open("wb") as record_table_stream:
             # 配列の名前（`表の名前.列の名前`）を、そのままキーにする。
-            savez_compressed(record_table_stream, **record_tables)  # pyright: ignore[reportArgumentType]
+            write_lzma_compressed_record_tables(record_table_stream, record_tables)
         temporary_summary_file_path.write_text(summary_text + "\n", encoding="utf-8")
         # 表を先に置き、要約を最後に置く（要約があれば、表もある）。
         replace(temporary_record_table_file_path, artifact_paths.record_table_file_path)

@@ -1397,7 +1397,9 @@ def test_failed_save_leaves_no_partial_files(small_experiment_run, tmp_path, mon
         raise OSError("simulated failure while writing the tables")
 
     monkeypatch.setattr(fedsda_run_artifact_files, "replace", real_replace)
-    monkeypatch.setattr(fedsda_run_artifact_files, "savez_compressed", fail_to_write_tables)
+    monkeypatch.setattr(
+        fedsda_run_artifact_files, "write_lzma_compressed_record_tables", fail_to_write_tables
+    )
     with pytest.raises(OSError, match="simulated failure"):
         save_fedsda_experiment_run(
             experiment_run=small_experiment_run,
