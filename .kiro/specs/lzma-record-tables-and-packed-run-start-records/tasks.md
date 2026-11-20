@@ -1,34 +1,34 @@
 # Implementation Plan
 
-依存: 1.1 → 1.2、2.1 → 2.2（1と2は独立） → 3.1。
+依存: 1.1 → 1.2 → 2.1 → 2.2 → 3.1（1と2は内容は独立だが、どちらも`test_single_run_dependency_boundaries.py`を編集するので順に進める）。
 
 - [ ] 1. 記録の表のLZMA
-- [ ] 1.1 書き出し関数 (P)
-  - `write_lzma_compressed_record_tables`のtest（全エントリがLZMA、`savez_compressed`と同じ配列）を先に書き、`runtime/lzma_record_table_files.py`を実装する。依存境界に登録する。
+- [ ] 1.1 書き出し関数
+  - `write_lzma_compressed_record_tables`のtest（全エントリがLZMA、`savez_compressed`と同じ配列）を先に書き、`runtime/lzma_record_table_files.py`を実装する。依存境界に新しいmoduleを登録する。
   - 完了条件: 新しいtestと依存境界のtestが通る。
   - _Requirements: 1.1, 1.2_
   - _Boundary: lzma_record_table_files_
 - [ ] 1.2 4手法の書き出しへの接続
-  - 4手法の保存のtest（LZMA、同じ配列、deflateのNPZも読める、失敗で途中のファイルが残らない）を先に書き、4つの書き出しを置き換える。既存の`savez_compressed`のmonkeypatchを新しい関数へ替える。
-  - 完了条件: 成果物のtestと全版のgoldenが通る。
+  - 4手法の保存のtest（LZMA、同じ配列、deflateのNPZも読める、失敗で途中のファイルが残らない）を先に書き、4つの書き出しを置き換える。既存の`savez_compressed`のmonkeypatchを新しい関数へ替える。4つの許可リストの`numpy.savez_compressed`を新しい関数に替える。
+  - 完了条件: 成果物のtest・依存境界のtest・全版のgoldenが通る。
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 3.1_
   - _Depends: 1.1_
 
 - [ ] 2. 開始の記録のまとめ
-- [ ] 2.1 まとめる関数 (P)
-  - `pack_completed_sweep_run_start_records`のtest（まとめ・照合・元の削除、`sweep.json`と`recovered/`を残す、既存のzipへの追加、同じ名前で違う中身ならまとめない、照合の失敗で元が残る）を先に書き、実装する。
-  - 完了条件: 新しいtestが通る。
+- [ ] 2.1 まとめる関数と開始の記録の読み方
+  - `pack_completed_sweep_run_start_records`のtest（まとめ・照合・元の削除、`sweep.json`と`recovered/`を残す、個別のファイルが無ければzipを書き直さない、既存のzipへの追加、同じ名前で同じ中身なら二重にしない・違う中身ならまとめない、照合の失敗とOSErrorで元が残る、残った`.partial`を消す）と、まとめた後の`can_recover_interrupted_run`・`write_run_start_record`のtestを先に書き、実装する。`experiment_sweep_resumption.py`の許可リストを更新する。
+  - 完了条件: 新しいtestと既存の再開のtestが通る。
   - _Requirements: 2.1, 2.2, 2.4_
   - _Boundary: experiment_sweep_resumption_
 - [ ] 2.2 掃引の終わりへの接続
-  - 掃引のtest（全部済めばまとまる、失敗があればまとめない、まとめた後に続けると全runが飛ばされる）を先に書き、`execute_experiment_sweep`から呼ぶ。
-  - 完了条件: 掃引と再開のtestが通る。
+  - 掃引のtest（全部済めばまとまる、失敗があればまとめない、まとめた後に続けると全runが飛ばされファイルが変わらない、まとめの失敗で警告を出し掃引は失敗にしない）を先に書き、`execute_experiment_sweep`から呼ぶ。`test_experiment_sweep.py`の、完了した掃引から開始の記録を消して中断を作るtestの前提を書き換える。`experiment_sweep_execution.py`の許可リストを更新する。
+  - 完了条件: 掃引と再開のtest・依存境界のtestが通る。
   - _Requirements: 2.1, 2.3, 2.5_
   - _Depends: 2.1_
 
 - [ ] 3. 文書と確認
 - [ ] 3.1 文書・全pytest・実装レビュー
-  - `docs/experiments/experiment-sweep.md`に足す。全pytest、ruff、pyright。独立CLIの実装レビュー1回。
+  - `docs/experiments/experiment-sweep.md`に足す（uraniumで`import lzma`を確かめる手順を含む）。全pytest、ruff、pyright。独立CLIの実装レビュー1回。
   - 完了条件: 文書があり、全pytestが通り、実装レビューがPASSである。
   - _Requirements: 3.1, 3.2, 4.1_
   - _Depends: 1.2, 2.2_

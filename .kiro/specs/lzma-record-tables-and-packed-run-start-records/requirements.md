@@ -21,15 +21,16 @@
 1.4 If 記録の表の書き出しに失敗したら, the writer shall 今と同じく、途中のファイルを残さず、要約も置かない。
 
 ### Requirement 2: 掃引の終わりの開始の記録のまとめ
-2.1 When 掃引の全runの結果が「済んだ」か「済んだ結果があり飛ばした」で、失敗が無いとき, the sweep shall 出力先の排他を持ったまま、`.resume/<構成>/<run>.json`の全ファイルを、`.resume/run_start_records.zip`（LZMA）へまとめる。zipを読み戻して全ファイルのバイト列が元と一致したら元のファイルを消し、一致しなければzipを消して元を残す。
+2.1 When 掃引の全runの`run_status`が`completed`か`skipped_existing`（`failed`が無い）のとき, the sweep shall 出力先の排他を持ったまま、`.resume/`直下の`recovered`以外の各ディレクトリ（構成ごと）の`*.json`（runの開始の記録。計画に無いrunの記録も含む）を、`.resume/run_start_records.zip`（LZMA）へまとめる。zipを読み戻して全ファイルのバイト列が元と一致したらzipを置き、その後で元のファイルと空になったディレクトリを消す。一致しなければzipを置かずに元を残す。まとめる個別のファイルが無いときは何もしない（既にあるzipを書き直さない）。
 2.2 The sweep shall `.resume/sweep.json`（再開の候補を探すのに使う）と`.resume/recovered/`（直したrunの退避）は、まとめずに残す。
 2.3 If 失敗したrunがある、または、掃引が例外（中断を含む）で終わったら, the sweep shall 開始の記録をまとめない（今と同じに残す）。
-2.4 When 既に`.resume/run_start_records.zip`がある出力先で掃引を続け、全runが済んだとき, the sweep shall 既にあるzipの記録と新しく書いた記録を合わせた新しいzipを作り、照合してから置き換える。同じ名前の記録がzipとファイルの両方にあり、バイト列が違うときは、まとめずに両方を残す（掃引は失敗にしない）。
-2.5 The resumption shall 開始の記録をまとめた出力先を、今と同じく再開の候補として見つけ、済んだrunを飛ばす。
+2.4 When 既に`.resume/run_start_records.zip`がある出力先で掃引を続け、全runが済み、新しい個別の記録があるとき, the sweep shall 既にあるzipの記録と新しい記録を合わせた新しいzipを作り、照合してから置き換える。同じ名前の記録がzipと個別のファイルの両方にあり、バイト列が同じなら、zipの1つだけを残して個別のファイルを消す。違うときは、まとめずに両方を残す（掃引は失敗にしない）。
+2.5 The resumption shall 開始の記録をまとめた出力先でも、今と同じに振る舞う: 再開の候補として見つけて済んだrunを飛ばす。要約の無いNPZだけが残るrunを、まとめた記録を証拠として直せる。違う内容の開始の記録を持つrunは、今と同じく開始を拒否する。そのため、開始の記録は、個別のファイル、無ければzipの順に読む。
+2.6 If まとめの途中でOSError（容量不足など）が起きたら, the sweep shall 作りかけのzip（`.partial`）を消し、元のファイルを残して、掃引を失敗にしない（警告を報告する）。元のファイルの削除の途中で止まっても、各記録は個別のファイルかzipのどちらかに残る。
 
 ### Requirement 3: 既存の値の維持と検証
 3.1 The goldens shall 全版のgoldenの値を変えない。`BEHAVIOR_BASELINE_VERSION`は上げない。
-3.2 The tests shall 次を確かめる: (i) 4手法の書いたNPZの全配列がLZMAで、`savez_compressed`で書いた同じ表と配列が同じ。(ii) 4手法の読込みが、deflateのNPZとLZMAのNPZを同じに読む。(iii) 書き出しの失敗で途中のファイルが残らない。(iv) 全runが済んだ掃引で開始の記録がまとまり、`sweep.json`が残り、まとめた後も再開の候補として見つかり全runが飛ばされる。(v) 失敗したrunがある掃引ではまとめない。(vi) zipの照合が失敗したら元が残る。
+3.2 The tests shall 次を確かめる: (i) 4手法の書いたNPZの全配列がLZMAで、`savez_compressed`で書いた同じ表と配列が同じ。(ii) 4手法の読込みが、deflateのNPZとLZMAのNPZを同じに読む。(iii) 書き出しの失敗で途中のファイルが残らない。(iv) 全runが済んだ掃引で開始の記録がまとまり、`sweep.json`が残り、まとめた後も再開の候補として見つかり全runが飛ばされ、出力先のファイルを変えない。(v) 失敗したrunがある掃引ではまとめない。(vi) zipの照合の失敗・書き込みのOSErrorで元が残る。(vii) まとめた後、要約の無いNPZだけのrunを直せ、違う開始の記録を持つrunの開始を拒否する。
 
 ### Requirement 4: 文書
 4.1 The docs shall `docs/experiments/experiment-sweep.md`の出力の説明に、記録の表のLZMAと、`.resume/run_start_records.zip`を足す。
