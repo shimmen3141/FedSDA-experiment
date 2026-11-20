@@ -11,6 +11,7 @@ from os import replace as replace_file
 from pathlib import Path
 from platform import machine, python_version, system
 from uuid import uuid4
+from zipfile import ZipFile
 
 from numpy import __version__ as numpy_version
 from torch import __version__ as torch_version
@@ -26,6 +27,8 @@ from federated_learning_experiments.core.settings_serialization import (
 from federated_learning_experiments.sweep.experiment_sweep_plan import PlannedExperimentRun
 
 _REPOSITORY_DIRECTORY = Path(__file__).resolve().parents[3]
+# 全runが済んだ掃引の、runごとの開始の記録をまとめるzip（`.resume/`の下）。
+RUN_START_RECORD_ARCHIVE_NAME = "run_start_records.zip"
 
 
 @dataclass(frozen=True)
@@ -155,6 +158,34 @@ def _start_record(output_directory: Path, planned_run: PlannedExperimentRun) -> 
     )
 
 
+def _read_run_start_record(
+    output_directory: Path, planned_run: PlannedExperimentRun
+) -> tuple[dict | None, Path | None]:
+    """開始の記録を、個別のファイル、無ければ`.resume/run_start_records.zip`の順に読む。
+
+    戻り値: (記録の文書, 記録のあるパス)。どちらにも無ければ(None, None)。zipを読む途中で`OSError`以外の
+    例外（壊れた・途中で切れたzip、lzmaの無い環境、jsonの復号の失敗など）が出たら`ValueError`にする。
+    """
+    path = _start_record(output_directory, planned_run)
+    if path.exists():
+        return loads(path.read_text(encoding="utf-8")), path
+    archive_path = _safe_path(output_directory, ".resume", RUN_START_RECORD_ARCHIVE_NAME)
+    if not archive_path.exists():
+        return None, None
+    member_name = f"{planned_run.configuration_name}/{planned_run.run_identifier}.json"
+    try:
+        with ZipFile(archive_path) as archive:
+            if member_name not in archive.namelist():
+                return None, None
+            return loads(archive.read(member_name).decode("utf-8")), archive_path
+    except OSError:
+        raise
+    except Exception as caught_exception:
+        raise ValueError(
+            f"run start record archive is unreadable: {archive_path}"
+        ) from caught_exception
+
+
 def _describe_start(planned_run: PlannedExperimentRun, run_provenance: RunProvenance) -> dict:
     return loads(
         dumps(
@@ -192,7 +223,10 @@ def _execution_source_sha256() -> str:
 def write_run_start_record(
     output_directory: Path, planned_run: PlannedExperimentRun, run_provenance: RunProvenance
 ) -> Path:
-    """計算前に開始証拠を書く。既存結果があるときは証拠を置き換えない。"""
+    """計算前に開始証拠を書く。既存結果があるときは証拠を置き換えない。
+
+    同じ内容の記録が個別のファイルかzipにあれば受け入れて、そのパスを返す（zipなら書かない）。違えば拒否する。
+    """
     for suffix in (".json", ".npz"):
         path = _safe_path(
             output_directory,
@@ -204,12 +238,13 @@ def write_run_start_record(
             raise ValueError(
                 f"existing artifact must be checked before recording a new start: {path}"
             )
-    path = _start_record(output_directory, planned_run)
     data = _describe_start(planned_run, run_provenance)
-    if path.exists():
-        if not _same_document(loads(path.read_text(encoding="utf-8")), data):
-            raise ValueError(f"existing run start record differs: {path}")
-        return path
+    existing, existing_path = _read_run_start_record(output_directory, planned_run)
+    if existing_path is not None:
+        if not _same_document(existing, data):
+            raise ValueError(f"existing run start record differs: {existing_path}")
+        return existing_path
+    path = _start_record(output_directory, planned_run)
     _write_atomic(path, data)
     return path
 
@@ -234,10 +269,10 @@ def can_recover_interrupted_run(
         summary = npz.with_suffix(".json")
         if summary.exists() or summary.is_symlink() or not npz.is_file():
             return False
-        proof = _start_record(output_directory, planned_run)
-        return _same_document(
-            loads(proof.read_text(encoding="utf-8")), _describe_start(planned_run, run_provenance)
-        )
+        proof, _ = _read_run_start_record(output_directory, planned_run)
+        if proof is None:
+            return False
+        return _same_document(proof, _describe_start(planned_run, run_provenance))
     except (OSError, ValueError):
         return False
 

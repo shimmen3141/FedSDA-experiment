@@ -4823,6 +4823,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "platform.python_version",
             "platform.system",
             "uuid.uuid4",
+            "zipfile.ZipFile",
             "numpy.__version__",
             "torch.__version__",
             "msvcrt.LK_NBLCK",
