@@ -5,7 +5,7 @@
 - [ ] 1. 記録の表のLZMA
 - [ ] 1.1 書き出し関数
   - `write_lzma_compressed_record_tables`と`ensure_lzma_compression_available`のtest（全エントリがLZMA、`savez_compressed`と同じ配列、lzmaが無ければ`RuntimeError`）を先に書き、`runtime/lzma_record_table_files.py`を実装する。依存境界に新しいmoduleを登録する。
-  - 完了条件: 新しいtestと依存境界のtestが通る。
+  - 完了条件: 新しいtestと依存境界のtestが通り、`ruff check`が通る。
   - _Requirements: 1.1, 1.2_
   - _Boundary: lzma_record_table_files_
 - [ ] 1.2 4手法の書き出しへの接続
@@ -35,7 +35,7 @@
 
 - [ ] 3. 文書と確認
 - [ ] 3.1 文書・全pytest・実装レビュー
-  - `docs/experiments/experiment-sweep.md`に足す（記録の表のLZMA、`run_start_records.zip`、uraniumと分析に使うPCで`import lzma`を確かめる手順、掃引の途中で更新しない注意）。全pytest、ruff、pyright。独立CLIの実装レビュー1回。
-  - 完了条件: 文書があり、全pytestが通り、実装レビューがPASSである。
+  - `docs/experiments/experiment-sweep.md`に足す（記録の表のLZMA、`run_start_records.zip`、uraniumと分析に使うPCで`import lzma`を確かめる手順、掃引の途中で更新しない注意）。全pytest（`OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`、`tests/test_regression.py`・`tests/test_proposed_regression.py`を含む全部）、`ruff check src tests/refactoring`、pyright。独立CLIの実装レビュー1回。
+  - 完了条件: 文書があり、全pytestが通り（JUnitでgoldenのtestがskipされていない）、実装レビューがPASSである。
   - _Requirements: 3.1, 3.2, 4.1_
   - _Depends: 1.2, 2.3_
