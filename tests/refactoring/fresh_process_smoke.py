@@ -1614,6 +1614,17 @@ def main():
         ]
         assert sweep_main(arguments + ["--print-plan"]) == 0
         assert sweep_main(arguments) == 0
+        # 全runが済んだ掃引は、runごとの開始の記録を1つのzipへまとめ、記録の表はLZMAで書く。
+        import zipfile
+
+        packed_archives = list(Path(directory).rglob(".resume/run_start_records.zip"))
+        assert len(packed_archives) == 1, packed_archives
+        assert not list(packed_archives[0].parent.glob("*/*.json"))
+        for record_table_path in Path(directory).rglob("runs/*.npz"):
+            with zipfile.ZipFile(record_table_path) as record_table_archive:
+                assert {info.compress_type for info in record_table_archive.infolist()} == {
+                    zipfile.ZIP_LZMA
+                }
         assert sweep_main(arguments) == 0
     print("PASS FedDrift default configuration and sweep command, artifacts and resume")
     # 独立モデルのクロス評価を含む新実装だけの全体runと保存を通す。

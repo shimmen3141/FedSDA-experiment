@@ -7,6 +7,7 @@ import re
 import shlex
 import subprocess
 import sys
+import zipfile
 from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
 
@@ -405,6 +406,44 @@ def copy_sweep_output(source_directory, destination_directory):
             destination_path.write_bytes(source_path.read_bytes())
 
 
+def remove_run_start_record(output_directory, planned_run):
+    """runの開始の記録を、個別のファイルか、まとめたzipから除く。"""
+    member_name = f"{planned_run.configuration_name}/{planned_run.run_identifier}.json"
+    record_path = output_directory / ".resume" / member_name
+    if record_path.exists():
+        record_path.unlink()
+        return
+    archive_path = output_directory / ".resume" / "run_start_records.zip"
+    with zipfile.ZipFile(archive_path) as archive:
+        kept = {name: archive.read(name) for name in archive.namelist() if name != member_name}
+    assert len(kept) == len(set(kept)) and member_name not in kept
+    with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_LZMA) as archive:
+        for name, data in kept.items():
+            archive.writestr(name, data)
+
+
+def test_a_run_with_its_start_record_in_the_zip_is_recovered_after_losing_its_summary(
+    sequential_sweep, tmp_path
+):
+    """全runが済んだ掃引は開始の記録をzipへまとめ、その証拠で、要約を失ったrunを直して再実行する。"""
+    source_directory, planned_runs, _, _ = sequential_sweep
+    copy_sweep_output(source_directory, tmp_path)
+    assert (tmp_path / ".resume" / "run_start_records.zip").is_file()
+    assert not list((tmp_path / ".resume").glob("*/*.json"))
+    damaged_run, intact_run = planned_runs
+    runs_directory = tmp_path / "fedsda" / "runs"
+    (runs_directory / f"{damaged_run.run_identifier}.json").unlink()
+    outcomes = execute_experiment_sweep(
+        planned_runs=planned_runs,
+        output_directory=tmp_path,
+        worker_count=1,
+        run_provenance=TEST_RUN_PROVENANCE,
+    )
+    assert [outcome.run_status for outcome in outcomes] == ["completed", "skipped_existing"]
+    assert (runs_directory / f"{damaged_run.run_identifier}.json").is_file()
+    assert len(list((tmp_path / ".resume" / "recovered").rglob("*.npz"))) == 1
+
+
 @pytest.mark.parametrize(
     "damage", ["different_run_settings", "missing_record_table", "missing_summary", "invalid_json"]
 )
@@ -426,8 +465,9 @@ def test_conflicting_existing_files_are_reported_and_not_overwritten(
         record_table_file_path.unlink()
     elif damage == "missing_summary":
         summary_file_path.unlink()
-        # 開始証拠がない旧成果物は、NPZだけになっても自動復旧しない。
-        (tmp_path / ".resume" / "fedsda" / f"{damaged_run.run_identifier}.json").unlink()
+        # 開始証拠がない旧成果物は、NPZだけになっても自動復旧しない。全runが済んだ掃引の開始の記録は
+        # `.resume/run_start_records.zip`にまとまっているので、そこから除く。
+        remove_run_start_record(tmp_path, damaged_run)
     else:
         summary_file_path.write_text("{not json", encoding="utf-8")
     file_contents_before = {path.name: path.read_bytes() for path in runs_directory.iterdir()}

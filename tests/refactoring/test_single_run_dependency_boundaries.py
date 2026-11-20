@@ -4877,6 +4877,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.dynamic_weighted_majority_run_settings.DynamicWeightedMajorityRunSettings",
             "federated_learning_experiments.sweep.experiment_sweep_resumption.can_recover_interrupted_run",
             "federated_learning_experiments.sweep.experiment_sweep_resumption.hold_sweep_output_lock",
+            "federated_learning_experiments.sweep.experiment_sweep_resumption.pack_completed_sweep_run_start_records",
+            "federated_learning_experiments.runtime.lzma_record_table_files.ensure_lzma_compression_available",
             "federated_learning_experiments.sweep.experiment_sweep_resumption.recover_interrupted_run",
             "federated_learning_experiments.sweep.experiment_sweep_resumption.write_run_start_record",
             "federated_learning_experiments.core.run_provenance.BEHAVIOR_BASELINE_VERSION",

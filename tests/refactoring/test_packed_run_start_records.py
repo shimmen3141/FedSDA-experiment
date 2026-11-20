@@ -308,3 +308,75 @@ def test_a_linked_resume_directory_is_not_packed(tmp_path):
     warning = resumption.pack_completed_sweep_run_start_records(output)
     assert warning is not None and "まとめなかった" in warning
     assert _tree(target) == before
+
+
+# ---- 2.3 掃引の終わり ----
+
+
+def _sweep(root, runs, **keyword_arguments):
+    return execution.execute_experiment_sweep(
+        planned_runs=runs,
+        output_directory=root,
+        worker_count=1,
+        run_provenance=TEST_RUN_PROVENANCE,
+        **keyword_arguments,
+    )
+
+
+def test_a_completed_sweep_packs_its_start_records_and_continuing_changes_nothing(tmp_path):
+    """`execute_experiment_sweep`を直接呼ぶ（比較scriptと同じ呼び方。`sweep.json`が無い）掃引でも、まとまる。"""
+    runs = _runs(seeds=(0, 1))
+    outcomes = _sweep(tmp_path, runs)
+    assert [outcome.run_status for outcome in outcomes] == ["completed", "completed"]
+    assert set(_zip_members(tmp_path)) == {f"fedavg/{run.run_identifier}.json" for run in runs}
+    assert not (tmp_path / ".resume" / "fedavg").exists()
+    # 記録の表はLZMA。
+    for run in runs:
+        npz = tmp_path / "fedavg" / "runs" / f"{run.run_identifier}.npz"
+        with zipfile.ZipFile(npz) as archive:
+            assert {info.compress_type for info in archive.infolist()} == {zipfile.ZIP_LZMA}
+    before = _tree(tmp_path)
+    outcomes = _sweep(tmp_path, runs)
+    assert [outcome.run_status for outcome in outcomes] == ["skipped_existing"] * 2
+    assert _tree(tmp_path) == before
+
+
+def test_a_sweep_with_a_failed_run_does_not_pack(tmp_path, monkeypatch):
+    runs = _runs(seeds=(0, 1))
+
+    def fail(**_):
+        raise RuntimeError("simulated failure")
+
+    monkeypatch.setattr(execution, "execute_fedavg_experiment_run", fail)
+    outcomes = _sweep(tmp_path, runs)
+    assert [outcome.run_status for outcome in outcomes] == ["failed", "failed"]
+    assert not (tmp_path / ".resume" / ARCHIVE).exists()
+    assert all(_record_path(tmp_path, run).is_file() for run in runs)
+
+
+def test_a_packing_warning_is_reported_and_the_sweep_does_not_fail(tmp_path, monkeypatch):
+    runs = _runs()
+    monkeypatch.setattr(
+        execution,
+        "pack_completed_sweep_run_start_records",
+        lambda _: "開始の記録をまとめなかった: x",
+    )
+    messages = []
+    outcomes = _sweep(tmp_path, runs, report_progress=messages.append)
+    assert [outcome.run_status for outcome in outcomes] == ["completed"]
+    assert any("まとめなかった" in message for message in messages)
+    # 報告先が無ければ、警告は捨てる（例外にしない）。
+    outcomes = _sweep(tmp_path / "other", runs)
+    assert [outcome.run_status for outcome in outcomes] == ["completed"]
+
+
+def test_a_sweep_stops_before_any_run_without_lzma(tmp_path, monkeypatch):
+    from federated_learning_experiments.runtime import lzma_record_table_files
+
+    def refuse(name):
+        raise ImportError(name)
+
+    monkeypatch.setattr(lzma_record_table_files, "import_module", refuse)
+    with pytest.raises(RuntimeError, match="lzma"):
+        _sweep(tmp_path / "output", _runs())
+    assert not (tmp_path / "output").exists()

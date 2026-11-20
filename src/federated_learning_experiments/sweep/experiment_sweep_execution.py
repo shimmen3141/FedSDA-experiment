@@ -58,10 +58,14 @@ from federated_learning_experiments.runtime.fedsda_run_artifact_files import (
     save_fedsda_experiment_run,
 )
 from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
+from federated_learning_experiments.runtime.lzma_record_table_files import (
+    ensure_lzma_compression_available,
+)
 from federated_learning_experiments.sweep.experiment_sweep_plan import PlannedExperimentRun
 from federated_learning_experiments.sweep.experiment_sweep_resumption import (
     can_recover_interrupted_run,
     hold_sweep_output_lock,
+    pack_completed_sweep_run_start_records,
     recover_interrupted_run,
     write_run_start_record,
 )
@@ -392,6 +396,8 @@ def execute_experiment_sweep(
         raise TypeError("report_progress must be callable or None")
 
     if not _output_lock_held:
+        # runの記録の表はLZMAで書くので、使えない環境では、runの計算の前に止める。
+        ensure_lzma_compression_available()
         # 基準版の不一致では、従来どおり補助ファイルも作らない。
         mismatches = collect_behavior_baseline_mismatch_descriptions(
             planned_runs=planned_runs, output_directory=output_directory
@@ -517,4 +523,12 @@ def execute_experiment_sweep(
             process_pool.shutdown(wait=True, cancel_futures=True)
             raise
         process_pool.shutdown(wait=True)
-    return tuple(outcomes_by_position[run_position] for run_position in range(len(planned_runs)))
+    outcomes = tuple(
+        outcomes_by_position[run_position] for run_position in range(len(planned_runs))
+    )
+    if all(outcome.run_status != "failed" for outcome in outcomes):
+        # 全runが済んだら、runごとの開始の記録を1つのzipへまとめる（失敗しても掃引は失敗にしない）。
+        warning = pack_completed_sweep_run_start_records(output_directory)
+        if warning is not None and report_progress is not None:
+            report_progress(f"warning: {warning}")
+    return outcomes
