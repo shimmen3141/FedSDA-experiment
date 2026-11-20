@@ -40,6 +40,8 @@ from pathlib import Path
 
 import numpy as np
 
+# run_summary.csvは長い欄（列の値を並べた文字列など）を持つことがある。
+csv.field_size_limit(10**9)
 ARCHIVE_NAME = "runs.zip"
 MANIFEST_NAME = "archive_manifest.json"
 _RESUME_DIRECTORY = ".resume"
