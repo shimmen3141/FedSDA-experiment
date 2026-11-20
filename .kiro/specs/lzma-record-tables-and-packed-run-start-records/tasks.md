@@ -16,7 +16,7 @@
 
 - [ ] 2. 開始の記録
 - [ ] 2.1 開始の記録の読み方（個別のファイル→zip）
-  - zipにだけ記録があるとき（zipはtestの中で手で作る）の`can_recover_interrupted_run`（直せる）と`write_run_start_record`（同じ内容は受け入れて個別のファイルを書かない、違う内容は拒否）、壊れたzipでの扱いのtestを先に書き、`_read_run_start_record`を実装して両方から使う。`experiment_sweep_resumption.py`の許可リストに、読込みで実際にimportする名前を足す。
+  - zipにだけ記録があるとき（zipはtestの中で手で作る）の`can_recover_interrupted_run`（直せる）と`write_run_start_record`（同じ内容は受け入れて個別のファイルを書かない、違う内容は拒否）、壊れたzip・途中で切れたzip・`lzma`を読み込めない状態での扱いのtestを先に書き、`_read_run_start_record`を実装して両方から使う。`experiment_sweep_resumption.py`の許可リストに、読込みで実際にimportする名前を足す。
   - 完了条件: 新しいtest・既存の再開のtest・依存境界のtestが通る。
   - _Requirements: 2.5_
   - _Boundary: experiment_sweep_resumption_
@@ -39,3 +39,10 @@
   - 完了条件: 文書があり、全pytestが通り（JUnitでgoldenのtestがskipされていない）、実装レビューがPASSである。
   - _Requirements: 3.1, 3.2, 4.1_
   - _Depends: 1.2, 2.3_
+
+## Implementation Notes
+
+### 仕様書群のレビュー（2026-11-20）
+- 7回。全てClaude Haiku 5.5（effort medium、読むだけ）。GPT-6 Lunaは使用量の上限で使えなかった。session・判定はspec.json。
+- 主な指摘と採否（全部採用）: まとめた後の再開（直す判定・開始の記録の食い違いの拒否）が今と同じでなくなる→開始の記録を個別のファイル→zipの順に読む関数を作る。zipを書き直さない条件、重複の扱い、壊れたzip・切れたzipの読込みの例外、既存testの期待の変化（要約の無いNPZのrunが直せるようになる）、依存境界の許可リスト、`import lzma`が未使用になる問題（掃引の前に`importlib.import_module`で確かめる）、全pytestの条件。
+- 7回目のPASSのMinor 3件（`numpy.ndarray`の許可、tasks 2.1の文言、研究ツールで先にまとめた出力先の扱い）は文書だけで直した。
