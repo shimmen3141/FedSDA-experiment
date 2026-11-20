@@ -148,3 +148,163 @@ def test_a_record_in_the_zip_is_unreadable_without_lzma(tmp_path, monkeypatch):
     (tmp_path / run.configuration_name / "runs" / f"{run.run_identifier}.npz").unlink()
     with pytest.raises(ValueError, match="unreadable"):
         resumption.write_run_start_record(tmp_path, run, TEST_RUN_PROVENANCE)
+
+
+# ---- 2.2 まとめる関数 ----
+
+
+def _write_records(root, runs):
+    for run in runs:
+        resumption.write_run_start_record(root, run, TEST_RUN_PROVENANCE)
+
+
+def _zip_members(root):
+    with zipfile.ZipFile(root / ".resume" / ARCHIVE) as archive:
+        assert {info.compress_type for info in archive.infolist()} == {zipfile.ZIP_LZMA}
+        return {name: archive.read(name) for name in archive.namelist()}
+
+
+def test_records_are_packed_and_the_plan_and_recovered_files_are_kept(tmp_path):
+    runs = _runs(seeds=(0, 1))
+    _write_records(tmp_path, runs)
+    # 計画に無いrunの記録もまとめる。
+    extra = tmp_path / ".resume" / "fedsda" / "other_run.json"
+    extra.parent.mkdir(parents=True)
+    extra.write_text('{"x": 1}', encoding="utf-8")
+    (tmp_path / ".resume" / "sweep.json").write_text("{}", encoding="utf-8")
+    (tmp_path / ".resume" / "recovered" / "abc").mkdir(parents=True)
+    (tmp_path / ".resume" / "recovered" / "abc" / "a.npz").write_bytes(b"backup")
+    (tmp_path / ".resume" / "fedavg" / "r.json.123.partial").write_text("p", encoding="utf-8")
+    originals = {
+        f"fedavg/{run.run_identifier}.json": _record_path(tmp_path, run).read_bytes()
+        for run in runs
+    }
+    originals["fedsda/other_run.json"] = extra.read_bytes()
+    assert resumption.pack_completed_sweep_run_start_records(tmp_path) is None
+    assert _zip_members(tmp_path) == originals
+    assert not any(_record_path(tmp_path, run).exists() for run in runs)
+    assert not (tmp_path / ".resume" / "fedsda").exists()
+    # `*.json`でない途中のファイルは残る（そのディレクトリも残る）。
+    assert (tmp_path / ".resume" / "fedavg" / "r.json.123.partial").exists()
+    assert (tmp_path / ".resume" / "sweep.json").read_text(encoding="utf-8") == "{}"
+    assert (tmp_path / ".resume" / "recovered" / "abc" / "a.npz").read_bytes() == b"backup"
+    assert not (tmp_path / ".resume" / f"{ARCHIVE}.partial").exists()
+
+
+def test_nothing_to_pack_leaves_the_zip_untouched(tmp_path):
+    runs = _runs()
+    _write_records(tmp_path, runs)
+    resumption.pack_completed_sweep_run_start_records(tmp_path)
+    before = _tree(tmp_path)
+    stat = (tmp_path / ".resume" / ARCHIVE).stat().st_mtime_ns
+    assert resumption.pack_completed_sweep_run_start_records(tmp_path) is None
+    assert _tree(tmp_path) == before
+    assert (tmp_path / ".resume" / ARCHIVE).stat().st_mtime_ns == stat
+    assert resumption.pack_completed_sweep_run_start_records(tmp_path / "missing") is None
+
+
+def test_new_records_are_added_to_an_existing_zip(tmp_path):
+    runs = _runs(seeds=(0, 1))
+    _write_records(tmp_path, runs[:1])
+    resumption.pack_completed_sweep_run_start_records(tmp_path)
+    first = _zip_members(tmp_path)
+    _write_records(tmp_path, runs[1:])
+    second_bytes = _record_path(tmp_path, runs[1]).read_bytes()
+    assert resumption.pack_completed_sweep_run_start_records(tmp_path) is None
+    assert _zip_members(tmp_path) == {
+        **first,
+        f"fedavg/{runs[1].run_identifier}.json": second_bytes,
+    }
+    assert not _record_path(tmp_path, runs[1]).exists()
+
+
+def test_only_duplicates_are_removed_without_rewriting_the_zip(tmp_path):
+    runs = _runs()
+    _write_records(tmp_path, runs)
+    data = _record_path(tmp_path, runs[0]).read_bytes()
+    resumption.pack_completed_sweep_run_start_records(tmp_path)
+    zip_bytes = (tmp_path / ".resume" / ARCHIVE).read_bytes()
+    _record_path(tmp_path, runs[0]).parent.mkdir(parents=True, exist_ok=True)
+    _record_path(tmp_path, runs[0]).write_bytes(data)
+    assert resumption.pack_completed_sweep_run_start_records(tmp_path) is None
+    assert (tmp_path / ".resume" / ARCHIVE).read_bytes() == zip_bytes
+    assert not _record_path(tmp_path, runs[0]).exists()
+
+
+def test_a_different_duplicate_leaves_everything_and_warns(tmp_path):
+    runs = _runs()
+    _write_records(tmp_path, runs)
+    resumption.pack_completed_sweep_run_start_records(tmp_path)
+    _record_path(tmp_path, runs[0]).parent.mkdir(parents=True, exist_ok=True)
+    _record_path(tmp_path, runs[0]).write_bytes(b'{"other": true}')
+    before = _tree(tmp_path)
+    warning = resumption.pack_completed_sweep_run_start_records(tmp_path)
+    assert warning is not None and "まとめなかった" in warning
+    assert _tree(tmp_path) == before
+
+
+def _fail_verification(*arguments, **keyword_arguments):
+    raise ValueError("simulated mismatch")
+
+
+def _fail_writing(path, *arguments, **keyword_arguments):
+    if str(path).endswith(".partial") and arguments and arguments[0] == "w":
+        raise OSError("simulated disk full")
+    return zipfile.ZipFile(path, *arguments, **keyword_arguments)
+
+
+@pytest.mark.parametrize("failure", ["verification", "writing", "broken_existing_zip"])
+def test_a_failure_before_placing_the_zip_keeps_the_originals(tmp_path, monkeypatch, failure):
+    runs = _runs(seeds=(0, 1))
+    _write_records(tmp_path, runs)
+    if failure == "verification":
+        monkeypatch.setattr(resumption, "_verify_run_start_record_archive", _fail_verification)
+    elif failure == "writing":
+        monkeypatch.setattr(resumption, "ZipFile", _fail_writing)
+    else:
+        (tmp_path / ".resume" / ARCHIVE).write_bytes(b"not a zip file")
+    (tmp_path / ".resume" / f"{ARCHIVE}.partial").write_bytes(b"left over")
+    before = _tree(tmp_path)
+    del before[f".resume/{ARCHIVE}.partial"]
+    warning = resumption.pack_completed_sweep_run_start_records(tmp_path)
+    assert warning is not None and "まとめなかった" in warning
+    assert _tree(tmp_path) == before
+
+
+def test_a_failure_while_removing_the_originals_is_reported_after_placing_the_zip(
+    tmp_path, monkeypatch
+):
+    runs = _runs()
+    _write_records(tmp_path, runs)
+    data = _record_path(tmp_path, runs[0]).read_bytes()
+    real_unlink = type(tmp_path).unlink
+
+    def fail_unlink(path, *arguments, **keyword_arguments):
+        if path.suffix == ".json":
+            raise OSError("simulated failure while removing")
+        return real_unlink(path, *arguments, **keyword_arguments)
+
+    monkeypatch.setattr(type(tmp_path), "unlink", fail_unlink)
+    warning = resumption.pack_completed_sweep_run_start_records(tmp_path)
+    monkeypatch.undo()
+    assert warning is not None and "まとめたが" in warning
+    assert _zip_members(tmp_path) == {f"fedavg/{runs[0].run_identifier}.json": data}
+    # 次のまとめで、zipと同じ内容の重複として消える。
+    assert resumption.pack_completed_sweep_run_start_records(tmp_path) is None
+    assert not _record_path(tmp_path, runs[0]).exists()
+
+
+def test_a_linked_resume_directory_is_not_packed(tmp_path):
+    runs = _runs()
+    target = tmp_path / "elsewhere"
+    _write_records(target, runs)
+    output = tmp_path / "output"
+    output.mkdir()
+    try:
+        (output / ".resume").symlink_to(target / ".resume", target_is_directory=True)
+    except OSError:
+        pytest.skip("この環境ではsymlinkを作れない")
+    before = _tree(target)
+    warning = resumption.pack_completed_sweep_run_start_records(output)
+    assert warning is not None and "まとめなかった" in warning
+    assert _tree(target) == before

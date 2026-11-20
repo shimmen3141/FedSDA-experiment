@@ -11,7 +11,7 @@ from os import replace as replace_file
 from pathlib import Path
 from platform import machine, python_version, system
 from uuid import uuid4
-from zipfile import ZipFile
+from zipfile import ZIP_LZMA, ZipFile
 
 from numpy import __version__ as numpy_version
 from torch import __version__ as torch_version
@@ -275,6 +275,92 @@ def can_recover_interrupted_run(
         return _same_document(proof, _describe_start(planned_run, run_provenance))
     except (OSError, ValueError):
         return False
+
+
+def _verify_run_start_record_archive(archive_path: Path, expected: dict[str, bytes]) -> None:
+    """書いたzipを読み戻し、名前の集合と各記録のバイト列が、まとめる前に読んだものと同じことを確かめる。"""
+    with ZipFile(archive_path) as archive:
+        if set(archive.namelist()) != set(expected):
+            raise ValueError("run start record archive members differ from the records")
+        for member_name, data in expected.items():
+            if archive.read(member_name) != data:
+                raise ValueError(f"run start record differs after packing: {member_name}")
+
+
+def pack_completed_sweep_run_start_records(output_directory: Path) -> str | None:
+    """全runが済んだ掃引の、runごとの開始の記録を`.resume/run_start_records.zip`へまとめる。
+
+    `.resume/`直下の`recovered`以外の各ディレクトリの`*.json`を集め、既にあるzipの記録と合わせて
+    LZMAのzipを作り、読み戻して照合してから置き、その後で個別のファイルを消す。`sweep.json`・`recovered/`・
+    途中のファイル（`*.partial`）は残す。新しい記録が無ければzipを書き直さない（重複の個別のファイルだけ消す）。
+    戻り値: 警告の文字列か`None`。zipを置く前の失敗は、元を残して「まとめなかった」を返す（例外を出さない）。
+    """
+    resume_directory = output_directory / ".resume"
+    if not resume_directory.exists() and not _is_link(resume_directory):
+        return None
+    partial_path: Path | None = None
+    try:
+        resume_directory = _safe_path(output_directory, ".resume")
+        archive_path = _safe_path(output_directory, ".resume", RUN_START_RECORD_ARCHIVE_NAME)
+        partial_path = _safe_path(
+            output_directory, ".resume", RUN_START_RECORD_ARCHIVE_NAME + ".partial"
+        )
+        partial_path.unlink(missing_ok=True)
+        records: dict[str, tuple[Path, bytes]] = {}
+        record_directories = []
+        for directory in sorted(resume_directory.iterdir()):
+            if directory.name == "recovered" or not (directory.is_dir() or _is_link(directory)):
+                continue
+            directory = _safe_path(output_directory, ".resume", directory.name)
+            record_directories.append(directory)
+            for path in sorted(directory.glob("*.json")):
+                path = _safe_path(output_directory, ".resume", directory.name, path.name)
+                records[f"{directory.name}/{path.name}"] = (path, path.read_bytes())
+        if not records:
+            return None
+        existing: dict[str, bytes] = {}
+        if archive_path.exists():
+            with ZipFile(archive_path) as archive:
+                existing = {name: archive.read(name) for name in archive.namelist()}
+        for member_name, (_, data) in records.items():
+            if member_name in existing and existing[member_name] != data:
+                return (
+                    "開始の記録をまとめなかった: zipと個別のファイルで内容が違う記録があります: "
+                    f"{member_name}"
+                )
+        new_records = {
+            member_name: data
+            for member_name, (_, data) in records.items()
+            if member_name not in existing
+        }
+        if new_records:
+            combined = {**existing, **new_records}
+            with ZipFile(partial_path, "w", compression=ZIP_LZMA) as archive:
+                for member_name, data in combined.items():
+                    archive.writestr(member_name, data)
+            with partial_path.open("rb+") as stream:
+                fsync(stream.fileno())
+            _verify_run_start_record_archive(partial_path, combined)
+            replace_file(partial_path, archive_path)
+    except Exception as caught_exception:
+        if partial_path is not None:
+            try:
+                partial_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+        return f"開始の記録をまとめなかった: {caught_exception}"
+    try:
+        for path, _ in records.values():
+            path.unlink()
+        for directory in record_directories:
+            if not any(directory.iterdir()):
+                directory.rmdir()
+    except OSError as caught_exception:
+        return (
+            "開始の記録をzipへまとめたが、一部の個別のファイルが残った"
+            f"（次の掃引の終わりに重複として消える）: {caught_exception}"
+        )
+    return None
 
 
 def recover_interrupted_run(
