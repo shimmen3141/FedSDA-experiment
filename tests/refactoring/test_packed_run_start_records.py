@@ -397,8 +397,8 @@ def test_a_temporarily_locked_zip_is_replaced_after_retrying(tmp_path, monkeypat
             raise PermissionError("simulated sharing violation")
         real_replace(source, destination)
 
+    # 待ち時間は既定のまま（本物の一時的な拒否が重なっても、やり直しの余地を残す）。
     monkeypatch.setattr(resumption, "replace_file", refuse_twice)
-    monkeypatch.setattr(resumption, "_REPLACE_RETRY_SECONDS", 0.0)
     assert resumption.pack_completed_sweep_run_start_records(tmp_path) is None
     assert len(refusals) == 2
     assert len(_zip_members(tmp_path)) == 2
