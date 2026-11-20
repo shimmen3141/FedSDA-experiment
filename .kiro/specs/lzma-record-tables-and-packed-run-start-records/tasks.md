@@ -18,12 +18,12 @@
 - [ ] 2.1 まとめる関数と開始の記録の読み方
   - `pack_completed_sweep_run_start_records`のtest（まとめ・照合・元の削除、`sweep.json`と`recovered/`を残す、個別のファイルが無ければzipを書き直さない、既存のzipへの追加、同じ名前で同じ中身なら二重にしない・違う中身ならまとめない、照合の失敗とOSErrorで元が残る、残った`.partial`を消す）と、まとめた後の`can_recover_interrupted_run`・`write_run_start_record`のtestを先に書き、実装する。`experiment_sweep_resumption.py`の許可リストを更新する。
   - 完了条件: 新しいtestと既存の再開のtestが通る。
-  - _Requirements: 2.1, 2.2, 2.4_
+  - _Requirements: 2.1, 2.2, 2.4, 2.5, 2.6_
   - _Boundary: experiment_sweep_resumption_
 - [ ] 2.2 掃引の終わりへの接続
   - 掃引のtest（全部済めばまとまる、失敗があればまとめない、まとめた後に続けると全runが飛ばされファイルが変わらない、まとめの失敗で警告を出し掃引は失敗にしない）を先に書き、`execute_experiment_sweep`から呼ぶ。`test_experiment_sweep.py`の、完了した掃引から開始の記録を消して中断を作るtestの前提を書き換える。`experiment_sweep_execution.py`の許可リストを更新する。
   - 完了条件: 掃引と再開のtest・依存境界のtestが通る。
-  - _Requirements: 2.1, 2.3, 2.5_
+  - _Requirements: 2.1, 2.3, 2.5, 2.6_
   - _Depends: 2.1_
 
 - [ ] 3. 文書と確認
