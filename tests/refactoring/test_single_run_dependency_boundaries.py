@@ -4722,6 +4722,16 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
             "federated_learning_experiments.runtime.fedsda_run_server.FedsdaRunServer",
         )
+    if source_module_path == "runtime/lzma_record_table_files.py":
+        return imported_module_name in (
+            "importlib.import_module",
+            "typing.BinaryIO",
+            "zipfile.ZIP_LZMA",
+            "zipfile.ZipFile",
+            "numpy.asanyarray",
+            "numpy.ndarray",
+            "numpy.lib.format.write_array",
+        )
     if source_module_path == "runtime/fedsda_run_artifact_files.py":
         return imported_module_name in (
             "federated_learning_experiments.core.run_provenance.RunProvenance",
@@ -6380,6 +6390,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "sweep/experiment_sweep_resumption.py",
             "sweep/experiment_sweep_command.py",
             "runtime/fedsda_run_artifact_files.py",
+            "runtime/lzma_record_table_files.py",
             "runtime/fedsda_run_record_tables.py",
             "runtime/fedsda_experiment_run.py",
             "runtime/fedsda_run_metric_derivation.py",
@@ -6499,6 +6510,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "sweep/experiment_sweep_resumption.py",
                     "sweep/experiment_sweep_command.py",
                     "runtime/fedsda_run_artifact_files.py",
+                    "runtime/lzma_record_table_files.py",
+                    "runtime/lzma_record_table_files.py",
                     "runtime/fedsda_run_record_tables.py",
                     "runtime/fedsda_experiment_run.py",
                     "runtime/fedsda_run_metric_derivation.py",
