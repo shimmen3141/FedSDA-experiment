@@ -28,14 +28,14 @@
   - _Boundary: experiment_sweep_resumption_
   - _Depends: 2.1_
 - [ ] 2.3 掃引の終わりへの接続
-  - 掃引のtest（設計書の「(B) 掃引」と、lzmaが無ければrunの前に止まること）を先に書き、`execute_experiment_sweep`から`ensure_lzma_compression_available`とまとめを呼ぶ。`test_experiment_sweep.py`の、完了した掃引から開始の記録を消して中断を作るtestを、設計書の「既存のtestの書き換え」のとおり直す（zipに証拠があれば直して再実行、証拠の無いzipの別のcaseでは今と同じく失敗）。`experiment_sweep_execution.py`の許可リストを更新する。fresh smokeにまとめの確認を足す。
+  - 掃引のtest（設計書の「(B) 掃引」と、lzmaが無ければrunの前に止まること）を先に書き、`execute_experiment_sweep`から`ensure_lzma_compression_available`とまとめを呼ぶ。`test_experiment_sweep.py`の`test_conflicting_existing_files_are_reported_and_not_overwritten`の`missing_summary`の場合を、設計書の「既存のtestの書き換え」のとおり直す（zipの中の記録を除いて今と同じく失敗を確かめ、証拠の残るcaseは直して再実行を確かめる）。`experiment_sweep_execution.py`の許可リストを更新する。fresh smokeにまとめの確認を足す。
   - 完了条件: 掃引と再開のtest・依存境界のtest・fresh smokeが通る。
   - _Requirements: 2.1, 2.3, 2.5, 2.6_
   - _Depends: 2.2_
 
 - [ ] 3. 文書と確認
 - [ ] 3.1 文書・全pytest・実装レビュー
-  - `docs/experiments/experiment-sweep.md`に足す（記録の表のLZMA、`run_start_records.zip`、uraniumと分析に使うPCで`import lzma`を確かめる手順、掃引の途中で更新しない注意）。全pytest（`OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`、`tests/test_regression.py`・`tests/test_proposed_regression.py`を含む全部）、`ruff check src tests/refactoring`、pyright。独立CLIの実装レビュー1回。
+  - `docs/experiments/experiment-sweep.md`に足す（記録の表のLZMA、`run_start_records.zip`、壊れたzipの影響と復旧の手順、uraniumと分析に使うPCで`import lzma`を確かめる手順、掃引の途中で更新しない注意）。全pytest（`OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`、`tests/test_regression.py`・`tests/test_proposed_regression.py`を含む全部）、`ruff check src tests/refactoring`、pyright。独立CLIの実装レビュー1回。
   - 完了条件: 文書があり、全pytestが通り（JUnitでgoldenのtestがskipされていない）、実装レビューがPASSである。
   - _Requirements: 3.1, 3.2, 4.1_
   - _Depends: 1.2, 2.3_
