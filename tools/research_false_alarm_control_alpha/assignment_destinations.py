@@ -35,11 +35,13 @@ WINDOW = 300
 _SWITCH_ACTIONS = ("adopt_candidate_model", "reuse_held_model")
 
 
-def _runs(directory, datasets, intervals, seeds):
+def _runs(directory, datasets, intervals, seeds, row_filter=None):
     archive_path = directory / "runs.zip"
     archive = zipfile.ZipFile(archive_path) if archive_path.exists() else None
     with open(directory / "run_summary.csv", encoding="utf-8") as stream:
         for row in csv.DictReader(stream):
+            if row_filter and row.get(row_filter[0]) != row_filter[1]:
+                continue
             interval = int(row["server_aggregation_interval_per_client_samples"])
             key = (row["dataset_name"], interval, int(row["random_seed"]))
             if key[0] not in datasets or interval not in intervals or key[2] not in seeds:
@@ -184,6 +186,12 @@ def analyze_run(a, interval):
     return dict(
         # 系統の概念（系統→真の概念の多数派）と、(client, 番号)→系統の関数（`research_mdl_hypothesis_trace`が使う）。
         label=label,
+        # (真の概念, 学習先の系統の概念)ごとの標本の数。
+        confusion=collections.Counter(
+            (int(concepts[c, i]), label[assigned[c, i]])
+            for c in range(client_count)
+            for i in range(sample_count)
+        ),
         lineage=lambda client_id, model_id: lineage(client_id, model_id),
         merged_pairs=int(merged.sum()),
         wrongly_merged_pairs=int((merged & (concepts_match == 0)).sum()),
@@ -210,7 +218,11 @@ _OUTCOME_ORDER = (
 
 def main(command_arguments=None):
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
-    parser.add_argument("sources", nargs="+", help="<名前> <構成のフォルダ> の組")
+    parser.add_argument(
+        "sources",
+        nargs="+",
+        help="<名前> <構成のフォルダ> の組。フォルダの後に@列=値を付けると、その列がその値のrunだけを読む",
+    )
     parser.add_argument("--datasets", nargs="+", required=True)
     parser.add_argument("--intervals", nargs="+", type=int, required=True)
     parser.add_argument("--seeds", nargs="+", type=int, required=True)
@@ -230,7 +242,11 @@ def main(command_arguments=None):
     print("|---|---|---|---|---|---|---|---|---|" + "---|" * len(_OUTCOME_ORDER))
     results = collections.defaultdict(list)
     for name, directory in zip(arguments.sources[::2], arguments.sources[1::2]):
-        for key, a in _runs(Path(directory), arguments.datasets, arguments.intervals, arguments.seeds):
+        directory, _, condition = directory.partition("@")
+        row_filter = tuple(condition.split("=", 1)) if condition else None
+        for key, a in _runs(
+            Path(directory), arguments.datasets, arguments.intervals, arguments.seeds, row_filter
+        ):
             results[(key[0], key[1], name)].append(analyze_run(a, key[1]))
     names = arguments.sources[::2]
     for dataset in arguments.datasets:

@@ -44,14 +44,19 @@ def _elapsed_seconds(log_paths):
     return seconds
 
 
-def read_configuration(directory, log_paths):
-    """構成のフォルダ（`run_summary.csv`がある）の各runを、(データ, 間隔, seed)ごとの値にする。"""
+def read_configuration(directory, log_paths, row_filter=None):
+    """構成のフォルダ（`run_summary.csv`がある）の各runを、(データ, 間隔, seed)ごとの値にする。
+
+    `row_filter`は(列の名前, 値の文字列)で、その列がその値のrunだけを読む（例: FIFOの容量で分ける）。
+    """
     archive_path = directory / "runs.zip"
     archive = zipfile.ZipFile(archive_path) if archive_path.exists() else None
     elapsed = _elapsed_seconds(log_paths)
     rows = {}
     with open(directory / "run_summary.csv", encoding="utf-8") as stream:
         for row in csv.DictReader(stream):
+            if row_filter and row.get(row_filter[0]) != row_filter[1]:
+                continue
             name = f"runs/{row['run_identifier']}.npz"
             data = archive.read(name) if archive else (directory / name).read_bytes()
             interval = int(row["server_aggregation_interval_per_client_samples"])
@@ -135,7 +140,15 @@ def analyze(sources, baseline_name, keys):
 def main(command_arguments=None):
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument("--root", type=Path, required=True, help="この研究ツールの出力先（変種のフォルダの親）")
-    parser.add_argument("--variants", nargs="+", required=True)
+    parser.add_argument("--variants", nargs="*", default=[])
+    parser.add_argument(
+        "--source",
+        nargs=3,
+        action="append",
+        default=[],
+        metavar=("NAME", "DIRECTORY", "COLUMN=VALUE"),
+        help="ほかの構成のフォルダ。COLUMN=VALUEでrunを絞る（絞らないときは-）。ログは<DIRECTORY>/../run.log",
+    )
     parser.add_argument("--baseline", type=Path, required=True, help="既定の構成のフォルダ（fedsda）")
     parser.add_argument("--baseline-log", type=Path, nargs="*", default=[])
     parser.add_argument("--feddrift", type=Path, help="FedDriftの構成のフォルダ（任意）")
@@ -150,6 +163,13 @@ def main(command_arguments=None):
     for variant in arguments.variants:
         sources[variant] = read_configuration(
             arguments.root / variant / "fedsda", [arguments.root / "run.log"]
+        )
+    for name, directory, condition in arguments.source:
+        directory = Path(directory)
+        sources[name] = read_configuration(
+            directory,
+            [directory.parent / "run.log"],
+            None if condition == "-" else tuple(condition.split("=", 1)),
         )
     if arguments.feddrift:
         sources["FedDrift"] = read_configuration(arguments.feddrift, arguments.feddrift_log)
