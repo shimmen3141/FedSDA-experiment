@@ -8,7 +8,7 @@
   - runの記録の`updates_per_sample`と、更新の回数が4倍になることを、小さな条件で確かめた。
 - `product-default`（回数1）・`updates-2`・`updates-4`×agrawal4・randomrbf4・stagger3×間隔50×seed 0〜4で、45 run・失敗0。
   - 手元とuraniumの環境差を避けるため、回数1も手元で流した。手元の回数1は、uraniumの既定と、全体の精度で0.02〜0.07pp以内。
-  - 掃引の壁時計は、回数1が73分、回数2が80分、回数4が約2時間20分（15 runに対して14 workersなので、1 runが2巡目に回った）。
+  - 掃引の壁時計は、回数1が73分、回数2が80分、回数4が98分（17:52〜19:30。15 runに対して14 workersなので、1 runが2巡目に回った）。
 - FedHASPは、既定（回数1）が`fedhasp-oracle-v16/20261120_recurring-synthetic-seeds0-4/product-default`、回数2・4が[前の試し](training-iterations-recurring-synthetic-20261121.md)の出力。
 - 出力: `results/feddrift-training-iterations-v16/20261121_recurring-synthetic-interval50-seeds0-4`。集計は`analysis_equal_compute.md`と`analysis_equal_compute_pairs.md`（`equal_compute_pairs.py`）。
 
