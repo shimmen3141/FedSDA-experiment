@@ -147,7 +147,7 @@ def main(command_arguments=None):
         action="append",
         default=[],
         metavar=("NAME", "DIRECTORY", "COLUMN=VALUE"),
-        help="ほかの構成のフォルダ。COLUMN=VALUEでrunを絞る（絞らないときは-）。ログは<DIRECTORY>/../run.log",
+        help="ほかの構成のフォルダ。COLUMN=VALUEでrunを絞る（絞らないときは-）。ログは<DIRECTORY>/../run.logか<DIRECTORY>/../../run.log",
     )
     parser.add_argument("--baseline", type=Path, required=True, help="既定の構成のフォルダ（fedsda）")
     parser.add_argument("--baseline-log", type=Path, nargs="*", default=[])
@@ -168,7 +168,7 @@ def main(command_arguments=None):
         directory = Path(directory)
         sources[name] = read_configuration(
             directory,
-            [directory.parent / "run.log"],
+            [directory.parent / "run.log", directory.parent.parent / "run.log"],
             None if condition == "-" else tuple(condition.split("=", 1)),
         )
     if arguments.feddrift:
