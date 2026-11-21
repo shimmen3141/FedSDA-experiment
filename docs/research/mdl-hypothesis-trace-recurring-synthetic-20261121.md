@@ -5,7 +5,7 @@
 
 ## 条件
 - 研究ツール`tools/research_mdl_hypothesis_trace`（commit `556fa785`、基準版16、手元のWindows、14 workers）。既定のrunのまま、警報ごとに、最小記述長の選択の入力を記録する。入力は、列の各標本での今のモデルと行き先の保有モデルの対数損失、変化区間の長さごとの新しいモデルの予測的符号長、切り替えの符号長。包んだ関数は、元の関数をそのまま呼ぶ。
-- agrawal4・randomrbf4・stagger3×間隔50×seed 0〜4×10 client×5000標本、15 run・失敗0、所要約30分。
+- agrawal4・randomrbf4・stagger3×間隔50×seed 0〜4×10 client×5000標本、15 run・失敗0、掃引の壁時計で16分（12:05〜12:21）。
 - 15 runとも、既存の既定のrun（`fedhasp-oracle-v16/20261120_recurring-synthetic-seeds0-4/product-default`）と、runの識別子も精度も同じ。記録のための包みは結果を変えていない。標準指標（通信・MAC）も既存の既定と同じ。
 - 検算: 1,457件の警報の全部で、記録した入力から計算し直した最短の仮説と符号長が、製品の選択と一致した。
 - 分析は`tools/research_mdl_hypothesis_trace/analyze.py`。出力は`results/fedhasp-mdl-hypothesis-trace-v16/20261121_recurring-synthetic-interval50-seeds0-4/analysis_mdl_hypothesis_trace.md`。
