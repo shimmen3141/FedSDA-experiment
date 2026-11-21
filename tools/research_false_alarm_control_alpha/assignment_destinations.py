@@ -182,6 +182,9 @@ def analyze_run(a, interval):
     merged = a["model_pair_clustering.assigned_to_same_cluster"].astype(bool)
     concepts_match = a["model_pair_clustering.true_concepts_match"]
     return dict(
+        # 系統の概念（系統→真の概念の多数派）と、(client, 番号)→系統の関数（`research_mdl_hypothesis_trace`が使う）。
+        label=label,
+        lineage=lambda client_id, model_id: lineage(client_id, model_id),
         merged_pairs=int(merged.sum()),
         wrongly_merged_pairs=int((merged & (concepts_match == 0)).sum()),
         wrong=100 * wrong.mean(),
