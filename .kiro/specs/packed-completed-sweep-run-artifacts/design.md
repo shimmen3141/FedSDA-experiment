@@ -10,6 +10,7 @@
 - 重複: `experiment_sweep_resumption`の非公開の`_is_link`・`_replace_with_retries`（`PermissionError`のやり直し）と同じ処理を、新しいmoduleに非公開で持つ（非公開の名前は他のmoduleから読めない規約のため。共通化は今回しない）。
 - 掃引のコマンドでの計画の違う掃引: 今のコマンドは、排他の中で`write_sweep_resumption_plan`を呼び、出力先の`.resume/sweep.json`と計画が違えば止める（`ValueError`、終了コード2）。この規則は変えない。そのため、zipに無いrunを足す戻しが働くのは、`execute_experiment_sweep`を直接呼ぶ経路（比較scriptは`sweep.json`を書かない）と、`runs/`とzipが両方ある途中の状態から同じ計画で続ける場合である。
 - 研究ツールでまとめたzip: NPZの中をLZMAへ書き直しており、manifestのsha256は元のNPZのバイト列なので、製品のsha256の照合では合わない。製品は、manifestの項目に`arrays`がある（研究ツールの形）ことを見て、「研究ツールでまとめたzipなので、`unpack`してから流し直す」という理由で読めない（食い違う）とする。研究ツールの形を製品で読む処理は持たない。
+- 製品の外の研究ツール（`tools/research_single_client_stream_baselines/*`など、`runs/`をglobする物）は、`runs/`が無いと黙って0件になる。範囲外とし、文書で`unpack`を促す。それらがまとめた構成を見つけたら止まるようにすることは、今後の候補（再開案内の次の候補へ書く）。
 - 再検証が要る変更: まとめた後の出力先は`runs/`を持たない。`runs/`を直接読む製品の外のツール（`tools/`の多く）は、研究ツールの`unpack`の後に使う（文書に書く）。製品の中（`src/`とリポジトリのルートのscript）で`runs/`を読むのは次の6つ。
   - 開始の記録を書く前の確認（`write_run_start_record`。そのrunのJSON・NPZが`runs/`に無いこと）: 計算するrunは、戻しの後（`runs/`がある状態）か、zipに無いrunなので、今のままでよい。
   - 状態の判定: この設計で扱う。
@@ -29,13 +30,13 @@
 ## 新しいmodule `packed_run_artifact_archive`
 - `RUN_ARTIFACT_ARCHIVE_NAME = "runs.zip"`（公開の定数）。
 
-### `pack_configuration_run_artifacts(configuration_directory: Path) -> tuple[bool, str | None]`
-1つの構成をまとめる。(zipを置いたか, 警告の文字列か`None`)を返す。zipを置いた後に元の削除が途中で失敗したときは(`True`, 警告)、まとめなかったときは(`False`, 理由)。例外は出さない（`Exception`を捕まえて警告にする）。呼出し側は、`runs/`がある構成だけを渡す。
+### `pack_configuration_run_artifacts(configuration_directory: Path) -> ConfigurationRunArtifactPackingOutcome`
+1つの構成をまとめる。結果は`ConfigurationRunArtifactPackingOutcome(archive_placed: bool, warning_description: str | None)`（frozen dataclass）。3つの場合がある: zipを置いた（元の削除が途中で失敗したら警告付き）、まとめなかった（`archive_placed=False`、理由）、`runs/`が空で何もしなかった（`archive_placed=False`、`None`）。例外は出さない（`Exception`を捕まえて警告にする）。呼出し側は、`runs/`がある構成だけを渡す。
 1. `runs/`がディレクトリでない・リンク、または`runs.zip`が既にある（リンクを含む）なら、警告を返す。
-2. `runs/`の直下を列挙し、全てが通常のファイルで、名前が`<run>.json`と`<run>.npz`の組（同じ`<run>`の両方）であることを確かめる。組でない物（片方だけのrun、`.partial`などほかの名前、ディレクトリ）があれば警告を返す。`runs/`が空なら、何もせずに(`False`, `None`)を返す。
+2. `runs/`の直下を列挙し、全てが通常のファイルで、名前が`<run>.json`と`<run>.npz`の組（同じ`<run>`の両方）であることを確かめる。組でない物（片方だけのrun、`.partial`などほかの名前、ディレクトリ）があれば警告を返す。`runs/`が空なら、何もせずに（`archive_placed=False`、`None`）返す。
 3. 残っている`runs.zip.partial`を消し、`runs.zip.partial`へ書く。各ファイルは、`ZipInfo(パス)`の`compress_type`に要約なら`ZIP_LZMA`、記録の表なら`ZIP_STORED`を指定し、`ZipFile.open(zipinfo, "w", force_zip64=True)`へ、1MBずつ読みながら書く。書きながらsha256とバイト数を数える。最後にmanifestを書き、fsyncする。
 4. 読み戻して照合する。memberの集合がmanifestの項目と`archive_manifest.json`を合わせたものと同じこと、全memberを1MBずつ読んだsha256とバイト数が手順3の値と一致することを確かめる。手順3の値は、元のファイルを読んだバイト列から数えたものなので、これで要求1.3の「元のファイルのバイト列との一致」を確かめたことになる（まとめの間は出力先の排他を持つので、元が書き換わらない）。合わなければ例外にする（手順6）。
-5. `os.replace`で`runs.zip`へ置く。`PermissionError`のときは、開始の記録のまとめと同じく0.5秒ずつ最大8回やり直す（Windowsで作ったばかりのzipの置き換えが拒否されることがあるため）。その後、元のファイルを消し、`runs/`を消す。削除の途中の失敗は「まとめたが、一部の個別のファイルが残った」という警告にする（各ファイルは`runs/`かzipのどちらかにある）。
+5. 元のファイルを消す直前に、元の各ファイルのsha256を読み直して計算し、manifestと同じことを確かめる（要求1.3の「元のファイルのバイト列との一致」。合わなければ、zipを置かずに手順6）。その後、`os.replace`で`runs.zip`へ置く。`PermissionError`のときは、開始の記録のまとめと同じく0.5秒ずつ最大8回やり直す（Windowsで作ったばかりのzipの置き換えが拒否されることがあるため）。その後、元のファイルを消し、`runs/`を消す。削除の途中の失敗は「まとめたが、一部の個別のファイルが残った」という警告にする（各ファイルは`runs/`かzipのどちらかにある）。
 6. zipを置く前の`Exception`では、`.partial`を消して元を残し、「まとめなかった（理由）」を返す。
 
 ### `pack_completed_sweep_run_artifacts(output_directory: Path, configuration_names: tuple[str, ...]) -> RunArtifactPackingResult`
@@ -49,17 +50,20 @@
   - 片方だけ・manifestと合わない・zipが壊れている（`zipfile.BadZipFile`、`lzma`の例外、`json`の失敗、`KeyError`など`OSError`以外の`Exception`）ときは`ValueError`にする。`OSError`はそのまま出す。
   - `lzma`が無い環境（zipfileがLZMAのmemberで`RuntimeError`を出す）は、`ValueError`の説明を「LZMAが使えないので読めない」と分ける（壊れたzipと区別するため）。掃引のコマンドは`_output_lock_held=True`で呼ぶので、`execute_experiment_sweep`の`ensure_lzma_compression_available`を通らない。そのため、この変換は、読み出し・一覧・戻しの3つ全てで同じにする（`OSError`以外の`Exception`を`ValueError`へ。`RuntimeError`も外へ出さない）。
   - manifestの項目に`arrays`があれば（研究ツールの形）、照合の前に「研究ツールでまとめたzipなので、`unpack`してから流し直す」という`ValueError`にする。
-- `list_packed_run_identifiers(configuration_directory: Path) -> frozenset[str]`: manifestに要約と記録の表の両方があるrunの識別子。zipが読めなければ`ValueError`。
+- `list_packed_run_identifiers(configuration_directory: Path) -> frozenset[str]`: manifestに要約と記録の表の両方があるrunの識別子。zipが読めない、または、manifestに片方だけのrunがあれば`ValueError`（そのzipは製品が作る形ではないので、戻さずに、その構成のrunを失敗にする）。
 - `restore_packed_run_artifacts(configuration_directory: Path) -> None`
   - manifestの各項目について、パスが`runs/<名前>`で、名前に区切り文字・`..`が無いことを確かめる。
   - 構成のディレクトリ・`runs/`・`runs.zip`がリンクなら`ValueError`（`experiment_sweep_resumption`の`_safe_path`・`_is_link`と同じ確認を、非公開で持つ）。`runs/`が無ければ作る。
   - 始める前に、`runs/`の中の、manifestの名前に一致する`<名前>.*.partial`（前の戻しが中断で残したもの）を消す。
   - 戻す先が無ければ`runs/<名前>.<uuid>.partial`へ書いてsha256を確かめてから、まとめと同じやり直し付きの`os.replace`で置く。途中で失敗したら、その`.partial`を消してから例外を出す（`.partial`が残ると次のまとめの組の確認で警告になるため）。戻す先があって中身のsha256がmanifestと同じなら何もしない（前の戻しが途中で止まった場合）。違えば`ValueError`。
-  - 全項目が済んだら`runs.zip`を消す。読めないzip・照合の不一致は`ValueError`。
+  - 全項目が済んだら`runs.zip`を消す（`PermissionError`のときは、置き換えと同じく0.5秒ずつ最大8回やり直す。ほかのprocessが読むために開いていると、Windowsで削除が拒否されるため）。読めないzip・照合の不一致は`ValueError`。zipを消せないまま終わっても、次の実行で、`runs/`とzipが両方ある状態から戻し直せる。
   - zipを消す前に失敗しても、戻し終えたファイルはmanifestと同じなので残す。
 
 ## 状態の判定（`find_existing_run_state`）
-- 今の判定（`runs/<run>.json`・`.npz`のどちらかがあれば、今のまま）の後に、どちらも無く、構成のディレクトリに`runs.zip`があるときだけ、`read_packed_run_summary_and_record_table`を呼ぶ。
+- 今の判定（`runs/<run>.json`・`.npz`のどちらかがあれば、今のまま）の前に、構成のディレクトリに`runs.zip`があるときだけ、次を調べる。
+  - `runs/`にそのrunのファイルが無い: `read_packed_run_summary_and_record_table`を呼ぶ（下）。
+  - `runs/`に片方だけがある: zipに両方があり、`runs/`の片方がzipの中と同じバイト列なら（元の削除が途中で止まった状態）、zipから判定する。それ以外は今と同じ判定（片方だけなので「食い違う」）。これで、`--print-plan`・再開の候補の数・対話の再開でも、この状態が「食い違う」と見えない。
+  - `runs/`に両方がある: 今と同じ判定（個別のファイルから）。
   - `None`なら「無い」（`missing`）。
   - `ValueError`・`OSError`なら「食い違う」（`conflicting`）。説明は`existing packed run files cannot be read: <zipのパス> (<型>: <理由>)`。例外を外へ出さないので、再開の候補の探索（候補ごとの`OSError`・`ValueError`で、その候補を一覧から落とす）でも、壊れたzipの構成は候補に残り、そのrunは「食い違う」として数えられる。
   - 読めたら、`tempfile.TemporaryDirectory()`に`<run>.json`と`<run>.npz`を書き、今と同じ読込み関数（`load_*_run_artifacts(summary_file_path=...)`）と、今と同じ基準版・run設定の比べ方で判定する。説明のパスは`<zipのパス>!runs/<run>.json`。
@@ -69,7 +73,7 @@
 - zipはrunごとに開く。1回の掃引で、同じrunのzipを、排他の前の基準版の確認・排他の中の判定・（コマンドの）再開の候補の探索で何度か開く。520 runのまとめた出力先で、`--print-plan`と流し直しの所要時間を実装で測り、tasks.mdに記録する。
 
 ## 計算の前の戻し（`execute_experiment_sweep`）
-- 出力先の排他の中（内側の呼び出し）で、全runの状態を調べる前に、計画にある構成ごとに次を調べる。`runs.zip`があり、(a) `runs/`もある（前の戻し・まとめが途中で止まった）、または、(b) その構成の計画のrunのうち1つでも`list_packed_run_identifiers`に無く`runs/`にも無いなら、`restore_packed_run_artifacts`を呼ぶ。(a)では、同じ中身のファイルを受け入れるので、重複も消える。
+- 出力先の排他の中（内側の呼び出し）で、まず、今と同じ基準版の確認（`collect_behavior_baseline_mismatch_descriptions`。zipからも読むだけ）を、戻しの前に行う。違うrunがあれば、戻さずに今と同じ例外を出す（内側だけを直接呼ぶ場合にも、基準版の違うzipを戻さないため）。その後、全runの状態を調べる前に、計画にある構成ごとに次を調べる。`runs.zip`があり、(a) `runs/`もある（前の戻し・まとめが途中で止まった）、または、(b) その構成の計画のrunのうち1つでも`list_packed_run_identifiers`に無く`runs/`にも無いなら、`restore_packed_run_artifacts`を呼ぶ。(a)では、同じ中身のファイルを受け入れるので、重複も消える。
 - `list_packed_run_identifiers`と戻しの両方を1つの`try`に入れる。`ValueError`・`OSError`で失敗したら、その構成の計画の全runを`failed`（説明は理由）として記録し、その後の状態のループ（済んだrunを`skipped_existing`、無いrunを待ちにする処理と、中断したrunの直し）の対象から外す。これで、一部が戻った`runs/`にあるrunも飛ばされず、zipに無いrunも計算されない。ほかの構成のrunは今と同じに扱う。例外は`execute_experiment_sweep`の外へ出さない（掃引のコマンドの使い方の誤り（終了コード2）にしない）。
 - 外側（排他の前）の基準版の確認は、読むだけなので、zipから判定する（戻さない）。
 - 優先順位: `runs/`がある構成は、計画の全runがzipにあっても戻す（上の(a)。終わりにまとめ直すので、zipは作り直される）。`runs/`が無く、計画の全runがzipにあるときだけ戻さない（要求2.2。zip・`run_summary.csv`・`.resume/`を変えない）。
@@ -79,7 +83,7 @@
   - `run_summary.csv`を書き直すのは、今の条件（`runs/`がある）に加えて、`runs.zip`が無い構成だけにする（要求2.5。戻しが途中で失敗した構成の表を保つ）。
   - `run_summary.csv`と掃引の記録を書いた後、結果の件数を表示する前に、`failed`が無く、表から外した読めない要約も無いときだけ、`pack_completed_sweep_run_artifacts(output_directory, sweep_plan.configuration_names)`を呼ぶ。コマンドは既に出力先の排他を持っている。
   - まとめた構成ごとに`packed run artifacts: <構成>/runs.zip`、警告ごとに`warning: <理由>`を表示する。終了コードは変えない。
-- 比較script（`run_behavior_fix_comparison.py`）: 表を書き直す条件はコマンドと同じ。表と掃引の記録を書いた後、同じ条件のとき、`hold_sweep_output_lock(output_directory)`の中で呼ぶ（掃引の排他は掃引の中で外れているため）。表示も同じ。排他を取れない（別のprocessが同じ出力先を使っている。`hold_sweep_output_lock`の`ValueError`、または`OSError`）ときは、まとめずに警告を表示し、終了コードは変えない。表の書き出しとまとめの間に別のprocessが入る隙間は、今の比較scriptの表の書き出しと同じ性質で、この変更では塞がない（同じ出力先を同時に使わない運用）。
+- 比較script（`run_behavior_fix_comparison.py`）: 表を書き直す条件はコマンドと同じ。表と掃引の記録を書いた後、`failed`が無く、表から外した読めない要約も無いときだけ（コマンドと同じ条件。比較scriptは失敗があると終了コード1を返し、読めない要約は表示だけなので、この条件を明示する）、`hold_sweep_output_lock(output_directory)`の中で呼ぶ（掃引の排他は掃引の中で外れているため）。表示も同じ。排他を取れない（別のprocessが同じ出力先を使っている。`hold_sweep_output_lock`の`ValueError`、または`OSError`）ときは、まとめずに警告を表示し、終了コードは変えない。表の書き出しとまとめの間に別のprocessが入る隙間は、今の比較scriptの表の書き出しと同じ性質で、この変更では塞がない（同じ出力先を同時に使わない運用）。
 - 例外（中断を含む）で掃引が抜けた経路では、表もまとめも今と同じく行われない。
 
 ## 研究ツール
@@ -103,7 +107,7 @@
 - module（`test_packed_run_artifact_archive.py`）:
   - まとめた後、`runs/`が消え、zipの全memberのバイト列が元と同じで、manifestが`format_version`と元のパス・バイト数・sha256を持ち、要約が`ZIP_LZMA`・記録の表が`ZIP_STORED`であること。戻り値が(`True`, `None`)であること。元の削除の失敗（monkeypatch）で(`True`, 警告)になること。
   - 組でないファイル・片方だけのrun・ディレクトリ・既存の`runs.zip`・リンクでは、まとめず警告を返すこと。
-  - 照合の失敗（読み戻しをmonkeypatch）・書き込みのOSError・置き換えの失敗で、元が残り`.partial`が残らないこと。残った`.partial`を消すこと。
+  - 照合の失敗（読み戻しをmonkeypatch）・元のファイルの消す直前の読み直しの不一致・書き込みのOSError・置き換えの失敗で、元が残り`.partial`が残らないこと。残った`.partial`を消すこと。戻しでzipの削除が`PermissionError`のとき、やり直すこと。
   - `read_packed_run_summary_and_record_table`が、zipに無いrunで`None`、片方だけ・sha256の不一致・壊れたzipで`ValueError`を返すこと。
   - `restore_packed_run_artifacts`で元に戻ること。既にある同じ中身のファイルは受け入れ、違う中身・不正なパスでは`ValueError`で、zipが残ること。
   - 研究ツールの`unpack_configuration`（`tools.research_results_archive.archive`をtestからimport）で、製品のzipが元のバイト列に戻ること。研究ツールの`_process`の`pack`が、製品のまとめた構成を「まとめ済み」として飛ばすこと。研究ツールの`pack_configuration`でまとめたzipを、製品が「研究ツールでまとめたzip」という理由で読めないとすること。
@@ -116,6 +120,9 @@
   - `execute_experiment_sweep`を直接呼び、seedを足した計画で、戻してから足したrunだけを計算し、終わりに（比較scriptと同じ呼び方の）まとめで全runがzipにまとまること。
   - 掃引のコマンドで、まとめた出力先へ計画の違う掃引を流すと、今と同じく拒否される（終了コード2、zipが変わらない）こと。
   - `runs/`とzipが両方ある出力先（戻しの途中で止まった状態を作る）で流し直すと、計画の全runがzipにあっても戻してから続け、終わりにまとまること。
+  - 元の削除が途中で止まった状態（zipを置いた後、`runs/`に片方だけ残す）で、`--print-plan`が`completed`を表示し、再開の候補で「食い違う」に数えられないこと。
+  - zipのmanifestに片方だけのrunがあるとき、戻さずに、その構成のrunが失敗になり、zipが変わらないこと。
+  - 比較scriptで、失敗したrunがあるとき・読めない要約があるときにまとめないこと。
   - 進み具合の報告に、まとめた構成と警告が出ること（要求1.7）。`--print-plan`がまとめず、`runs/`を消さないこと。
   - 1 runを失敗させた掃引、読めない要約がある掃引、例外（中断）を注入した掃引では、まとめず、`runs/`が残り`runs.zip`が無いこと。
   - まとめの失敗（monkeypatch）で警告が出て、終了コードが変わらないこと。
