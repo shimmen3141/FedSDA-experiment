@@ -30,7 +30,7 @@
 
 #### Acceptance Criteria
 1. When まとめた構成（`runs/`が無く`runs.zip`がある）の計画のrunを調べるとき, the sweep shall zipの中の要約と記録の表から、今の個別のファイルと同じ基準（基準版・run設定の一致、読めること）で、済んだrun・食い違うrun・基準版の違うrunを判定する。zipに無いrunは「無い」とする。
-2. When まとめた出力先で、同じ掃引を流し直し、全runがzipの中で済んでいるとき, the sweep shall 全runを飛ばし（`skipped_existing`）、zip・`run_summary.csv`・`.resume/`を変えない（README・掃引の記録は今と同じく書く）。
+2. When まとめた出力先（`runs/`が無い）で、同じ掃引を流し直し、全runがzipの中で済んでいるとき, the sweep shall 全runを飛ばし（`skipped_existing`）、zip・`run_summary.csv`・`.resume/`を変えない（README・掃引の記録は今と同じく書く）。
 5. While 構成のディレクトリに`runs.zip`が残っているとき（戻しが途中で失敗した場合を含む）, the sweep shall その構成の`run_summary.csv`を書き直さない（一部だけ戻った`runs/`から表を作り直して行を失わないため）。
 3. The resumption shall まとめた出力先も、今と同じく、再開の候補として見つけ、済んだrunの数を数える（`--print-plan`の表示を含む）。
 4. If zipが壊れていて読めない、またはmanifestと中身が合わない, then the sweep shall そのzipのrunを「食い違う」として扱い、計算せずに失敗として報告する（zipを書き換えない）。
@@ -40,7 +40,7 @@
 
 #### Acceptance Criteria
 1. When まとめた構成の計画に、zipにも`runs/`にも無いrunがあるとき、または、`runs/`と`runs.zip`が両方あるとき（前の戻し・まとめが途中で止まった場合）, the sweep shall runの計算を始める前に、出力先の排他を持ったまま、zipの全ファイルを`runs/`へ戻し、manifestのsha256と照合してからzipを消す。その後は、今と同じに、無いrunを計算し、済んだrunを飛ばす。
-2. If zipが読めない、戻す先に同じ名前で中身の違うファイルがある、または、戻したファイルがmanifestと合わない, then the sweep shall zipを消さず、その構成の計画のrunを計算せずに、理由を付けて失敗として報告する（ほかの構成のrunは今と同じに扱う。戻し終えたファイルはmanifestと同じなので残してよい）。
+2. If zipが読めない、戻す先に同じ名前で中身の違うファイルがある、または、戻したファイルがmanifestと合わない, then the sweep shall zipを消さず、その構成の計画の全runを、計算も飛ばし（`skipped_existing`）もせずに、理由を付けて失敗として報告する（ほかの構成のrunは今と同じに扱う。戻し終えたファイルはmanifestと同じなので残してよい）。
 3. When 追加した掃引の全runが済んだとき, the sweep shall 要求1と同じに、戻したrunと新しいrunを合わせて、もう一度まとめる。
 
 ### Requirement 4: 研究ツールとの互換
