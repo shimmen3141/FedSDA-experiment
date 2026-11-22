@@ -14,7 +14,7 @@
     - `--print-plan`の表示と、出力先に何も作らないこと。
     - 再開の候補として見つかること。壊れたzipの構成も候補に残り、そのrunが「食い違う」として数えられること。
   - zipはtestの中で1.1の関数で作る。その後、`find_existing_run_state`を変え、`experiment_sweep_execution.py`の許可リストを更新する。
-  - 520 runのまとめた出力先で、`--print-plan`の所要時間を測り、Implementation Notesに記録する。元のcheckoutの`results/`（worktreeの外、`../../results/`）の結果は研究ツールでまとめた形なので、コピーを研究ツールの`unpack`で戻し、製品のまとめ（1.1の関数）でまとめ直したものを使う。2分を超えたら、設計書のとおり、構成ごとにzipを1回だけ開く形に直す。
+  - 520 runのまとめた出力先で、`--print-plan`と全runが済んだ流し直しの所要時間を測り、Implementation Notesに記録する（流し直しは1.4の後に測る）。元のcheckoutの`results/`（worktreeの外、`../../results/`）の結果は研究ツールでまとめた形なので、コピーを研究ツールの`unpack`で戻し、製品のまとめ（1.1の関数）でまとめ直したものを使う。`../../results/`が無い環境では、小さいrunの成果物を識別子を変えて520件に複製し、製品のまとめでまとめた出力を作って測る（`--print-plan`は計画の識別子と合わないので、判定の関数を直接520回呼ぶ時間を測る）。どちらで測ったかを書く。2分を超えたら、設計書のとおり直す。
   - 完了条件: 新しいtest・既存の掃引と再開のtest・依存境界のtestが通る。
   - _Requirements: 2.1, 2.3, 2.4, 5.2_
   - _Boundary: experiment_sweep_execution_
@@ -26,7 +26,7 @@
     - zipのmanifestに片方だけのrunがあるとき、戻さずに、その構成のrunが失敗になること。
     - 基準版の違う要約がzipにあるとき、内側だけを直接呼んでも、戻さずに今と同じ例外になること。
     - `runs/`が無く、全runがzipにあるときは戻さないこと。
-    - 戻せないとき（壊れたzip、違う中身のファイル）、その構成の全runが、計算も`skipped_existing`もされずに失敗になること（例外が外へ出ない）。
+    - 戻せないとき（壊れたzip、違う中身のファイル、manifestに無いmember、zipを消せない）、その構成の全runが、計算も`skipped_existing`もされずに失敗になること（例外が外へ出ない）。
   - その後、`execute_experiment_sweep`に戻しを入れる。
   - 完了条件: 新しいtest・既存の掃引のtestが通る。
   - _Requirements: 3.1, 3.2, 5.2_
@@ -87,3 +87,6 @@
 - 採用（Minor・任意）: `runs/`を読む一覧に`write_run_start_record`を足した。戻しの置き換えにやり直しを付け、中断で残った`.partial`を先に消し、リンクを確かめる。照合の基準の書き方。集計scriptは`--chains`のときだけ止める（要求6.3も直した）。壊れたzipの構成が再開の候補から落ちないこと。要求の番号の並び、要求1.7を「名前」に直した。文書に、排他を取らない読み取りでの一時的な見え方を足した。命名表に、完了の確認は呼出し側と書いた。空の`runs/`は何もしない。
 - 4回目: 同じモデル・effort（session `d5c16674-b313-4069-b92f-072cf4269788`）。判定NEEDS_FIXES（Major 2、Minor 8、任意3）。
 - 採用（全部）: 比較scriptでも、失敗・読めない要約があればまとめないと明記した。元の削除が途中で止まり`runs/`に片方だけ残ったrunは、その片方がzipと同じバイト列ならzipから判定する（要求2.1も直した）。manifestに片方だけのrunがあるzipは戻さずに失敗にする。消す直前に元のsha256を読み直して照合する。戻しのzipの削除にやり直しを付けた。内側でも戻しの前に基準版を確かめる。task 1.4を、コマンド・比較scriptと集計script・既存testとfresh smokeの3つ（1.4〜1.6）に分け、要求IDの対応（1.6、2.4）を直した。1つの構成のまとめの結果を`ConfigurationRunArtifactPackingOutcome`にした。計測の場所を元のcheckoutの`results/`と明記した。要求3の見出しを「掃引を直接呼ぶ経路」にした。製品の外の研究ツールの扱いを今後の候補として書いた。基準版が16のままであることを全pytestで確かめる。
+- 5回目: 同じモデル・effort（session `66959f58-1733-49f7-aa74-c1f858b00827`）。判定NEEDS_FIXES（Major 2、Minor 6、任意1）。
+- 採用: 戻しでzipを消せなければ戻しの失敗にする（zipが残ったまま計算に進むと、表が書き直されず新しいrunの行が欠けるため）。読み出し・一覧・戻しの3つで、zipのmemberの集合がmanifestと一致することを確かめる。所要時間の基準を流し直しにも当てる。比較scriptの記録の名前と、読めない要約を集めて持つこと。要求5.2(x)に`--chains`の条件。`runs`の定数を新しいmoduleに持つ理由（循環を避ける）と、値が同じことのtest。`Outcome`を`Result`に揃えた。測定に使う結果が無い環境での代わりの方法。`.partial`の後始末をglobでなく文字列で比べる。
+- 不採用（任意）: `pack_completed_sweep_run_artifacts`と`pack_completed_sweep_run_start_records`の名前の近さ。両者は同じ役割（済んだ掃引の物をまとめる）で対象だけが違い、命名表に違いを書いたので、名前が並ぶ方が分かりやすいと判断した。
