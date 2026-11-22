@@ -1,7 +1,7 @@
 {
   "feature_name": "packed-completed-sweep-run-artifacts",
   "created_at": "2026-11-22T18:53:15Z",
-  "updated_at": "2026-11-22T19:37:32Z",
+  "updated_at": "2026-11-22T20:31:00Z",
   "language": "ja",
   "phase": "tasks-generated",
   "approvals": {
@@ -28,7 +28,7 @@
   "ready_for_implementation": false,
   "specification_review": {
     "status": "pending",
-    "reviewer": "Claude Haiku 5.5（effort medium、読むだけ。状態の判定・排他・ファイル操作の順序が絡む設計なので選んだ）",
+    "reviewer": "1〜6回目はClaude Haiku 5.5（effort medium）。7回目からGPT-6 Luna（effort medium、読むだけ。2026-11-23ユーザー指示）",
     "rounds": [
       {
         "round": 1,
@@ -67,6 +67,6 @@
         "verdict": "NEEDS_FIXES"
       }
     ],
-    "note": "2026-11-23、ユーザーの指示で6回目の後に反映を止めた。未反映の指摘はtasks.mdのImplementation Notes。"
+    "note": "2026-11-23、ユーザーの指示で6回目の後に反映を止めた。ユーザーの決定（計画の違う掃引は今と同じく拒否、レビューはLuna、実装はSol）をtasks.mdに記録した。6回目の指摘は未反映のまま、7回目のレビューを受ける。"
   }
 }
