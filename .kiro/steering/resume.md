@@ -4,6 +4,7 @@
 
 ## 現在地
 
+- 2026-11-23: 同じブランチで、全runが済んだ掃引の`runs/`を構成ごとの`runs.zip`へまとめるspec（[packed-completed-sweep-run-artifacts](../specs/packed-completed-sweep-run-artifacts/tasks.md)）の仕様書群を作った。Haikuの仕様レビューを6回受け、6回目もNEEDS_FIXESのまま、ユーザーの指示で止めた（仕様レビュー待ち、実装は未着手）。未反映の指摘と、ユーザーの確認が要る扱い（掃引のコマンドで計画の違う掃引を今と同じく拒否する）は対象specのImplementation Notes。
 - 2026-11-20: 同じブランチで、runの記録の表（NPZ）をLZMAで書き、全runが済んだ掃引の開始の記録を`.resume/run_start_records.zip`へまとめた（[spec](../specs/lzma-record-tables-and-packed-run-start-records/tasks.md)、仕様・実装レビューPASS（Haikuへ代替）、全pytest通過）。2026-11-17の`.resume`をまとめる指示はこれで済んだ。既存の結果をまとめる研究ツール`tools/research_results_archive`（実結果への適用はユーザーが対象を決める）。記録は[容量を減らす取り組み](../../docs/research/results-size-reduction-20261120.md)。
 - 2026-11-20: 同じブランチで、STAGGER・Agrawal・Random RBFの再来（`stagger3`・`agrawal4`・`randomrbf4`）を製品の全手法のデータに足した（[spec](../specs/stagger-agrawal-random-rbf-recurring-datasets/tasks.md)、仕様・実装レビューPASS（Haikuへ代替）、全pytestは環境によるDLLの拒否の2件を除き通過）。概念の中身はRiverと同じで、標本はrunのNumPyの乱数。FedDriftのδの調整（seed 100〜102）と本評価（seed 0〜9）のuraniumの各180 runはユーザーが実行する（台帳の2行）。
 - 2026-11-19: 同じブランチで、単一ストリームの再来の合成データ（`stagger3`・`agrawal4`・`randomrbf4`）の系列を作るコマンドを単一ストリームのパッケージに足した（[spec](../specs/single-stream-recurring-synthetic-streams/tasks.md)、仕様・実装レビューPASS（Haikuへ代替）、全pytest通過）。系列のJSONのクラス数を読込みが使う。製品は変えていない。結果（木の版はARF・SRP・LBに3データ平均で5〜11pp下回る）は[記録](../../docs/research/fedhasp-single-client-pilot-v16.md)。次の候補: 警報の多さ（真の変化の5〜11倍）と誤った再利用の多さの切り分け、学習器の既定（grace period・delta）の影響の確認、実データ（INSECTS、Electricity）、再来ドリフト向けの比較手法（PEARLほか）。

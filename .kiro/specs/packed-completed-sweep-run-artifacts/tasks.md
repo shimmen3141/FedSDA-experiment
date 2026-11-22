@@ -90,3 +90,9 @@
 - 5回目: 同じモデル・effort（session `66959f58-1733-49f7-aa74-c1f858b00827`）。判定NEEDS_FIXES（Major 2、Minor 6、任意1）。
 - 採用: 戻しでzipを消せなければ戻しの失敗にする（zipが残ったまま計算に進むと、表が書き直されず新しいrunの行が欠けるため）。読み出し・一覧・戻しの3つで、zipのmemberの集合がmanifestと一致することを確かめる。所要時間の基準を流し直しにも当てる。比較scriptの記録の名前と、読めない要約を集めて持つこと。要求5.2(x)に`--chains`の条件。`runs`の定数を新しいmoduleに持つ理由（循環を避ける）と、値が同じことのtest。`Outcome`を`Result`に揃えた。測定に使う結果が無い環境での代わりの方法。`.partial`の後始末をglobでなく文字列で比べる。
 - 不採用（任意）: `pack_completed_sweep_run_artifacts`と`pack_completed_sweep_run_start_records`の名前の近さ。両者は同じ役割（済んだ掃引の物をまとめる）で対象だけが違い、命名表に違いを書いたので、名前が並ぶ方が分かりやすいと判断した。
+- 6回目: 同じモデル・effort（session `82ecf958-cad7-4fe2-9ead-f2e54268744c`）。判定NEEDS_FIXES（Blocker 0、Major 2、Minor 4、判断事項1）。ユーザーの指示（2026-11-23「次も落ちたら止まってください」）で、ここで反映を止めた。未反映の指摘:
+  - Major: 戻しが、研究ツールのzipを見分ける前に`runs/`へ書く（JSONは一致して置かれ、NPZで失敗して一部が残る）。全項目を先に検査し（パス、リンク、同名のファイル、`arrays`の有無）、1つも書かないうちに止める形にする。
+  - Major: 要求3.3（直接呼びで足した後、まとめ直す）のtestがtasksに無い。1.3か1.5へ入れる。
+  - Minor: 依存境界の許可を完全な名前（`zipfile.ZipFile`など）で設計に書く。`ConfigurationRunArtifactPackingResult.warning_description`を「まとめなかった理由」と「警告」に分けるか改名する。`lzma`が無い状態のtestの差し替え方（`zipfile.lzma`を`None`にするなど）を書く。
+  - 判断事項: `runs/`をglobする研究ツールが、まとめた構成を黙って0件と読む点の扱い。掃引のコマンドで計画の違う掃引（seedの追加）を今と同じく拒否する扱いの、ユーザーの確認。
+- 状態: 仕様書群のレビュー待ち（`specification_review.status=pending`）。実装は始めていない。次の一手は、上の未反映の指摘を直し、7回目の仕様レビューを受けること（ユーザーの判断を待つ）。
