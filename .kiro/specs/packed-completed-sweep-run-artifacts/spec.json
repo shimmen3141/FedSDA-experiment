@@ -1,7 +1,7 @@
 {
   "feature_name": "packed-completed-sweep-run-artifacts",
   "created_at": "2026-11-22T18:53:15Z",
-  "updated_at": "2026-11-22T20:31:00Z",
+  "updated_at": "2026-11-22T21:28:12Z",
   "language": "ja",
   "phase": "tasks-generated",
   "approvals": {
@@ -64,6 +64,13 @@
         "round": 6,
         "session_id": "82ecf958-cad7-4fe2-9ead-f2e54268744c",
         "base": "97ef8420",
+        "verdict": "NEEDS_FIXES"
+      },
+      {
+        "round": 7,
+        "reviewer": "GPT-6 Luna（gpt-6-luna、effort medium）",
+        "session_id": "01a20527-43d6-75a0-a34e-ca3edba80b7f",
+        "base": "e22773ea",
         "verdict": "NEEDS_FIXES"
       }
     ],
