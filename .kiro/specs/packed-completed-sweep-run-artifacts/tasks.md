@@ -4,7 +4,7 @@
 
 - [ ] 1. runの成果物のまとめ
 - [ ] 1.1 まとめ・読み出し・戻しのmodule
-  - 設計書のTesting Strategyの「module」のtest（研究ツールの`unpack`で戻ること、研究ツールの`pack`が飛ばすこと、研究ツールでまとめたzipを製品が理由を付けて読めないとすること、戻しの段1で止まると`runs/`に何も書かないこと、段2の途中の失敗で戻したファイルが残り`.partial`が残らないこと、`lzma`が無いときの3つの関数の`ValueError`を含む）を先に書き、`sweep/packed_run_artifact_archive.py`を実装する。依存境界に新しいmoduleを登録する。
+  - 設計書のTesting Strategyの「module」のtest（研究ツールの`unpack`で戻ること、研究ツールの`pack`が飛ばすこと、研究ツールでまとめたzipを製品が理由を付けて読めないとすること、戻しの段1で止まると（中身の壊れたmemberを含む）`runs/`に何も書かないこと、段2の途中の失敗で戻したファイルが残り`.partial`が残らないこと、`lzma`が無いときの3つの関数の`ValueError`を含む）を先に書き、`sweep/packed_run_artifact_archive.py`を実装する。依存境界に新しいmoduleを登録する。
   - 完了条件: 新しいtest（研究ツールの`unpack`で戻ることを含む）と依存境界のtestが通り、`ruff check`が通る。
   - _Requirements: 1.2, 1.3, 1.4, 1.6, 3.1, 3.2, 4.1, 4.2, 5.2_
   - _Boundary: packed_run_artifact_archive_
@@ -115,3 +115,5 @@
 - Major 1: 戻しを2つの段に分けた。段1で全項目を検査し（リンク、memberの集合、研究ツールの形、パス、片方だけのrun、既にあるファイルの中身）、合わなければ`runs/`に何も書かずに止める。段2の書き込みの途中の失敗だけ、戻したファイルが残ることを許す（要求3.2）。testを1.1と1.3に足した。
 - Major 2: 直接呼びでrunを足し、呼出し側の終わりのまとめで元のrunと足したrunの両方がzipに入るtestを、1.3に足し、要求3.3を1.3の対応に入れた。
 - Minor（7回目・6回目の残り）: 要求4.1を製品が作った通常のzipに限った。個別のファイルとzipで判定が一致するtestを1.2に足した。依存境界の許可を完全な名前で書いた。まとめの結果を`not_packed_reason`と`warning_description`の2つの欄に分けた。`lzma`が無い状態のtestの差し替え方（`zipfile.lzma`を`None`）を書いた。
+- 8回目（7回目の反映の確認）: GPT-6 Luna（`gpt-6-luna`、effort medium、読むだけ、session `01a207b3-5c99-7f73-b855-2d9043d8e1de`、基点`deab6e61`）。判定NEEDS_FIXES。Major 2（直接呼びの再まとめのtest）は解消。Major 1は一部だけ解消: 段1でmemberの中身を読まないので、圧縮データの壊れを段2まで見つけられず、一部が戻ったまま止まりうる。Minorの反映は整合、新しい矛盾なし。1回目の起動は、前面から裏へ回ったため標準入力を待って1時間止まった（主担当の起動の誤り。`< /dev/null`で起動し直した）。
+- 反映: 段1で戻す項目の全memberを読み、sha256とバイト数をmanifestと照合する（中身は持たない）。段2の失敗は、読み書きの`OSError`と、段の間のzipの書き換えだけになる。testに中身の壊れたmemberの場合を足した。

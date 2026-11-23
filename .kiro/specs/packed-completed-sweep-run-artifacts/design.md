@@ -59,7 +59,8 @@
     - manifestに`arrays`のある項目が無いこと（あれば「研究ツールでまとめたzipなので、`unpack`してから流し直す」）。
     - 各項目のパスが`runs/<名前>`で、名前に区切り文字・`..`が無く、名前が重複しないこと。manifestに片方だけのrunが無いこと。
     - 戻す先に既にあるファイルは、通常のファイルで、中身のsha256がmanifestと同じこと（前の戻し・まとめが途中で止まった場合。違えば止める）。
-    - 段1では、zipのmemberの中身は読まない（sha256の照合は段2で、書く前の`.partial`で行う）。
+    - 戻す項目の全memberを1MBずつ読み、sha256とバイト数がmanifestと同じこと（圧縮データの壊れ・LZMAが使えないことも、ここで見つかる）。読んだ中身はメモリに持たない（段2でもう一度読んで書く。zipを2回読む費用は、戻しが稀なので受け入れる）。
+    - 段1を通った後の段2の失敗は、読み書きの`OSError`（容量不足など）と、段1と段2の間にzipが書き換えられた場合だけになる（出力先の排他を持つので、通常は起きない）。
   - 段2（書き込み。ここでの失敗は、戻し終えたファイルが残ることを許す）:
     - `runs/`が無ければ作る。
     - `runs/`の中の、名前が「manifestの名前＋`.`」で始まり`.partial`で終わるファイル（前の戻しが中断で残したもの）を消す（globを使わず文字列で比べる。runの識別子に`[`などがあっても誤って一致しないため）。
@@ -118,7 +119,7 @@
   - `read_packed_run_summary_and_record_table`が、zipに無いrunで`None`、片方だけ・sha256の不一致・壊れたzipで`ValueError`を返すこと。
   - `restore_packed_run_artifacts`で元に戻ること。既にある同じ中身のファイルは受け入れ、違う中身・不正なパスでは`ValueError`で、zipが残ること。
   - 研究ツールの`unpack_configuration`（`tools.research_results_archive.archive`をtestからimport）で、製品のzipが元のバイト列に戻ること。研究ツールの`_process`の`pack`が、製品のまとめた構成を「まとめ済み」として飛ばすこと。研究ツールの`pack_configuration`でまとめたzipを、製品が「研究ツールでまとめたzip」という理由で読めないとすること。
-  - 研究ツールの`pack_configuration`でまとめたzip、manifestに無いmember、不正なパス、違う中身の既存のファイルのそれぞれで、戻しが段1で`ValueError`になり、`runs/`に何も作られず（`runs/`が無ければ作られず）、zipが残ること。段2の途中の失敗（2つ目の項目の書き込みをmonkeypatchで失敗させる）では、1つ目が残り、`.partial`が残らず、zipが残ること。
+  - 研究ツールの`pack_configuration`でまとめたzip、manifestに無いmember、不正なパス、違う中身の既存のファイル、中身の壊れたmember（2つ目のmemberの圧縮データのバイトを壊す）のそれぞれで、戻しが段1で`ValueError`になり、`runs/`に何も作られず（`runs/`が無ければ作られず）、zipが残ること。段2の途中の失敗（2つ目の項目の書き込みをmonkeypatchで失敗させる）では、1つ目が残り、`.partial`が残らず、zipが残ること。
   - 戻しの前に、前の中断で残った`.partial`が消えること（識別子に`[`を含む名前でも、ほかのファイルを消さないこと）。manifestに無いmemberがあるzipで、読み出し・一覧・戻しが`ValueError`になり、zipが残ること。戻しでzipの削除がやり直しても失敗するとき、`ValueError`になること。新しいmoduleの`runs`の定数が`RUN_DIRECTORY_NAME`と同じこと。リンクの`runs/`・zipで`ValueError`になること。`lzma`が無い状態（monkeypatch）で、読み出し・一覧・戻しが`ValueError`（説明がLZMA）になること。
 - 状態の判定・掃引（`test_experiment_sweep.py`に足す）:
   - 同じrunの成果物を、個別のファイルとして置いた出力先と、zipにまとめた出力先の両方で判定し、状態と説明の種類が一致すること（済んだ、基準版の違う、run設定の違う、読めない要約の4つ）。
