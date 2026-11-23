@@ -47,7 +47,7 @@
 **Objective:** 研究者として、製品がまとめたzipを、既存の研究ツールで戻せるようにしたい。
 
 #### Acceptance Criteria
-1. The archive shall 研究ツール`tools/research_results_archive`の`unpack`で、元のパスとバイト列のまま戻せる形にする。
+1. The archive shall 研究ツール`tools/research_results_archive`の`unpack`で、元のパスとバイト列のまま戻せる形にする（製品が作った通常のzip。`runs/`とzipが両方ある途中の状態は、研究ツールの`unpack`では戻せないので、製品で同じ掃引を流し直して戻す）。
 2. The research tool shall 製品がまとめた構成を、`pack`で二重にまとめない（今の「まとめ済みを飛ばす」のとおり）。
 
 ### Requirement 5: 既存の値の維持と検証

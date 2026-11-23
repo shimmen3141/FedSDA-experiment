@@ -6,7 +6,7 @@
 ## Boundary Commitments
 - 持つもの: 新しい`sweep/packed_run_artifact_archive.py`（まとめ・zipからの読み出し・戻し）、`sweep/experiment_sweep_execution.py`の`find_existing_run_state`（zipから判定）と`execute_experiment_sweep`（計算の前の戻し）、`sweep/experiment_sweep_command.py`と`run_behavior_fix_comparison.py`の終わりのまとめの呼び出しと`run_summary.csv`を書き直す条件、`analyze_behavior_fix_comparison.py`のまとめた構成での停止、依存境界の許可リスト、共用のfresh smoke、文書（`docs/experiments/experiment-sweep.md`、研究ツール`tools/research_results_archive/archive.py`の冒頭の説明）。
 - 持たないもの: runの計算と成果物の書き出し（`*_run_artifact_files.py`）、読込み関数、開始の記録、掃引の計画、`run_summary.csv`の書き方、研究ツールの処理（説明の文だけ足す）、製品の外の分析のツール。
-- 許す依存: 新しいmoduleは標準の`hashlib`・`json`・`os`・`time`・`uuid`・`zipfile`・`pathlib`・`dataclasses`だけ（torch・numpy・ほかの製品のmoduleを読まない）。`experiment_sweep_execution.py`は新しいmoduleの公開の名前と`tempfile`を足す。
+- 許す依存: 新しいmoduleは標準の`hashlib`・`json`・`os`・`time`・`uuid`・`zipfile`・`pathlib`・`dataclasses`だけ（torch・numpy・ほかの製品のmoduleを読まない）。`experiment_sweep_execution.py`は新しいmoduleの公開の名前と`tempfile.TemporaryDirectory`を足す。依存境界のtestの許可は、既存と同じく完全な名前（例: `zipfile.ZipFile`、`zipfile.ZipInfo`、`zipfile.ZIP_LZMA`、`zipfile.ZIP_STORED`、`zipfile.BadZipFile`、`hashlib.sha256`、`pathlib.Path`、`dataclasses.dataclass`、`os.replace`、`uuid.uuid4`、`time.sleep`）で、実装が実際にimportした物だけを登録する。
 - 重複: `experiment_sweep_resumption`の非公開の`_is_link`・`_replace_with_retries`（`PermissionError`のやり直し）と同じ処理を、新しいmoduleに非公開で持つ（非公開の名前は他のmoduleから読めない規約のため。共通化は今回しない）。`runs`という名前も、新しいmoduleに非公開の定数で持つ。`experiment_sweep_execution.RUN_DIRECTORY_NAME`を読むと、`experiment_sweep_execution`が新しいmoduleを読むので循環になるため。値が同じことをtestで確かめる。
 - 掃引のコマンドでの計画の違う掃引: 今のコマンドは、排他の中で`write_sweep_resumption_plan`を呼び、出力先の`.resume/sweep.json`と計画が違えば止める（`ValueError`、終了コード2）。この規則は変えない。そのため、zipに無いrunを足す戻しが働くのは、`execute_experiment_sweep`を直接呼ぶ経路（比較scriptは`sweep.json`を書かない）と、`runs/`とzipが両方ある途中の状態から同じ計画で続ける場合である。
 - 研究ツールでまとめたzip: NPZの中をLZMAへ書き直しており、manifestのsha256は元のNPZのバイト列なので、製品のsha256の照合では合わない。製品は、manifestの項目に`arrays`がある（研究ツールの形）ことを見て、「研究ツールでまとめたzipなので、`unpack`してから流し直す」という理由で読めない（食い違う）とする。研究ツールの形を製品で読む処理は持たない。
@@ -31,7 +31,7 @@
 - `RUN_ARTIFACT_ARCHIVE_NAME = "runs.zip"`（公開の定数）。
 
 ### `pack_configuration_run_artifacts(configuration_directory: Path) -> ConfigurationRunArtifactPackingResult`
-1つの構成をまとめる。結果は`ConfigurationRunArtifactPackingResult(archive_placed: bool, warning_description: str | None)`（frozen dataclass）。3つの場合がある: zipを置いた（元の削除が途中で失敗したら警告付き）、まとめなかった（`archive_placed=False`、理由）、`runs/`が空で何もしなかった（`archive_placed=False`、`None`）。例外は出さない（`Exception`を捕まえて警告にする）。呼出し側は、`runs/`がある構成だけを渡す。
+1つの構成をまとめる。結果は`ConfigurationRunArtifactPackingResult(archive_placed: bool, not_packed_reason: str | None, warning_description: str | None)`（frozen dataclass）。3つの場合がある: zipを置いた（`archive_placed=True`。元の削除が途中で失敗したら`warning_description`）、まとめなかった（`archive_placed=False`、`not_packed_reason`）、`runs/`が空で何もしなかった（`archive_placed=False`、どちらも`None`）。`pack_completed_sweep_run_artifacts`は、まとめなかった理由と警告の両方を`warning_descriptions`へ入れて報告する（どちらも掃引の終了コードを変えない）。例外は出さない（`Exception`を捕まえて警告にする）。呼出し側は、`runs/`がある構成だけを渡す。
 1. `runs/`がディレクトリでない・リンク、または`runs.zip`が既にある（リンクを含む）なら、警告を返す。
 2. `runs/`の直下を列挙し、全てが通常のファイルで、名前が`<run>.json`と`<run>.npz`の組（同じ`<run>`の両方）であることを確かめる。組でない物（片方だけのrun、`.partial`などほかの名前、ディレクトリ）があれば警告を返す。`runs/`が空なら、何もせずに（`archive_placed=False`、`None`）返す。
 3. 残っている`runs.zip.partial`を消し、`runs.zip.partial`へ書く。各ファイルは、`ZipInfo(パス)`の`compress_type`に要約なら`ZIP_LZMA`、記録の表なら`ZIP_STORED`を指定し、`ZipFile.open(zipinfo, "w", force_zip64=True)`へ、1MBずつ読みながら書く。書きながらsha256とバイト数を数える。最後にmanifestを書き、fsyncする。
@@ -52,13 +52,19 @@
   - `lzma`が無い環境（zipfileがLZMAのmemberで`RuntimeError`を出す）は、`ValueError`の説明を「LZMAが使えないので読めない」と分ける（壊れたzipと区別するため）。掃引のコマンドは`_output_lock_held=True`で呼ぶので、`execute_experiment_sweep`の`ensure_lzma_compression_available`を通らない。そのため、この変換は、読み出し・一覧・戻しの3つ全てで同じにする（`OSError`以外の`Exception`を`ValueError`へ。`RuntimeError`も外へ出さない）。
   - manifestの項目に`arrays`があれば（研究ツールの形）、照合の前に「研究ツールでまとめたzipなので、`unpack`してから流し直す」という`ValueError`にする。
 - `list_packed_run_identifiers(configuration_directory: Path) -> frozenset[str]`: manifestに要約と記録の表の両方があるrunの識別子。zipが読めない、または、manifestに片方だけのrunがあれば`ValueError`（そのzipは製品が作る形ではないので、戻さずに、その構成のrunを失敗にする）。
-- `restore_packed_run_artifacts(configuration_directory: Path) -> None`
-  - manifestの各項目について、パスが`runs/<名前>`で、名前に区切り文字・`..`が無いことを確かめる。
-  - 構成のディレクトリ・`runs/`・`runs.zip`がリンクなら`ValueError`（`experiment_sweep_resumption`の`_safe_path`・`_is_link`と同じ確認を、非公開で持つ）。`runs/`が無ければ作る。
-  - 始める前に、`runs/`の中の、名前が「manifestの名前＋`.`」で始まり`.partial`で終わるファイル（前の戻しが中断で残したもの）を消す（globを使わず文字列で比べる。runの識別子に`[`などがあっても誤って一致しないため）。
-  - 戻す先が無ければ`runs/<名前>.<uuid>.partial`へ書いてsha256を確かめてから、まとめと同じやり直し付きの`os.replace`で置く。途中で失敗したら、その`.partial`を消してから例外を出す（`.partial`が残ると次のまとめの組の確認で警告になるため）。戻す先があって中身のsha256がmanifestと同じなら何もしない（前の戻しが途中で止まった場合）。違えば`ValueError`。
-  - 全項目が済んだら`runs.zip`を消す（`PermissionError`のときは、置き換えと同じく0.5秒ずつ最大8回やり直す。ほかのprocessが読むために開いていると、Windowsで削除が拒否されるため）。やり直しても消せなければ`ValueError`（戻しの失敗）にする。zipが残ったまま計算に進むと、その構成の`run_summary.csv`が書き直されず、新しいrunの行が欠けたまま成功と報告されるため。次の実行で、`runs/`とzipが両方ある状態から戻し直せる。読めないzip・照合の不一致も`ValueError`。
-  - zipを消す前に失敗しても、戻し終えたファイルはmanifestと同じなので残す。
+- `restore_packed_run_artifacts(configuration_directory: Path) -> None`。2つの段に分ける。
+  - 段1（書く前の検査。ここで止まるときは`runs/`に何も書かず、何も消さない）: 次の全部を、全項目について確かめてから段2へ進む。1つでも合わなければ`ValueError`。
+    - 構成のディレクトリ・`runs/`・`runs.zip`がリンクでないこと（`experiment_sweep_resumption`の`_safe_path`・`_is_link`と同じ確認を、非公開で持つ）。
+    - zipが読め、memberの集合がmanifestの項目のパスと`archive_manifest.json`を合わせたものと一致すること（読み出し・一覧と共通の非公開の関数）。
+    - manifestに`arrays`のある項目が無いこと（あれば「研究ツールでまとめたzipなので、`unpack`してから流し直す」）。
+    - 各項目のパスが`runs/<名前>`で、名前に区切り文字・`..`が無く、名前が重複しないこと。manifestに片方だけのrunが無いこと。
+    - 戻す先に既にあるファイルは、通常のファイルで、中身のsha256がmanifestと同じこと（前の戻し・まとめが途中で止まった場合。違えば止める）。
+    - 段1では、zipのmemberの中身は読まない（sha256の照合は段2で、書く前の`.partial`で行う）。
+  - 段2（書き込み。ここでの失敗は、戻し終えたファイルが残ることを許す）:
+    - `runs/`が無ければ作る。
+    - `runs/`の中の、名前が「manifestの名前＋`.`」で始まり`.partial`で終わるファイル（前の戻しが中断で残したもの）を消す（globを使わず文字列で比べる。runの識別子に`[`などがあっても誤って一致しないため）。
+    - 戻す先が無い項目だけを、`runs/<名前>.<uuid>.partial`へ書いてsha256を確かめてから、まとめと同じやり直し付きの`os.replace`で置く。sha256が合わない、読み書きの`OSError`など途中で失敗したら、その`.partial`を消してから`ValueError`（`OSError`はそのまま）を出す（`.partial`が残ると次のまとめの組の確認で警告になるため）。それまでに戻したファイルはmanifestと同じなので残す（要求3.2）。
+    - 全項目が済んだら`runs.zip`を消す（`PermissionError`のときは、置き換えと同じく0.5秒ずつ最大8回やり直す。ほかのprocessが読むために開いていると、Windowsで削除が拒否されるため）。やり直しても消せなければ`ValueError`（戻しの失敗）にする。zipが残ったまま計算に進むと、その構成の`run_summary.csv`が書き直されず、新しいrunの行が欠けたまま成功と報告されるため。次の実行で、`runs/`とzipが両方ある状態から戻し直せる。
 
 ## 状態の判定（`find_existing_run_state`）
 - 今の判定（`runs/<run>.json`・`.npz`のどちらかがあれば、今のまま）の前に、構成のディレクトリに`runs.zip`があるときだけ、次を調べる。
@@ -112,8 +118,10 @@
   - `read_packed_run_summary_and_record_table`が、zipに無いrunで`None`、片方だけ・sha256の不一致・壊れたzipで`ValueError`を返すこと。
   - `restore_packed_run_artifacts`で元に戻ること。既にある同じ中身のファイルは受け入れ、違う中身・不正なパスでは`ValueError`で、zipが残ること。
   - 研究ツールの`unpack_configuration`（`tools.research_results_archive.archive`をtestからimport）で、製品のzipが元のバイト列に戻ること。研究ツールの`_process`の`pack`が、製品のまとめた構成を「まとめ済み」として飛ばすこと。研究ツールの`pack_configuration`でまとめたzipを、製品が「研究ツールでまとめたzip」という理由で読めないとすること。
+  - 研究ツールの`pack_configuration`でまとめたzip、manifestに無いmember、不正なパス、違う中身の既存のファイルのそれぞれで、戻しが段1で`ValueError`になり、`runs/`に何も作られず（`runs/`が無ければ作られず）、zipが残ること。段2の途中の失敗（2つ目の項目の書き込みをmonkeypatchで失敗させる）では、1つ目が残り、`.partial`が残らず、zipが残ること。
   - 戻しの前に、前の中断で残った`.partial`が消えること（識別子に`[`を含む名前でも、ほかのファイルを消さないこと）。manifestに無いmemberがあるzipで、読み出し・一覧・戻しが`ValueError`になり、zipが残ること。戻しでzipの削除がやり直しても失敗するとき、`ValueError`になること。新しいmoduleの`runs`の定数が`RUN_DIRECTORY_NAME`と同じこと。リンクの`runs/`・zipで`ValueError`になること。`lzma`が無い状態（monkeypatch）で、読み出し・一覧・戻しが`ValueError`（説明がLZMA）になること。
 - 状態の判定・掃引（`test_experiment_sweep.py`に足す）:
+  - 同じrunの成果物を、個別のファイルとして置いた出力先と、zipにまとめた出力先の両方で判定し、状態と説明の種類が一致すること（済んだ、基準版の違う、run設定の違う、読めない要約の4つ）。
   - 2 runの小さい掃引をコマンドで流すと、構成ごとに`runs.zip`ができ、`run_summary.csv`が残ること。
   - 同じコマンドを流し直すと全runが`skipped_existing`で、`runs.zip`・`run_summary.csv`・`.resume/`の全ファイルのバイト列が変わらないこと（掃引の記録は新しく増え、READMEは今と同じく書かれる）。
   - `--print-plan`が`completed`を表示し、出力先に何も作らないこと。
@@ -129,7 +137,7 @@
   - まとめの失敗（monkeypatch）で警告が出て、終了コードが変わらないこと。
   - 壊れたzip（バイト列を壊す）で、その構成のrunが計算されずに失敗になり（終了コード1。使い方の誤りの2ではない）、zipと`run_summary.csv`が変わらないこと。
   - 戻しが途中で失敗した構成（`runs/`に同じ名前で違う中身のファイルを置く）で、`runs/`にあるrunが`skipped_existing`にならず、zipに無いrunが計算されず、全runが`failed`になること。
-  - `lzma`が無い状態（monkeypatch）で、掃引のコマンドの経路でも、まとめた構成の判定の説明が壊れたzipと区別され、例外が外へ出ないこと。
+  - `lzma`が無い状態（`zipfile`が参照する`zipfile.lzma`を`None`にするmonkeypatch。zipfileは、その値で、LZMAのmemberの読み書きが使えないと判断する）で、掃引のコマンドの経路でも、まとめた構成の判定の説明が壊れたzipと区別され、例外が外へ出ないこと。
   - 再開の候補の探索で、壊れたzipの構成が候補に残り、そのrunが「食い違う」として数えられること。
   - zipの中の要約のrun設定が違うrunが「食い違う」になること。
   - 基準版の違う要約がzipにあるとき、今と同じく掃引を始めずに止まること。
