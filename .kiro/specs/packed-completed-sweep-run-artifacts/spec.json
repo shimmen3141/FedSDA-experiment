@@ -1,7 +1,7 @@
 {
   "feature_name": "packed-completed-sweep-run-artifacts",
   "created_at": "2026-11-22T18:53:15Z",
-  "updated_at": "2026-11-22T21:28:12Z",
+  "updated_at": "2026-11-23T09:21:37Z",
   "language": "ja",
   "phase": "tasks-generated",
   "approvals": {
@@ -15,19 +15,19 @@
     },
     "tasks": {
       "generated": true,
-      "approved": false
+      "approved": true
     },
     "naming": {
       "generated": true,
-      "approved": false,
+      "approved": true,
       "revision": null,
       "approved_revision": null,
       "approved_sha256_lf": null
     }
   },
-  "ready_for_implementation": false,
+  "ready_for_implementation": true,
   "specification_review": {
-    "status": "pending",
+    "status": "passed",
     "reviewer": "1〜6回目はClaude Haiku 5.5（effort medium）。7回目からGPT-6 Luna（effort medium、読むだけ。2026-11-23ユーザー指示）",
     "rounds": [
       {
@@ -72,8 +72,22 @@
         "session_id": "01a20527-43d6-75a0-a34e-ca3edba80b7f",
         "base": "e22773ea",
         "verdict": "NEEDS_FIXES"
+      },
+      {
+        "round": 8,
+        "reviewer": "GPT-6 Luna（gpt-6-luna、effort medium）",
+        "session_id": "01a207b3-5c99-7f73-b855-2d9043d8e1de",
+        "base": "deab6e61",
+        "verdict": "NEEDS_FIXES"
+      },
+      {
+        "round": 9,
+        "reviewer": "GPT-6 Luna（gpt-6-luna、effort medium）",
+        "session_id": "01a207b5-4888-72c0-a482-656b3c4a4e72",
+        "base": "310c2420",
+        "verdict": "PASS"
       }
     ],
-    "note": "2026-11-23、ユーザーの指示で6回目の後に反映を止めた。ユーザーの決定（計画の違う掃引は今と同じく拒否、レビューはLuna、実装はSol）をtasks.mdに記録した。6回目の指摘は未反映のまま、7回目のレビューを受ける。"
+    "note": "9回目（Luna）でPASS。実装はユーザーの指示で待っている（2026-11-23）。"
   }
 }
