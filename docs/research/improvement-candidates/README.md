@@ -49,6 +49,7 @@
 | IMPROVE-031 | 損失の監視の基準を、損失の低下の検出で再設定する | 採用（2026-10-27、基準版13。評価clientの上限の撤廃と合わせて既定にした。本規模で採否の基準を満たす） | [詳細](improve-031-loss-monitor-rebaseline-on-loss-decrease.md) |
 | IMPROVE-032 | 新しいモデルの仮説の予測的符号長を、新しい方から1本の流れで測り、変化区間を1件刻みにする | 基準版16で既定（[spec `fedsda-every-sample-change-interval-search-default`](../../../.kiro/specs/fedsda-every-sample-change-interval-search-default/tasks.md)、2026-10-29のユーザー判断）。本規模の実験（640 run）で基準版15の既定との精度差は平均+0.01〜+0.02pp | [詳細](improve-032-reverse-order-prequential-code-for-all-change-intervals.md) |
 | IMPROVE-033 | 新しいモデルの候補の初期値を、MDLの選択で短かった学習者の種類に合わせる | 手元で比べた（2026-10-31）。合成データ・rotmnist4・50で上がり、MNIST・fmnistの全セルで下がる。既定は変えない案（採否はユーザー） | [詳細](improve-033-candidate-initialization-follows-new-model-learner.md) |
+| IMPROVE-034 | モデルの混合の重みを、学習率が変わるときに付け直す（Fixed Share の再指数化） | 未検証・未採用（2026-11-25、理論の保証を詰める作業から。今の実装は学習率で重み付けた後悔の上界しか示せないため） | [詳細](improve-034-re-exponentiate-fixed-share-weights-when-learning-rate-changes.md) |
 
 ## 決定（2026-10-13、ユーザー）
 
@@ -73,7 +74,7 @@
 
 ## 記録・更新の規約
 
-IDはIMPROVE-連番、ファイル名は`improve-<番号>-<対象と案>.md`。次はIMPROVE-034。候補の発見時点で記録し、実験済みである必要はない。
+IDはIMPROVE-連番、ファイル名は`improve-<番号>-<対象と案>.md`。次はIMPROVE-035。候補の発見時点で記録し、実験済みである必要はない。
 
 各ファイルへ以下を記載する。未確認・未定の項目はそのまま明記する。
 
