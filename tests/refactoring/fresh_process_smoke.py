@@ -1620,12 +1620,33 @@ def main():
         packed_archives = list(Path(directory).rglob(".resume/run_start_records.zip"))
         assert len(packed_archives) == 1, packed_archives
         assert not list(packed_archives[0].parent.glob("*/*.json"))
-        for record_table_path in Path(directory).rglob("runs/*.npz"):
+        artifact_archive = Path(directory) / "feddrift" / "runs.zip"
+        assert artifact_archive.is_file()
+        assert not (artifact_archive.parent / "runs").exists()
+        archive_before = artifact_archive.read_bytes()
+        records_before = set(Path(directory).glob("sweep_record_*.json"))
+        assert sweep_main(arguments) == 0
+        new_records = set(Path(directory).glob("sweep_record_*.json")) - records_before
+        assert len(new_records) == 1
+        from json import loads
+
+        repeated_record = loads(new_records.pop().read_text(encoding="utf-8"))
+        assert repeated_record["run_status_counts"] == dict(
+            completed=0, skipped_existing=1, failed=0
+        )
+        assert artifact_archive.read_bytes() == archive_before
+        from federated_learning_experiments.sweep.packed_run_artifact_archive import (
+            restore_packed_run_artifacts,
+        )
+
+        restore_packed_run_artifacts(artifact_archive.parent)
+        record_table_paths = list(Path(directory).rglob("runs/*.npz"))
+        assert len(record_table_paths) == 1
+        for record_table_path in record_table_paths:
             with zipfile.ZipFile(record_table_path) as record_table_archive:
                 assert {info.compress_type for info in record_table_archive.infolist()} == {
                     zipfile.ZIP_LZMA
                 }
-        assert sweep_main(arguments) == 0
     print("PASS FedDrift default configuration and sweep command, artifacts and resume")
     # 独立モデルのクロス評価を含む新実装だけの全体runと保存を通す。
     from federated_learning_experiments.sweep.experiment_configurations import (

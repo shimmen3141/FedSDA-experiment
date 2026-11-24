@@ -228,6 +228,11 @@ def test_partial_old_readme_can_be_selected_with_new_metadata_and_workers(
     assert "(1/2 run)" in text
     assert "skipped_existing" in text
     assert (output / "README.md").read_bytes() == readme
+    from federated_learning_experiments.sweep.packed_run_artifact_archive import (
+        restore_packed_run_artifacts,
+    )
+
+    restore_packed_run_artifacts(output / "fedavg")
     assert _npz_path(output, _runs()[0]).read_bytes() == old_npz
     record = json.loads(next(output.glob("sweep_record_*.json")).read_text(encoding="utf-8"))
     assert record["purpose"] == "new purpose"

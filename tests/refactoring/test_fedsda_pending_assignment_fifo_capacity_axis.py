@@ -210,6 +210,11 @@ def test_command_saves_runs_with_capacity_column_and_record_format_version(tmp_p
     assert record["sweep_plan"]["fedsda_pending_assignment_fifo_capacities"] == [30, 60]
     # 要約の形式の版1と同じ形（来歴を持たない。run設定は今と同じ形）の要約から作った表でも、列が埋まる。
     # 実物の版1の要約は作っていない（版1でもこの項目が在ることは、gitの履歴で確かめた。spec のtasks.md）。
+    from federated_learning_experiments.sweep.packed_run_artifact_archive import (
+        restore_packed_run_artifacts,
+    )
+
+    restore_packed_run_artifacts(output_directory / "fedsda")
     for summary_path in (output_directory / "fedsda" / "runs").glob("*.json"):
         summary = json.loads(summary_path.read_text(encoding="utf-8"))
         del summary["run_provenance"]

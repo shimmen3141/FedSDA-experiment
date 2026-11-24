@@ -339,6 +339,11 @@ def test_command_saves_runs_with_time_scale_column_and_record_format_version(tmp
     assert record["sweep_plan"]["fedsda_fixed_share_time_scales"] == [60]
     assert record["sweep_plan"]["fedsda_pending_assignment_fifo_capacities"] == [30, 60]
     # 時間尺度の項目を持たない要約でも、行を外さず、列を空にする。
+    from federated_learning_experiments.sweep.packed_run_artifact_archive import (
+        restore_packed_run_artifacts,
+    )
+
+    restore_packed_run_artifacts(output_directory / "fedsda")
     for summary_path in (output_directory / "fedsda" / "runs").glob("*.json"):
         summary = json.loads(summary_path.read_text(encoding="utf-8"))
         del summary["run_settings"]["run_participant_settings"]["run_client_settings"][

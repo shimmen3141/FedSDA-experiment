@@ -2,7 +2,7 @@
 
 依存: 1.1 → 1.2 → 1.3 → 1.4 → 1.5 → 1.6 → 2.1。どれも`test_single_run_dependency_boundaries.py`か`test_experiment_sweep.py`を編集するので、順に進める。
 
-- [ ] 1. runの成果物のまとめ
+- [x] 1. runの成果物のまとめ
 - [x] 1.1 まとめ・読み出し・戻しのmodule
   - 設計書のTesting Strategyの「module」のtest（研究ツールの`unpack`で戻ること、研究ツールの`pack`が飛ばすこと、研究ツールでまとめたzipを製品が理由を付けて読めないとすること、戻しの段1で止まると（中身の壊れたmemberを含む）`runs/`に何も書かないこと、段2の途中の失敗で戻したファイルが残り`.partial`が残らないこと、`lzma`が無いときの3つの関数の`ValueError`を含む）を先に書き、`sweep/packed_run_artifact_archive.py`を実装する。依存境界に新しいmoduleを登録する。
   - 完了条件: 新しいtest（研究ツールの`unpack`で戻ることを含む）と依存境界のtestが通り、`ruff check`が通る。
@@ -35,7 +35,7 @@
   - _Requirements: 3.1, 3.2, 3.3, 5.2_
   - _Boundary: experiment_sweep_execution_
   - _Depends: 1.2_
-- [ ] 1.4 掃引のコマンドの終わりのまとめ
+- [x] 1.4 掃引のコマンドの終わりのまとめ
   - 先に書くtest（掃引のコマンド）:
     - まとまること。進み具合の報告に、まとめた構成と警告が出ること。
     - 流し直しで、zip・`run_summary.csv`・`.resume/`が変わらないこと。
@@ -51,7 +51,7 @@
   - _Requirements: 1.1, 1.5, 1.6, 1.7, 2.2, 2.4, 2.5_
   - _Boundary: experiment_sweep_command_
   - _Depends: 1.3_
-- [ ] 1.5 比較scriptと比較の集計script
+- [x] 1.5 比較scriptと比較の集計script
   - 先に書くtest:
     - 比較scriptで、まとまること。失敗したrun・読めない要約があるときはまとめないこと。排他を取れないとき、まとめずに警告を出すこと。
     - 比較の集計scriptが、`--chains`のとき、まとめた構成で`unpack`を示して終了コード2で止まること。`--chains`の無い集計は今と同じ出力になること。
@@ -60,7 +60,7 @@
   - _Requirements: 1.1, 1.5, 1.7, 6.3_
   - _Boundary: run_behavior_fix_comparison, analyze_behavior_fix_comparison_
   - _Depends: 1.4_
-- [ ] 1.6 既存のtestの読み方とfresh smoke
+- [x] 1.6 既存のtestの読み方とfresh smoke
   - 掃引のコマンド・比較scriptの後に`runs/`を読む既存のtest（設計書の「既存のtestの書き換え」の10ファイル）を、戻してから読む形に直す。期待（ファイル名・数）は変えない。変えたtestと理由をImplementation Notesに書く。
   - 共用のfresh smokeに、1回目の後に`runs.zip`ができ、2回目が全部飛ばされることを足す。
   - 完了条件: 書き換えたtest・fresh smokeが通る。`-m "not slow"`の広い確認が通る。
@@ -127,4 +127,12 @@
 - 主担当の検証（WSL Ubuntu、`/home/yshin/.venvs/fedsda-experiment`、Python 3.14.4、torch 2.12.1+cpu、逐次）: `test_packed_run_artifact_archive.py`・`test_experiment_sweep.py`・`test_experiment_sweep_resumption.py`・`test_single_run_dependency_boundaries.py` で 2,438 passed・1 failed（10分53秒）。失敗の1件は `test_temporary_model_id_allocation_rejects_every_import_except_annotations[from __future__ import *-False]` で、Python 3.14 が `from __future__ import *` を構文の誤りにするため（Windowsの Python 3.13.15 では同じ文を読める）。Solの差分にこのtestは無く、環境の違いによる。Windowsで`ruff check src tests/refactoring`と、変えた5ファイルの`ruff format --check`が通った。手元のWindowsは torch のDLLの読み込みがアプリケーションの制御ポリシーで拒否されるので、torchを読むtestはWindowsでは流していない。
 - task 1.2 の所要時間（主担当、WSL）: 520 runの出力は研究ツールの変種（製品の計画で作り直せない）なので、製品の掃引の400 runの出力（`fedsda-synchronized-prediction-v16/20261124_165503_all-datasets-seeds0-9`。研究ツールでまとめた形）を WSL の /tmp へコピーし、研究ツールの`unpack`で戻して、同じ引数＋`--output-directory`で`--print-plan`を測った。`runs/` のまま 21.0秒、製品の`pack_configuration_run_artifacts`でまとめた後 22.3秒（どちらも400 runすべて`completed`、`--print-plan`の後もzipと`run_summary.csv`だけのまま）。520 runに換算して約29秒で、2分を下回るので直さない。全runが済んだ流し直しの時間は、1.4の後に測る。
 - 独立の実装レビューは、全taskの後に1回受ける（未実施）。全pytestも全taskの後に流す（未実施）。
+
+### 実装の後半（task 1.4〜1.6 と、task 2.1 の文書、2026-11-25）
+- 同じSolのsession（`01a20ec3-731c-73a0-b486-a4d15545b3cb`）を `codex exec resume` で続けて依頼した（依頼文とログは`../../results/_sol_prompts/packed-runs-part2.txt`・`.log`）。基点`949e93d1`。
+- 実装: 掃引のコマンドの終わりのまとめ（表と掃引の記録の後。失敗・読めない要約があればまとめない。zipが残る構成では`run_summary.csv`を書き直さない）、比較scriptの終わりのまとめ（排他を取ってから。排他・まとめの失敗は警告）、比較の集計scriptの`--chains`での停止（まとめた構成があれば`unpack`を示して終了コード2）、依存境界の許可、fresh smoke（1回目の後に`runs.zip`、2回目が全部飛ばされ、zipが変わらないこと）、文書（`docs/experiments/experiment-sweep.md`、研究ツール`tools/research_results_archive`の冒頭）。
+- 既存のtestの書き換え（戻してから読む形。期待は変えない）: `test_experiment_sweep.py`・`test_experiment_sweep_resumption.py`・`test_feddrift_experiment_sweep.py`・`test_fedavg_local_updates_per_aggregation.py`・`test_fedsda_fixed_share_time_scale_axis.py`・`test_fedsda_pending_assignment_fifo_capacity_axis.py`。設計書の10ファイルのうち`test_fedavg_experiment_sweep.py`と`test_dynamic_weighted_majority_experiment_sweep.py`は、通常の実行が掃引の関数の直接の呼出しで、コマンドは計画の表示だけなので、まとめた後に`runs/`を読まず、変えなかった（Solの判断。主担当も妥当と判断。2ファイルとも下のWSLの実行で通った）。
+- 整形: ルートの`run_behavior_fix_comparison.py`・`analyze_behavior_fix_comparison.py`と研究ツールは、変更の前から`ruff format --check`の対象外の状態で、足した部分だけを整形した（既存の部分の大量の整形を混ぜない）。`ruff check src tests/refactoring`は通った。
+- 主担当の検証（WSL、逐次）: 変えた・関係する10ファイル（`test_experiment_sweep.py`、`test_experiment_sweep_resumption.py`、`test_behavior_fix_comparison_scripts.py`、`test_fedavg_local_updates_per_aggregation.py`、`test_feddrift_experiment_sweep.py`、`test_fedsda_fixed_share_time_scale_axis.py`、`test_fedsda_pending_assignment_fifo_capacity_axis.py`、`test_packed_run_artifact_archive.py`、`test_fedavg_experiment_sweep.py`、`test_dynamic_weighted_majority_experiment_sweep.py`）で 292 passed（14分18秒）。`tests/refactoring/fresh_process_smoke.py` は PASS（全部の流れ）。
+- 全runが済んだ流し直しの所要時間（task 1.2 の残り、主担当、WSL）: 上の400 runの出力を製品の関数でまとめ、同じ引数＋`--output-directory`、8 workersで掃引のコマンドを流し直した。74.7秒で、400 runすべて`skipped_existing`、終了コード0、`runs.zip`と`run_summary.csv`のsha256は流し直しの前後で同じ。520 runに換算して約97秒で、2分を下回る。
 

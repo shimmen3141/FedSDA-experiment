@@ -139,13 +139,42 @@ run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変更し
   sweep_record_<開始時刻>.json        実行の記録（コマンドの実行ごとに1つ）
   <構成の名前>/
     run_summary.csv                   一覧の表（1 runが1行）
-    runs/
+    runs.zip                          全run完了後のrunの成果物（runs/のJSON・NPZをまとめる）
+    runs/                             完了前、またはunpackした後
       <識別子>.json                   1 runの要約（run設定の全部、指標、実行環境、runの来歴）
       <識別子>.npz                    1 runの記録の表（`表の名前.列の名前`の配列。LZMA）
   .resume/
     sweep.json                        掃引の計画（再開の候補を探すのに使う）
     run_start_records.zip             runごとの開始の記録（全runが済んだらまとめる。途中は<構成の名前>/<識別子>.json）
 ```
+
+掃引のコマンドと比較scriptは、計画の全runが`completed`か`skipped_existing`で、失敗と読めない要約が無いとき、
+表と実行の記録を書き終えてから、構成ごとの`runs/`を`runs.zip`へまとめる。中断・例外・`--print-plan`ではまとめない。
+zipには元のパス（`runs/<識別子>.json`と`.npz`）と、バイト数・sha256のmanifestを入れる。NPZのバイト列は変えず、
+全ファイルを照合してzipを置いてから元を消す。README・表・実行の記録・`.resume/`は対象外。
+まとめに失敗したら元を残し、警告を出す。まとめの間は、構成の容量が一時的に約2倍必要になる。
+
+まとめた出力先でも、同じ計画の流し直し・再開候補の探索・`--print-plan`はzipから状態を判定する。
+`runs/`が無く全runがzipにあれば、全部飛ばし、zip・`run_summary.csv`・`.resume/`を保つ。
+比較scriptなど掃引を直接呼ぶ経路でrunを足す場合は、計算の前にzipを戻し、全runが済んだらまとめ直す。
+掃引のコマンドでは、同じ出力先への計画の違う掃引（seedの追加など）は、従来どおり拒否する。
+
+`runs/`とzipが両方残った場合（まとめの削除や戻しが途中で止まった場合）は、同じ掃引を流し直す。
+製品が全項目を照合して戻してから続け、成功すればまとめ直す。同名で中身が違うファイルがあれば、その構成の全runを失敗にし、
+zipと表を保つ。この途中の状態は、既存の戻し先を拒否する研究ツールの`unpack`では戻せない。
+壊れたzipもその構成のrunを失敗にする。研究ツールでも戻せないので、元のファイルや転送の欠損などを手で確認する。
+まとめの途中に排他を取らない計画表示・再開候補の探索をすると、一時的に「食い違う」と見えることがある。
+
+runのファイルを読む分析の前に、研究ツールで戻す（出力先の下の構成を再帰的に処理する）。
+
+```bash
+python -m tools.research_results_archive.archive unpack <出力先>
+```
+
+研究ツール自身の`pack`でまとめたzipはNPZの中を書き直しているため、製品では読まない。
+製品で流し直す前に、同じ`unpack`で戻す。多くの`tools/`の分析は`runs/`を直接読むので、製品のzipも先に戻す。
+`analyze_behavior_fix_comparison.py --chains`も、まとめた構成があれば、集計前に戻すコマンドを示して終了コード2で止まる。
+`--chains`の無い比較集計は表だけを読むので、そのまま使える。
 
 - 識別子は、`<dataset>_interval<集約間隔>_seed<seed>_<hash>`。hashは、構成の名前と、run設定の全部から計算する
   （client数や標本数が違えば、hashが違う）。

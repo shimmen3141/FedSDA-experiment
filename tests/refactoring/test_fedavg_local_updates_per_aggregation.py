@@ -182,6 +182,11 @@ def test_sweep_command_saves_runs_under_the_configuration_directory(tmp_path):
     ]
     assert main(arguments) == 0
     configuration_directory = output / FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME
+    from federated_learning_experiments.sweep.packed_run_artifact_archive import (
+        restore_packed_run_artifacts,
+    )
+
+    restore_packed_run_artifacts(configuration_directory)
     assert len(list((configuration_directory / "runs").glob("*.json"))) == 1
     with (configuration_directory / "run_summary.csv").open(encoding="utf-8", newline="") as stream:
         rows = list(csv.DictReader(stream))

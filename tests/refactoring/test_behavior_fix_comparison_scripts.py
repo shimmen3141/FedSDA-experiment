@@ -37,6 +37,172 @@ run_script = load_script_module("run_behavior_fix_comparison.py")
 analyze_script = load_script_module("analyze_behavior_fix_comparison.py")
 
 
+def _small_comparison_arguments(output):
+    return [
+        "--datasets",
+        "sine2",
+        "--seeds",
+        "0",
+        "--aggregation-intervals",
+        "3",
+        "--client-count",
+        "2",
+        "--per-client-sample-count",
+        "5",
+        "--registration-levels",
+        "fixed",
+        "--short-alarm-levels",
+        "fixed",
+        "--purpose",
+        "packing comparison test",
+        "--output-directory",
+        str(output),
+    ]
+
+
+def test_comparison_packs_and_preserves_packed_rerun(tmp_path, capsys, monkeypatch):
+    from federated_learning_experiments.sweep import packed_run_artifact_archive as packing
+    from federated_learning_experiments.sweep.experiment_sweep_resumption import (
+        hold_sweep_output_lock,
+    )
+
+    pack = packing.pack_completed_sweep_run_artifacts
+
+    def check_record_and_lock(output, names):
+        assert list(output.glob("comparison_record_*.json"))
+        assert all((output / name / "run_summary.csv").is_file() for name in names)
+        with pytest.raises(ValueError, match="already running"):
+            with hold_sweep_output_lock(output):
+                pytest.fail("まとめの排他がない")
+        return pack(output, names)
+
+    monkeypatch.setattr(packing, "pack_completed_sweep_run_artifacts", check_record_and_lock)
+    arguments = _small_comparison_arguments(tmp_path)
+    assert run_script.main(arguments) == 0
+    configuration = tmp_path / "registration-fixed__short-alarm-fixed"
+    assert (configuration / "runs.zip").is_file()
+    assert not (configuration / "runs").exists()
+    assert "packed run artifacts:" in capsys.readouterr().out
+    before = {path.name: path.read_bytes() for path in configuration.iterdir()}
+    assert run_script.main(arguments) == 0
+    assert "skipped (existing): 1" in capsys.readouterr().out
+    assert {path.name: path.read_bytes() for path in configuration.iterdir()} == before
+    from federated_learning_experiments.sweep.packed_run_artifact_archive import (
+        restore_packed_run_artifacts,
+    )
+
+    restore_packed_run_artifacts(configuration)
+    assert len(list((configuration / "runs").glob("*.json"))) == 1
+    assert len(list((configuration / "runs").glob("*.npz"))) == 1
+
+
+@pytest.mark.parametrize("failure", ["failed", "unreadable", "lock", "packing"])
+def test_comparison_keeps_runs_when_not_packable(tmp_path, monkeypatch, capsys, failure):
+    from federated_learning_experiments.sweep import experiment_sweep_execution as execution
+    from federated_learning_experiments.sweep import experiment_sweep_resumption as resumption
+    from federated_learning_experiments.sweep import packed_run_artifact_archive as packing
+
+    configuration = tmp_path / "registration-fixed__short-alarm-fixed"
+    if failure == "failed":
+
+        def fail_run(**_):
+            raise RuntimeError("comparison run failed")
+
+        monkeypatch.setattr(execution, "execute_fedsda_experiment_run", fail_run)
+    elif failure == "unreadable":
+        execute = execution.execute_experiment_sweep
+
+        def add_unreadable(**kwargs):
+            outcomes = execute(**kwargs)
+            (configuration / "runs" / "unrelated.json").write_bytes(b"unreadable")
+            return outcomes
+
+        monkeypatch.setattr(execution, "execute_experiment_sweep", add_unreadable)
+    elif failure == "lock":
+
+        @contextlib.contextmanager
+        def locked(_):
+            raise ValueError("already running")
+            yield
+
+        monkeypatch.setattr(resumption, "hold_sweep_output_lock", locked)
+    else:
+
+        def fail_verify(*_):
+            raise ValueError("cannot verify archive")
+
+        monkeypatch.setattr(packing, "_verify_archive", fail_verify)
+    assert run_script.main(_small_comparison_arguments(tmp_path)) == (
+        1 if failure == "failed" else 0
+    )
+    printed = capsys.readouterr().out
+    if failure in ("lock", "packing"):
+        assert "warning:" in printed
+    if failure == "unreadable":
+        assert "unreadable run summary" in printed
+    assert (configuration / "runs").is_dir()
+    assert not (configuration / "runs.zip").exists()
+
+
+def test_comparison_does_not_rewrite_table_when_restoration_fails(tmp_path):
+    arguments = _small_comparison_arguments(tmp_path)
+    assert run_script.main(arguments) == 0
+    configuration = tmp_path / "registration-fixed__short-alarm-fixed"
+    table = (configuration / "run_summary.csv").read_bytes()
+    archive = (configuration / "runs.zip").read_bytes()
+    (configuration / "runs").mkdir()
+    import zipfile
+
+    with zipfile.ZipFile(configuration / "runs.zip") as packed:
+        summary_name = next(
+            name
+            for name in packed.namelist()
+            if name.startswith("runs/") and name.endswith(".json")
+        )
+    (configuration / summary_name).write_bytes(b"conflicting summary")
+    assert run_script.main(arguments) == 1
+    assert (configuration / "run_summary.csv").read_bytes() == table
+    assert (configuration / "runs.zip").read_bytes() == archive
+
+
+def test_analysis_chains_rejects_all_packed_inputs_before_reading(tmp_path, monkeypatch, capsys):
+    for name in ANALYSIS_FIXTURE_COMBINATION_NAMES:
+        directory = tmp_path / name
+        directory.mkdir()
+        (directory / "runs.zip").write_bytes(b"archive")
+
+    def reject_read(*_, **__):
+        pytest.fail("戻しの案内より先に入力を読んだ")
+
+    monkeypatch.setattr(analyze_script, "read_combination", reject_read)
+    before = sorted(tmp_path.rglob("*"))
+    assert analyze_script.main([str(tmp_path), "--chains"]) == 2
+    captured = capsys.readouterr()
+    assert not captured.out
+    for name in ANALYSIS_FIXTURE_COMBINATION_NAMES:
+        assert str(tmp_path / name) in captured.err
+    assert "python -m tools.research_results_archive.archive unpack" in captured.err
+    assert sorted(tmp_path.rglob("*")) == before
+
+
+def test_analysis_without_chains_reads_same_tables_when_packed(tmp_path, monkeypatch, capsys):
+    write_run_summary(tmp_path, "registration-fixed__short-alarm-fixed", [("sine2", 0, 0.9)])
+
+    # 出どころの日時を固定し、表以外も含む出力全体が変わらないことを確かめる。
+    class FixedDatetime(analyze_script.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 11, 25, 12, 0, 0, tzinfo=tz)
+
+    monkeypatch.setattr(analyze_script, "datetime", FixedDatetime)
+    monkeypatch.setattr(analyze_script, "describe_analysis_code_revision", lambda: "test revision")
+    assert analyze_script.main([str(tmp_path), "--stdout"]) == 0
+    before = capsys.readouterr().out
+    (tmp_path / "registration-fixed__short-alarm-fixed" / "runs.zip").write_bytes(b"archive")
+    assert analyze_script.main([str(tmp_path), "--stdout"]) == 0
+    assert capsys.readouterr().out == before
+
+
 def test_registration_levels_name_every_policy_and_keep_the_default_plan():
     assert run_script.REGISTRATION_POLICY_BY_LEVEL == {
         "legacy": KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,

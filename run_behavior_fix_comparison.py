@@ -220,6 +220,13 @@ def main(command_arguments=None):
         write_experiment_readme,
         write_run_summary_table,
     )
+    from federated_learning_experiments.sweep.experiment_sweep_resumption import (
+        hold_sweep_output_lock,
+    )
+    from federated_learning_experiments.sweep.packed_run_artifact_archive import (
+        RUN_ARTIFACT_ARCHIVE_NAME,
+        pack_completed_sweep_run_artifacts,
+    )
 
     # 引数を読んだ直後に、名前と目的を確かめる（何も作らずに、引数の誤りとして止める）。
     try:
@@ -302,13 +309,20 @@ def main(command_arguments=None):
         report_behavior_baseline_mismatch(mismatch_error)
         return 2
     combination_names = sorted({planned_run.configuration_name for planned_run in planned_runs})
+    unreadable_run_summary_descriptions = []
     for combination_name in combination_names:
         combination_directory = output_directory / combination_name
-        if (combination_directory / "runs").is_dir():
-            for unreadable_description in write_run_summary_table(
-                configuration_directory=combination_directory, configuration_name=combination_name
-            ).unreadable_run_summary_descriptions:
-                print(f"unreadable run summary (left out of the table): {unreadable_description}")
+        if (combination_directory / "runs").is_dir() and not (
+            combination_directory / RUN_ARTIFACT_ARCHIVE_NAME
+        ).exists():
+            unreadable_run_summary_descriptions.extend(
+                write_run_summary_table(
+                    configuration_directory=combination_directory,
+                    configuration_name=combination_name,
+                ).unreadable_run_summary_descriptions
+            )
+    for unreadable_description in unreadable_run_summary_descriptions:
+        print(f"unreadable run summary (left out of the table): {unreadable_description}")
     record_text = (
         dumps(
             dict(
@@ -350,6 +364,18 @@ def main(command_arguments=None):
             continue
         break
     failed_run_count = sum(outcome.run_status == "failed" for outcome in outcomes)
+    if not failed_run_count and not unreadable_run_summary_descriptions:
+        try:
+            with hold_sweep_output_lock(output_directory):
+                packing_result = pack_completed_sweep_run_artifacts(
+                    output_directory, tuple(combination_names)
+                )
+                for combination_name in packing_result.packed_configuration_names:
+                    print(f"packed run artifacts: {combination_name}/{RUN_ARTIFACT_ARCHIVE_NAME}")
+                for warning in packing_result.warning_descriptions:
+                    print(f"warning: {warning}")
+        except (ValueError, OSError) as caught_exception:
+            print(f"warning: run artifacts were not packed: {caught_exception}")
     print(
         f"completed: {sum(outcome.run_status == 'completed' for outcome in outcomes)}, "
         f"skipped (existing): {sum(outcome.run_status == 'skipped_existing' for outcome in outcomes)}, "

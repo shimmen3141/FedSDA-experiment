@@ -75,6 +75,7 @@ from federated_learning_experiments.sweep.packed_run_artifact_archive import (
     list_packed_run_identifiers,
     pack_completed_sweep_run_artifacts,
     pack_configuration_run_artifacts,
+    restore_packed_run_artifacts,
 )
 
 REPOSITORY_DIRECTORY = Path(__file__).resolve().parents[2]
@@ -371,6 +372,165 @@ def test_inner_sweep_checks_baseline_before_restoring(sequential_sweep, tmp_path
 
 
 # 小さい規模の計画（1 runが数秒）。
+def _packed_command_arguments(output):
+    return [*SMALL_COMMAND_ARGUMENTS, "--seeds", "0", "1", "--output-directory", str(output)]
+
+
+def _packed_output_snapshot(output):
+    return {p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()}
+
+
+def test_command_packs_after_record_and_preserves_packed_rerun(
+    sequential_sweep, tmp_path, monkeypatch, capsys
+):
+    source, _, _, _ = sequential_sweep
+    copy_sweep_output(source, tmp_path)
+    from federated_learning_experiments.sweep import packed_run_artifact_archive as packing
+
+    pack = packing.pack_completed_sweep_run_artifacts
+
+    def check_order(output, names):
+        assert (output / "fedsda" / "run_summary.csv").is_file()
+        assert list(output.glob("sweep_record_*.json"))
+        # コマンドの排他が、まとめの終わりまで保持される。
+        from federated_learning_experiments.sweep.experiment_sweep_resumption import (
+            hold_sweep_output_lock,
+        )
+
+        with pytest.raises(ValueError, match="already running"):
+            with hold_sweep_output_lock(output):
+                pytest.fail("排他が解放されている")
+        return pack(output, names)
+
+    monkeypatch.setattr(experiment_sweep_command, "pack_completed_sweep_run_artifacts", check_order)
+    arguments = _packed_command_arguments(tmp_path)
+    assert experiment_sweep_command.main(arguments) == 0
+    assert "packed run artifacts: fedsda/runs.zip" in capsys.readouterr().out
+    assert not (tmp_path / "fedsda" / "runs").exists()
+    before = _packed_output_snapshot(tmp_path)
+    assert experiment_sweep_command.main(arguments) == 0
+    assert "skipped (existing): 2" in capsys.readouterr().out
+    after = _packed_output_snapshot(tmp_path)
+    for path, data in before.items():
+        if (
+            path == Path("fedsda/runs.zip")
+            or path == Path("fedsda/run_summary.csv")
+            or path.parts[0] == ".resume"
+        ):
+            assert after[path] == data
+    assert experiment_sweep_command.main([*arguments, "--seeds", "0", "1", "2"]) == 2
+    assert (tmp_path / "fedsda" / "runs.zip").read_bytes() == before[Path("fedsda/runs.zip")]
+
+
+@pytest.mark.parametrize("damage", ["broken", "lzma", "remaining_conflict"])
+def test_command_packed_failure_preserves_archive_and_table(
+    sequential_sweep, tmp_path, monkeypatch, damage, capsys
+):
+    source, runs, _, _ = sequential_sweep
+    copy_sweep_output(source, tmp_path)
+    configuration = tmp_path / "fedsda"
+    write_run_summary_table(configuration_directory=configuration, configuration_name="fedsda")
+    assert pack_configuration_run_artifacts(configuration).archive_placed
+    if damage == "broken":
+        (configuration / "runs.zip").write_bytes(b"broken zip")
+    elif damage == "lzma":
+        monkeypatch.setattr(zipfile, "lzma", None)
+    else:
+        (configuration / "runs").mkdir()
+        (configuration / "runs" / f"{runs[0].run_identifier}.json").write_bytes(b"conflict")
+    archive = (configuration / "runs.zip").read_bytes()
+    table = (configuration / "run_summary.csv").read_bytes()
+    assert experiment_sweep_command.main(_packed_command_arguments(tmp_path)) == 1
+    printed = capsys.readouterr().out
+    assert "failed: 2" in printed
+    if damage == "lzma":
+        assert "LZMA" in printed
+    assert (configuration / "runs.zip").read_bytes() == archive
+    assert (configuration / "run_summary.csv").read_bytes() == table
+
+
+@pytest.mark.parametrize("failure", ["unreadable", "failed", "interrupt", "record"])
+def test_command_does_not_pack_unsuccessful_sweep(sequential_sweep, tmp_path, monkeypatch, failure):
+    source, runs, _, _ = sequential_sweep
+    copy_sweep_output(source, tmp_path)
+    configuration = tmp_path / "fedsda"
+    if failure == "unreadable":
+        (configuration / "runs" / "unrelated.json").write_bytes(b"unreadable")
+    elif failure == "failed":
+        (configuration / "runs" / f"{runs[0].run_identifier}.json").write_bytes(b"broken")
+    elif failure == "interrupt":
+
+        def interrupt(**_):
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr(experiment_sweep_command, "execute_experiment_sweep", interrupt)
+    else:
+
+        def fail_record(**_):
+            raise OSError("cannot save record")
+
+        monkeypatch.setattr(experiment_sweep_command, "write_sweep_record", fail_record)
+    if failure == "interrupt":
+        with pytest.raises(KeyboardInterrupt):
+            experiment_sweep_command.main(_packed_command_arguments(tmp_path))
+    else:
+        assert experiment_sweep_command.main(_packed_command_arguments(tmp_path)) == (
+            2 if failure == "record" else 1
+        )
+    assert (configuration / "runs").is_dir()
+    assert not (configuration / "runs.zip").exists()
+
+
+@pytest.mark.parametrize("failure", ["write", "verify"])
+def test_command_pack_failure_warns_without_changing_exit_code(
+    sequential_sweep, tmp_path, monkeypatch, capsys, failure
+):
+    from federated_learning_experiments.sweep import packed_run_artifact_archive as packing
+
+    source, _, _, _ = sequential_sweep
+    copy_sweep_output(source, tmp_path)
+    if failure == "write":
+        open_member = packing.ZipFile.open
+
+        def fail_write(archive, *args, **kwargs):
+            if archive.mode == "w" and str(archive.filename).endswith("runs.zip.partial"):
+                raise OSError("cannot write archive")
+            return open_member(archive, *args, **kwargs)
+
+        monkeypatch.setattr(packing.ZipFile, "open", fail_write)
+    else:
+
+        def fail_verify(*args):
+            raise ValueError("archive verification failed")
+
+        monkeypatch.setattr(packing, "_verify_archive", fail_verify)
+    assert experiment_sweep_command.main(_packed_command_arguments(tmp_path)) == 0
+    assert "warning:" in capsys.readouterr().out
+    assert (tmp_path / "fedsda" / "runs").is_dir()
+    assert not (tmp_path / "fedsda" / "runs.zip").exists()
+
+
+@pytest.mark.parametrize("packed", [False, True])
+def test_command_print_plan_preserves_individual_and_remaining_half_files(
+    sequential_sweep, tmp_path, packed, capsys
+):
+    source, runs, _, _ = sequential_sweep
+    copy_sweep_output(source, tmp_path)
+    configuration = tmp_path / "fedsda"
+    if packed:
+        path = configuration / "runs" / f"{runs[0].run_identifier}.npz"
+        data = path.read_bytes()
+        assert pack_configuration_run_artifacts(configuration).archive_placed
+        path.parent.mkdir()
+        path.write_bytes(data)
+    before = _packed_output_snapshot(tmp_path)
+    assert (
+        experiment_sweep_command.main([*_packed_command_arguments(tmp_path), "--print-plan"]) == 0
+    )
+    assert capsys.readouterr().out.count(": completed") == 2
+    assert _packed_output_snapshot(tmp_path) == before
+
+
 SMALL_SWEEP_PLAN = ExperimentSweepPlan(
     configuration_names=(PROPOSED_FEDSDA_CONFIGURATION_NAME,),
     dataset_names=("circle2",),
@@ -579,6 +739,9 @@ def test_planned_runs_reject_invalid_conditions_before_running(changed_fields):
 
 
 def read_run_files(output_directory, planned_run):
+    configuration_directory = output_directory / planned_run.configuration_name
+    if (configuration_directory / "runs.zip").exists():
+        restore_packed_run_artifacts(configuration_directory)
     return load_fedsda_run_artifacts(
         summary_file_path=(
             output_directory
@@ -1870,6 +2033,7 @@ def test_command_creates_no_readme_when_existing_runs_have_another_baseline(tmp_
     output_directory = tmp_path / "command-output"
     command_arguments = [*SMALL_COMMAND_ARGUMENTS, "--output-directory", str(output_directory)]
     assert experiment_sweep_command.main(command_arguments) == 0
+    restore_packed_run_artifacts(output_directory / "fedsda")
     planned_run = build_planned_experiment_runs(
         sweep_plan=replace(SMALL_SWEEP_PLAN, random_seeds=(0,))
     )[0]

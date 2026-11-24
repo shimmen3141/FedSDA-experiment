@@ -4766,6 +4766,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_sweep_command.py":
         return imported_module_name in (
+            "federated_learning_experiments.sweep.packed_run_artifact_archive.RUN_ARTIFACT_ARCHIVE_NAME",
+            "federated_learning_experiments.sweep.packed_run_artifact_archive.pack_completed_sweep_run_artifacts",
             "federated_learning_experiments.sweep.seed_argument_parsing.SeedListArgumentAction",
             "sys.stdin",
             "sys.stdout",

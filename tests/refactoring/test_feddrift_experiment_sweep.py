@@ -417,6 +417,10 @@ def command_arguments(output):
 
 
 def test_cli_writes_threshold_columns_records_and_resumes(tmp_path, capsys):
+    from federated_learning_experiments.sweep.packed_run_artifact_archive import (
+        restore_packed_run_artifacts,
+    )
+
     output = tmp_path / "output"
     args = command_arguments(output)
     assert experiment_sweep_command.main(args + ["--print-plan"]) == 0
@@ -424,6 +428,7 @@ def test_cli_writes_threshold_columns_records_and_resumes(tmp_path, capsys):
     assert not output.exists()
     assert experiment_sweep_command.main(args) == 0
     assert "completed: 2" in capsys.readouterr().out
+    restore_packed_run_artifacts(output / "feddrift")
     with (output / "feddrift" / "run_summary.csv").open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
     assert len(rows) == 2
@@ -518,6 +523,11 @@ def test_real_cli_help_and_spawn_execution(tmp_path):
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "completed: 2" in result.stdout
+    from federated_learning_experiments.sweep.packed_run_artifact_archive import (
+        restore_packed_run_artifacts,
+    )
+
+    restore_packed_run_artifacts(output / "feddrift")
     for summary_file in (output / "feddrift" / "runs").glob("*.json"):
         summary, tables = load_feddrift_run_artifacts(summary_file_path=summary_file)
         assert summary["method_name"] == "feddrift" and tables[

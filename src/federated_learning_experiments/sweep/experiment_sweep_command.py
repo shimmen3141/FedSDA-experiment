@@ -55,6 +55,10 @@ from federated_learning_experiments.sweep.experiment_sweep_resumption import (
     hold_sweep_output_lock,
     write_sweep_resumption_plan,
 )
+from federated_learning_experiments.sweep.packed_run_artifact_archive import (
+    RUN_ARTIFACT_ARCHIVE_NAME,
+    pack_completed_sweep_run_artifacts,
+)
 from federated_learning_experiments.sweep.seed_argument_parsing import SeedListArgumentAction
 
 # リポジトリの直下（このファイルは、`src/federated_learning_experiments/sweep/`にある）。
@@ -566,7 +570,9 @@ def _execute_command_in_output(
     unreadable_run_summary_descriptions: list[str] = []
     for configuration_name in sweep_plan.configuration_names:
         configuration_directory = output_directory / configuration_name
-        if (configuration_directory / "runs").is_dir():
+        if (configuration_directory / "runs").is_dir() and not (
+            configuration_directory / RUN_ARTIFACT_ARCHIVE_NAME
+        ).exists():
             unreadable_run_summary_descriptions.extend(
                 write_run_summary_table(
                     configuration_directory=configuration_directory,
@@ -589,6 +595,14 @@ def _execute_command_in_output(
         unreadable_run_summary_descriptions=tuple(unreadable_run_summary_descriptions),
     )
     failed_run_count = sum(outcome.run_status == "failed" for outcome in outcomes)
+    if not failed_run_count and not unreadable_run_summary_descriptions:
+        packing_result = pack_completed_sweep_run_artifacts(
+            output_directory, sweep_plan.configuration_names
+        )
+        for configuration_name in packing_result.packed_configuration_names:
+            print(f"packed run artifacts: {configuration_name}/{RUN_ARTIFACT_ARCHIVE_NAME}")
+        for warning in packing_result.warning_descriptions:
+            print(f"warning: {warning}")
     print(
         f"completed: {sum(outcome.run_status == 'completed' for outcome in outcomes)}, "
         f"skipped (existing): {sum(outcome.run_status == 'skipped_existing' for outcome in outcomes)}, "

@@ -317,6 +317,25 @@ def main(arguments):
     parsed_arguments = argument_parser.parse_args(arguments)
     output_directory = parsed_arguments.output_directory
     report_chains = parsed_arguments.chains
+    if report_chains:
+        packed_directories = []
+        for registration_level in REGISTRATION_LEVELS:
+            for short_alarm_level in SHORT_ALARM_LEVELS:
+                for alarm_wait_level in ALARM_WAIT_LEVELS:
+                    directory = output_directory / combination_name(
+                        registration_level, short_alarm_level, alarm_wait_level
+                    )
+                    if not (directory / "runs").exists() and (directory / "runs.zip").exists():
+                        packed_directories.append(directory)
+        if packed_directories:
+            for directory in packed_directories:
+                print(f"--chains cannot read packed run artifacts: {directory}", file=sys.stderr)
+            print(
+                "Restore run artifacts before analysis: "
+                f"python -m tools.research_results_archive.archive unpack {shlex.quote(str(output_directory))}",
+                file=sys.stderr,
+            )
+            return 2
     created_time = datetime.now().astimezone().replace(microsecond=0)
     report_lines = []
     emit = report_lines.append
