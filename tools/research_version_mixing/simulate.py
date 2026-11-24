@@ -128,7 +128,25 @@ class AmsgradAdam:
             p -= self.learning_rate / correction1 * self.m[i] / denominator
 
 
-def simulate_versions(cell: VersionCell, seed: int) -> dict[str, np.ndarray]:
+def bayes_probability_of_class_one(x: np.ndarray, flip: float) -> np.ndarray:
+    """ベイズ最適の確率 P(y=1|x)。きれいなラベルが1なら 1−flip、0なら flip。"""
+    clean = np.sin(2 * x[..., 0]) + x[..., 1] ** 2 - 1 + 0.5 * x[..., 2] > 0
+    return np.where(clean, 1 - flip, flip)
+
+
+def simulate_versions(
+    cell: VersionCell, seed: int, measure_every: int = 0, test_points: int = 1000
+) -> dict[str, np.ndarray]:
+    """measure_every > 0 なら、その件数ごとに、固定した試験点で各版の確率予測のベイズ最適からのずれを測る。
+
+    試験点は別の乱数（seed + 10**6）で作るので、学習と予測の乱数の消費は measure_every によらず同じ。
+    計測（時刻ごと、試験点とclientで平均）:
+    - local_excess: E_m E_x[(p_m(x) − p*(x))²]（手元の版のBrierの超過）
+    - sync_excess: E_x[(p_sync(x) − p*(x))²]（同期の版。全clientで同じ）
+    - local_variance: E_x Var_m(p_m(x))（client間のばらつき）
+    - local_mean_bias: E_x[(p̄(x) − p*(x))²]（clientの予測の平均の超過）
+    恒等式 local_excess = local_mean_bias + local_variance が成り立つ。
+    """
     rng = np.random.default_rng(seed)
     M, T, d = cell.clients, cell.samples_per_client, cell.dimension
     network = StackedNetwork(cell, rng)
@@ -161,6 +179,15 @@ def simulate_versions(cell: VersionCell, seed: int) -> dict[str, np.ndarray]:
         }
     )
     records["weight_local"] = np.zeros((M, T))
+    if measure_every > 0:
+        test_rng = np.random.default_rng(seed + 10**6)
+        test_x = test_rng.standard_normal((test_points, d))
+        bayes = bayes_probability_of_class_one(test_x, cell.label_flip)
+        test_batch = np.repeat(test_x[None], M, axis=0)
+        measures = {
+            name: []
+            for name in ("time", "steps_since_sync", "local_excess", "sync_excess", "local_variance", "local_mean_bias")
+        }
 
     for t in range(T):
         xt, yt = x[:, t : t + 1], y[:, t]
@@ -187,9 +214,26 @@ def simulate_versions(cell: VersionCell, seed: int) -> dict[str, np.ndarray]:
         batch_y = y[clients[:, None], index]
         optimizer.step(local, gradients(local, batch_x, batch_y, cell.model))
 
+        if measure_every > 0 and (t + 1) % measure_every == 0:
+            # 学習の後・同期の前の状態を測る（同期の時点では手元の版と同期の版が一致するため）。
+            local_probability = forward(local, test_batch, cell.model)[0][..., 1]  # (M, X)
+            sync_probability = forward([q[:1] for q in synchronized], test_x[None], cell.model)[0][0, :, 1]
+            mean_probability = local_probability.mean(axis=0)
+            measures["time"].append(t + 1)
+            measures["steps_since_sync"].append(
+                (t + 1) % cell.synchronization_interval or cell.synchronization_interval
+            )
+            measures["local_excess"].append(float(((local_probability - bayes) ** 2).mean()))
+            measures["sync_excess"].append(float(((sync_probability - bayes) ** 2).mean()))
+            measures["local_variance"].append(float(local_probability.var(axis=0).mean()))
+            measures["local_mean_bias"].append(float(((mean_probability - bayes) ** 2).mean()))
+
         if (t + 1) % cell.synchronization_interval == 0:
             for p in local:
                 p[:] = p.mean(axis=0, keepdims=True)
             synchronized = [p.copy() for p in local]
 
+    if measure_every > 0:
+        for name, values in measures.items():
+            records[f"measure_{name}"] = np.array(values)
     return records
