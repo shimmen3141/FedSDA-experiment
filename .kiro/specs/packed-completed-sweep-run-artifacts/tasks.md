@@ -67,8 +67,8 @@
   - _Requirements: 3.3, 5.2_
   - _Depends: 1.5_
 
-- [ ] 2. 文書と確認
-- [ ] 2.1 文書・全pytest・実装レビュー
+- [x] 2. 文書と確認
+- [x] 2.1 文書・全pytest・実装レビュー
   - `docs/experiments/experiment-sweep.md`と研究ツールの冒頭の説明に足す（設計書の「文書」）。
   - `BEHAVIOR_BASELINE_VERSION`が16のままであることを、全pytestのgoldenのtestで確かめる。
   - 全pytest（`OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`、`tests/test_regression.py`・`tests/test_proposed_regression.py`を含む全部）、`ruff check src tests/refactoring`、pyrightを通す。
@@ -135,4 +135,14 @@
 - 整形: ルートの`run_behavior_fix_comparison.py`・`analyze_behavior_fix_comparison.py`と研究ツールは、変更の前から`ruff format --check`の対象外の状態で、足した部分だけを整形した（既存の部分の大量の整形を混ぜない）。`ruff check src tests/refactoring`は通った。
 - 主担当の検証（WSL、逐次）: 変えた・関係する10ファイル（`test_experiment_sweep.py`、`test_experiment_sweep_resumption.py`、`test_behavior_fix_comparison_scripts.py`、`test_fedavg_local_updates_per_aggregation.py`、`test_feddrift_experiment_sweep.py`、`test_fedsda_fixed_share_time_scale_axis.py`、`test_fedsda_pending_assignment_fifo_capacity_axis.py`、`test_packed_run_artifact_archive.py`、`test_fedavg_experiment_sweep.py`、`test_dynamic_weighted_majority_experiment_sweep.py`）で 292 passed（14分18秒）。`tests/refactoring/fresh_process_smoke.py` は PASS（全部の流れ）。
 - 全runが済んだ流し直しの所要時間（task 1.2 の残り、主担当、WSL）: 上の400 runの出力を製品の関数でまとめ、同じ引数＋`--output-directory`、8 workersで掃引のコマンドを流し直した。74.7秒で、400 runすべて`skipped_existing`、終了コード0、`runs.zip`と`run_summary.csv`のsha256は流し直しの前後で同じ。520 runに換算して約97秒で、2分を下回る。
+
+### 実装レビューと全pytest（2026-11-25）
+- 独立の実装レビュー: GPT-6 Luna（`codex exec -m gpt-6-luna -c model_reasoning_effort="medium" --sandbox workspace-write`、ログのmodel行`gpt-6-luna`、`reasoning effort: medium`、session `01a20ef6-738b-7512-a90f-a8e91a0a555c`、対象`b197a4fc..39727c97`）。判定 PASS（指摘なし）。戻しが書く前に全memberを検査すること、まとめがzip全体の照合と元のファイルの再照合の後に置いてから消すこと、zipが残る構成で`run_summary.csv`を書き直さないこと、公開の名前、既存testの期待、変えなかった2ファイルの判断、文書を確認した。独立に実行できたのは`ruff check src tests/refactoring`（成功）だけで、`test_packed_run_artifact_archive.py`は一時領域`pytest-of-yshin`の権限でfixtureの準備に失敗し、torchを読むtestはWindowsで動かないので、主担当のWSLの実測と照合した。
+- 全pytestの環境: このPCのWindowsのvenvは、torch のDLLの読み込みがアプリケーションの制御ポリシーで拒否され、全pytestを流せない。WSL Ubuntu の `/home/yshin/.venvs/fedsda-experiment`（Python 3.14.4、torch 2.12.1+cpu、numpy 2.4.6）で流した。ユーザーの指示（2026-11-25）で、このvenvに `pytest-xdist==3.8.0`・`scikit-learn==1.9.1`（`requirements-dev.txt`の固定の版）と依存（execnet 2.1.2、scipy 1.18.1、joblib 1.6.0、threadpoolctl 3.7.0、cloudpickle 3.1.2、narwhals 2.28.0。Windowsのvenvと同じ版）を、OSVの既知の脆弱性・PyPIの取り下げ・最近のサプライチェーンの報告を確かめた上で、`--require-hashes --only-binary=:all: --no-deps`で入れた（`pip check`も通った）。
+- 全pytest（対象 commit `39727c97`、WSL、`-n 10 --dist loadfile`、`OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`、除外なし）: 14,199 passed、4 failed、11 skipped（23分30秒）。JUnitは`../../venv/refactoring-tests/packed-completed-sweep-run-artifacts-full-wsl.xml`（Git管理外、このPCだけ）。同じ件数を、その前の `-n 12` の実行（23分13秒）でも得た。
+  - 失敗の4件はどれも環境の違いで、今回の変更と無関係: `test_single_run_dependency_boundaries.py`の`from __future__ import *`の1件（Python 3.14 が構文の誤りにする。Windowsの3.13では読める）、`test_fedsda_minimum_description_length_alarm_interval_assignment.py::test_current_model_selection_without_baseline_adopts_a_new_model`、`tests/test_regression.py`・`tests/test_proposed_regression.py`（旧実装のgoldenはWindows・Python 3.13で作ったもので、実行の環境が違うという警告が出る）。後の3件は、変更の前の commit `b197a4fc` を一時のworktreeに取り出し、同じWSLの環境で流しても同じく失敗した（3 failed）。
+  - skipの11件: riverがこのvenvに無い9件、`test_important_behavior_regression_goldens.py`の設計どおりのskip 1件（この環境では件数0のクロス評価のcaseが無い）、Windows用のgoldenとの照合をWindowsでだけ行う1件。新実装のgoldenのtest（`test_important_behavior_regression_goldens.py`）は 398 passed・1 skipped（上の1件）で、goldenの照合はskipされていない。
+  - `BEHAVIOR_BASELINE_VERSION`は16のまま（変更なし。goldenのtestが通った）。
+  - Windowsでの全pytest（旧の数値の回帰を含む正規の環境）は、torch のDLLの拒否が解けるまで流せない（未実施）。pyright も未実施（Windowsでは torch の解決が要る）。
+- 状態: 全taskを完了し、実装レビューPASS。spec を完了にした（phase `completed`）。
 
