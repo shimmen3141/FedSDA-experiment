@@ -3,12 +3,12 @@
 依存: 1.1 → 1.2 → 1.3 → 1.4 → 1.5 → 1.6 → 2.1。どれも`test_single_run_dependency_boundaries.py`か`test_experiment_sweep.py`を編集するので、順に進める。
 
 - [ ] 1. runの成果物のまとめ
-- [ ] 1.1 まとめ・読み出し・戻しのmodule
+- [x] 1.1 まとめ・読み出し・戻しのmodule
   - 設計書のTesting Strategyの「module」のtest（研究ツールの`unpack`で戻ること、研究ツールの`pack`が飛ばすこと、研究ツールでまとめたzipを製品が理由を付けて読めないとすること、戻しの段1で止まると（中身の壊れたmemberを含む）`runs/`に何も書かないこと、段2の途中の失敗で戻したファイルが残り`.partial`が残らないこと、`lzma`が無いときの3つの関数の`ValueError`を含む）を先に書き、`sweep/packed_run_artifact_archive.py`を実装する。依存境界に新しいmoduleを登録する。
   - 完了条件: 新しいtest（研究ツールの`unpack`で戻ることを含む）と依存境界のtestが通り、`ruff check`が通る。
   - _Requirements: 1.2, 1.3, 1.4, 1.6, 3.1, 3.2, 4.1, 4.2, 5.2_
   - _Boundary: packed_run_artifact_archive_
-- [ ] 1.2 zipからの状態の判定
+- [x] 1.2 zipからの状態の判定
   - 先に書くtest:
     - 同じrunを個別のファイルとzipの両方で判定し、状態と説明の種類が一致すること（済んだ、基準版の違う、run設定の違う、読めない要約）。
     - zipにだけrunがあるときの判定（済んだ、食い違う（要約のrun設定が違う、壊れたzip、`lzma`が無い状態で説明が分かれる）、基準版の違う（掃引を始めずに止まる）、無い）。
@@ -20,7 +20,7 @@
   - _Requirements: 2.1, 2.3, 2.4, 5.2_
   - _Boundary: experiment_sweep_execution_
   - _Depends: 1.1_
-- [ ] 1.3 計算の前の戻し
+- [x] 1.3 計算の前の戻し
   - 先に書くtest:
     - `execute_experiment_sweep`を直接呼び、zipに無いrunを足したとき、戻してから計算すること。
     - `runs/`とzipが両方あるとき、計画の全runがzipにあっても戻してから続けること。
@@ -119,3 +119,12 @@
 - 反映: 段1で戻す項目の全memberを読み、sha256とバイト数をmanifestと照合する（中身は持たない）。段2の失敗は、読み書きの`OSError`と、段の間のzipの書き換えだけになる。testに中身の壊れたmemberの場合を足した。
 - 9回目（8回目の反映の確認）: GPT-6 Luna（`gpt-6-luna`、effort medium、読むだけ、session `01a207b5-4888-72c0-a482-656b3c4a4e72`、基点`310c2420`）。判定PASS（指摘なし）。Lunaが確かめていないこと: requirements.mdの要求3.2との逐語の照合（確認の対象を設計とtasksに限ったため）。
 - 仕様書群のレビューはPASSで済んだ。実装（GPT-6.1-solへの依頼）は、ユーザーの指示（2026-11-23「solが別の作業もやっているため、いったん待つ」）で待っている。
+
+### 実装の前半（task 1.1〜1.3、2026-11-25）
+- ユーザーの指示（2026-11-24「solは空いたので、実装を依頼してください」）で、GPT-6.1-sol（`codex exec -m gpt-6.1-sol --sandbox workspace-write`、ログのmodel行`gpt-6.1-sol`、`reasoning effort: medium`、session `01a20ec3-731c-73a0-b486-a4d15545b3cb`、基点`b197a4fc`）に task 1.1〜1.3 を依頼した。依頼文とログは`../../results/_sol_prompts/packed-runs-part1.txt`・`.log`（Git管理外）。続きを頼むときは `codex exec resume -m gpt-6.1-sol -c 'sandbox_mode="workspace-write"' 01a20ec3-731c-73a0-b486-a4d15545b3cb -`。
+- 実装: `sweep/packed_run_artifact_archive.py`（まとめ・manifestの照合・読み出し・一覧・2段の戻し）、`experiment_sweep_execution.py`（zipからの状態の判定、基準版の確認の後の戻し、戻しの失敗でその構成の全runを失敗にする）、test（`test_packed_run_artifact_archive.py` 36件、`test_experiment_sweep.py` に状態の判定・再開の候補・追加と戻しとまとめ直し・失敗のtest）、依存境界の登録。Solの報告では、設計の変更・新しい公開の名前は無い。
+- Solの検証: Windowsのvenvで新しいmoduleの36件と依存境界の静的検査3件が通った。sandboxからWSLを起動できず（`Wsl/Service/E_ACCESSDENIED`）、torchを読むtestと計測は流せなかった。Solが作った空の一時フォルダ`.tmp-packed-pytest`（削除がsandboxで拒否された）は主担当が消した。
+- 主担当の検証（WSL Ubuntu、`/home/yshin/.venvs/fedsda-experiment`、Python 3.14.4、torch 2.12.1+cpu、逐次）: `test_packed_run_artifact_archive.py`・`test_experiment_sweep.py`・`test_experiment_sweep_resumption.py`・`test_single_run_dependency_boundaries.py` で 2,438 passed・1 failed（10分53秒）。失敗の1件は `test_temporary_model_id_allocation_rejects_every_import_except_annotations[from __future__ import *-False]` で、Python 3.14 が `from __future__ import *` を構文の誤りにするため（Windowsの Python 3.13.15 では同じ文を読める）。Solの差分にこのtestは無く、環境の違いによる。Windowsで`ruff check src tests/refactoring`と、変えた5ファイルの`ruff format --check`が通った。手元のWindowsは torch のDLLの読み込みがアプリケーションの制御ポリシーで拒否されるので、torchを読むtestはWindowsでは流していない。
+- task 1.2 の所要時間（主担当、WSL）: 520 runの出力は研究ツールの変種（製品の計画で作り直せない）なので、製品の掃引の400 runの出力（`fedsda-synchronized-prediction-v16/20261124_165503_all-datasets-seeds0-9`。研究ツールでまとめた形）を WSL の /tmp へコピーし、研究ツールの`unpack`で戻して、同じ引数＋`--output-directory`で`--print-plan`を測った。`runs/` のまま 21.0秒、製品の`pack_configuration_run_artifacts`でまとめた後 22.3秒（どちらも400 runすべて`completed`、`--print-plan`の後もzipと`run_summary.csv`だけのまま）。520 runに換算して約29秒で、2分を下回るので直さない。全runが済んだ流し直しの時間は、1.4の後に測る。
+- 独立の実装レビューは、全taskの後に1回受ける（未実施）。全pytestも全taskの後に流す（未実施）。
+

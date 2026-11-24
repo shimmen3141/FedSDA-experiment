@@ -12,6 +12,7 @@ from json import dumps, loads
 from multiprocessing import get_context
 from os import environ
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from time import perf_counter
 from traceback import format_exc
 
@@ -68,6 +69,12 @@ from federated_learning_experiments.sweep.experiment_sweep_resumption import (
     pack_completed_sweep_run_start_records,
     recover_interrupted_run,
     write_run_start_record,
+)
+from federated_learning_experiments.sweep.packed_run_artifact_archive import (
+    RUN_ARTIFACT_ARCHIVE_NAME,
+    list_packed_run_identifiers,
+    read_packed_run_summary_and_record_table,
+    restore_packed_run_artifacts,
 )
 
 # 構成のディレクトリの中の、runのファイルを置くディレクトリの名前。
@@ -155,6 +162,36 @@ def find_existing_run_state(
     )
     summary_exists = summary_file_path.exists()
     record_table_exists = record_table_file_path.exists()
+    archive_path = run_directory.parent / RUN_ARTIFACT_ARCHIVE_NAME
+    if not (summary_exists and record_table_exists) and (
+        archive_path.exists() or archive_path.is_symlink()
+    ):
+        try:
+            packed = read_packed_run_summary_and_record_table(
+                run_directory.parent, planned_run.run_identifier
+            )
+            if packed is not None and (
+                (not summary_exists or summary_file_path.read_bytes() == packed[0])
+                and (not record_table_exists or record_table_file_path.read_bytes() == packed[1])
+            ):
+                with TemporaryDirectory() as temporary_directory:
+                    temporary_summary = Path(temporary_directory) / summary_file_path.name
+                    temporary_table = Path(temporary_directory) / record_table_file_path.name
+                    temporary_summary.write_bytes(packed[0])
+                    temporary_table.write_bytes(packed[1])
+                    return _find_existing_run_state_from_files(
+                        planned_run,
+                        temporary_summary,
+                        f"{archive_path}!{RUN_DIRECTORY_NAME}/{summary_file_path.name}",
+                    )
+        except (ValueError, OSError) as caught_exception:
+            return ExistingRunState(
+                run_state="conflicting",
+                description=(
+                    f"existing packed run files cannot be read: {archive_path} "
+                    f"({type(caught_exception).__name__}: {caught_exception})"
+                ),
+            )
     if not summary_exists and not record_table_exists:
         return ExistingRunState(run_state="missing", description=None)
     if not summary_exists or not record_table_exists:
@@ -165,6 +202,16 @@ def find_existing_run_state(
                 f"{summary_file_path if summary_exists else record_table_file_path}"
             ),
         )
+    return _find_existing_run_state_from_files(
+        planned_run, summary_file_path, str(summary_file_path)
+    )
+
+
+def _find_existing_run_state_from_files(
+    planned_run: PlannedExperimentRun,
+    summary_file_path: Path,
+    summary_description: str,
+) -> ExistingRunState:
     try:
         loader = (
             load_dynamic_weighted_majority_run_artifacts
@@ -181,7 +228,7 @@ def find_existing_run_state(
         return ExistingRunState(
             run_state="conflicting",
             description=(
-                f"existing run files cannot be read: {summary_file_path} "
+                f"existing run files cannot be read: {summary_description} "
                 f"({type(caught_exception).__name__}: {caught_exception})"
             ),
         )
@@ -202,7 +249,7 @@ def find_existing_run_state(
             run_state="different_behavior_baseline",
             description=(
                 "existing run summary was saved with behavior baseline version "
-                f"{recorded_version_text} (current: {BEHAVIOR_BASELINE_VERSION}): {summary_file_path}"
+                f"{recorded_version_text} (current: {BEHAVIOR_BASELINE_VERSION}): {summary_description}"
             ),
         )
     # 保存した辞書と同じ形（JSONを通した形）にして比べる。
@@ -210,7 +257,7 @@ def find_existing_run_state(
     if summary.get("run_settings") != planned_run_settings:
         return ExistingRunState(
             run_state="conflicting",
-            description=f"existing run summary holds different run settings: {summary_file_path}",
+            description=f"existing run summary holds different run settings: {summary_description}",
         )
     return ExistingRunState(run_state="completed", description=None)
 
@@ -394,6 +441,8 @@ def execute_experiment_sweep(
         )
     if report_progress is not None and not callable(report_progress):
         raise TypeError("report_progress must be callable or None")
+    for planned_run in planned_runs:
+        _validate_run_settings_type(planned_run)
 
     if not _output_lock_held:
         # runの記録の表はLZMAで書くので、使えない環境では、runの計算の前に止める。
@@ -431,9 +480,45 @@ def execute_experiment_sweep(
             progress_message += f" — {outcome.failure_description.splitlines()[0]}"
         report_progress(progress_message)
 
-    # 全部のrunの状態を、報告と実行の前に調べ終える（基準版の違うrunがあれば、何もせずに止めるため）。
+    # 内側を直接呼ぶ場合も、基準版の確認は戻しより先に行う。
+    mismatch_descriptions = collect_behavior_baseline_mismatch_descriptions(
+        planned_runs=planned_runs, output_directory=output_directory
+    )
+    if mismatch_descriptions:
+        raise ExistingRunBehaviorBaselineMismatchError(mismatch_descriptions)
+    restoration_failures: dict[str, str] = {}
+    for configuration_name in dict.fromkeys(run.configuration_name for run in planned_runs):
+        configuration_directory = output_directory / configuration_name
+        archive_path = configuration_directory / RUN_ARTIFACT_ARCHIVE_NAME
+        if not archive_path.exists() and not archive_path.is_symlink():
+            continue
+        try:
+            packed_identifiers = list_packed_run_identifiers(configuration_directory)
+            run_directory = configuration_directory / RUN_DIRECTORY_NAME
+            if (
+                run_directory.exists()
+                or run_directory.is_symlink()
+                or any(
+                    run.run_identifier not in packed_identifiers
+                    for run in planned_runs
+                    if run.configuration_name == configuration_name
+                )
+            ):
+                restore_packed_run_artifacts(configuration_directory)
+        except (ValueError, OSError) as caught_exception:
+            restoration_failures[configuration_name] = (
+                f"existing packed run files cannot be restored: {archive_path} "
+                f"({type(caught_exception).__name__}: {caught_exception})"
+            )
+
+    # 戻しに失敗した構成は、復旧・飛ばし・計算のいずれにも進めない。
     existing_run_states = tuple(
         find_existing_run_state(planned_run=planned_run, output_directory=output_directory)
+        if planned_run.configuration_name not in restoration_failures
+        else ExistingRunState(
+            run_state="conflicting",
+            description=restoration_failures[planned_run.configuration_name],
+        )
         for planned_run in planned_runs
     )
     mismatch_descriptions = _describe_behavior_baseline_mismatches(existing_run_states)
@@ -443,8 +528,10 @@ def execute_experiment_sweep(
     for run_position, (planned_run, existing_run_state) in enumerate(
         zip(planned_runs, existing_run_states, strict=True)
     ):
-        if existing_run_state.run_state == "conflicting" and can_recover_interrupted_run(
-            output_directory, planned_run, run_provenance
+        if (
+            planned_run.configuration_name not in restoration_failures
+            and existing_run_state.run_state == "conflicting"
+            and can_recover_interrupted_run(output_directory, planned_run, run_provenance)
         ):
             backup = recover_interrupted_run(output_directory, planned_run, run_provenance)
             if report_progress is not None:

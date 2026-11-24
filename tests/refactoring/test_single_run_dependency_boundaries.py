@@ -4870,8 +4870,29 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.sweep.experiment_sweep_execution.ExperimentRunOutcome",
             "federated_learning_experiments.sweep.experiment_sweep_plan.ExperimentSweepPlan",
         )
+    if source_module_path == "sweep/packed_run_artifact_archive.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "hashlib.sha256",
+            "json.dumps",
+            "json.loads",
+            "os.fsync",
+            "os.replace",
+            "pathlib.Path",
+            "time.sleep",
+            "uuid.uuid4",
+            "zipfile.ZIP_LZMA",
+            "zipfile.ZIP_STORED",
+            "zipfile.ZipFile",
+            "zipfile.ZipInfo",
+        )
     if source_module_path == "sweep/experiment_sweep_execution.py":
         return imported_module_name in (
+            "tempfile.TemporaryDirectory",
+            "federated_learning_experiments.sweep.packed_run_artifact_archive.RUN_ARTIFACT_ARCHIVE_NAME",
+            "federated_learning_experiments.sweep.packed_run_artifact_archive.list_packed_run_identifiers",
+            "federated_learning_experiments.sweep.packed_run_artifact_archive.read_packed_run_summary_and_record_table",
+            "federated_learning_experiments.sweep.packed_run_artifact_archive.restore_packed_run_artifacts",
             "federated_learning_experiments.runtime.dynamic_weighted_majority_experiment_run.execute_dynamic_weighted_majority_experiment_run",
             "federated_learning_experiments.runtime.dynamic_weighted_majority_run_artifact_files.load_dynamic_weighted_majority_run_artifacts",
             "federated_learning_experiments.runtime.dynamic_weighted_majority_run_artifact_files.save_dynamic_weighted_majority_experiment_run",
@@ -6391,6 +6412,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "sweep/experiment_configurations.py",
             "sweep/experiment_sweep_plan.py",
             "sweep/experiment_sweep_execution.py",
+            "sweep/packed_run_artifact_archive.py",
             "sweep/experiment_sweep_records.py",
             "sweep/experiment_sweep_resumption.py",
             "sweep/experiment_sweep_command.py",
@@ -6511,6 +6533,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "sweep/experiment_configurations.py",
                     "sweep/experiment_sweep_plan.py",
                     "sweep/experiment_sweep_execution.py",
+                    "sweep/packed_run_artifact_archive.py",
                     "sweep/experiment_sweep_records.py",
                     "sweep/experiment_sweep_resumption.py",
                     "sweep/experiment_sweep_command.py",
