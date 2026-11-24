@@ -145,4 +145,9 @@
   - `BEHAVIOR_BASELINE_VERSION`は16のまま（変更なし。goldenのtestが通った）。
   - Windowsでの全pytest（旧の数値の回帰を含む正規の環境）は、torch のDLLの拒否が解けるまで流せない（未実施）。pyright も未実施（Windowsでは torch の解決が要る）。
 - 状態: 全taskを完了し、実装レビューPASS。spec を完了にした（phase `completed`）。
+- Windowsでの全pytest（2026-11-25追記）: 同じ日に、ユーザーが設定を変えないまま、Windowsのvenvで torch が読み込めるようになった（スマートアプリコントロールは有効のまま。CodeIntegrityのログに2026-11-24のブロックが残る。判定が時によって変わるとみる）。対象 commit `39727c97`（後の commit は記録だけ）で、正規の環境（Windows、Python 3.13.15、`-n 12 --dist loadfile`、`OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`）の全pytestを流した: 13,918 passed、17 skipped、2 errors（18分57秒）。JUnitは`../../venv/refactoring-tests/packed-completed-sweep-run-artifacts-full-windows.xml`（Git管理外、このPCだけ）。
+  - 2 errorsは `test_feddrift_cfl_window_configuration.py`・`test_feddrift_fedccfa_configuration.py` の収集の失敗で、scikit-learn の `_dist_metrics` のDLLの読み込みがアプリケーションの制御ポリシーで拒否されたため（以前のspecで記録してきた環境によるDLLの拒否の2件と同じ）。この2ファイルは上のWSLの全pytestでは通っている。
+  - 旧実装の数値の回帰（`tests/test_regression.py`・`tests/test_proposed_regression.py`）は通った（WSLでは環境の違いで失敗していた）。新実装のgoldenのtest（`test_important_behavior_regression_goldens.py`）は 399 passed（skipなし）。`test_candidate_validation_removal_regression.py` 52 passed、`test_environment_proposed_regression.py` 14 passed・1 skipped（環境のgoldenの照合の設計どおりのskip）。
+  - skipの17件: riverがこのvenvに無い9件、Linux用の固定値との照合（`test_feddrift_linux_core_metrics.py`）4件、上の環境のgoldenの1件、旧の掃引の補助（`test_main_ablation_suite.py`・`test_server_sweep_wrapper.py`）3件。いずれも今回の変更と関係しない。
+  - WindowsとWSLの全pytestを合わせると、変更に由来する失敗は無い。
 
