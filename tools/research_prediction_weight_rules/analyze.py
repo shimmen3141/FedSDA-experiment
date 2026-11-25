@@ -2,9 +2,12 @@
 
 - 学習が同じことの確認: 予測と重みの診断を除く全列（通信量、計算量、検出・適応、モデルの数）が、対の run で一致するか。
 - 精度: 全体、変化の後の期間（各clientで概念が変わってから `--post-change-window` 標本）とそれ以外、概念別。
-- 標準指標: 上り・下りの通信量（byte）、client の MAC（順伝播＋推定の逆伝播）とサーバの MAC。経過時間は run の記録に
-  残らないので、`--log` に掃引のコマンドの標準出力を渡したときだけ、表示の `(<秒>s)` を集める。
-- 診断: 共有率を上げた回数と警報の数（`weight_rule_trace`）、重みの1位の入れ替わり、有効なモデルの数。
+- 期間別: 各clientの直前の概念の変化からの経過（初期、0〜50、50〜100、100〜200、200〜500、500以上）で分けた差
+  （`selection_versus_mixture.py` と同じ区切り）と、全体の正解数の差が正・負・0の run の対の数。
+- 標準指標: 上り・下りの通信量（byte）、client の MAC（順伝播＋推定の逆伝播）とサーバの MAC。run ごとの経過時間は
+  記録に残らない（掃引の表示の `(<秒>s)` は掃引の開始からの累積で、run の時間ではない）ので、変種ごとの掃引の
+  開始・終了の時刻（`sweep_record_*.json`。どの変種も同じ worker 数・同じ run の集合）を示す。
+- 診断: 共有率を上げた回数と警報の数（`weight_rule_trace.json`）、重みの1位の入れ替わり、有効なモデルの数。
 結果は `<出力先>/analysis_prediction_weight_rules.md` に書く。
 """
 
@@ -16,9 +19,13 @@ import re
 import statistics
 import zipfile
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
+
+from tools.research_prediction_weight_rules.selection_versus_mixture import PERIOD_NAMES, _period_index
+from tools.research_prediction_weight_rules.traces import read_traces
 
 BASELINE = "product-default"
 _PREDICTION_DEPENDENT_PREFIXES = (
@@ -62,26 +69,16 @@ def _read_tables(directory):
     return tables
 
 
-def _read_traces(directory):
-    traces = {}
-    for path in (directory / "weight_rule_trace").glob("*.json"):
+def _sweep_wall_times(directory):
+    """変種の掃引の記録ごとに (開始, 終了, 分)。流し直したときは記録が複数ある。"""
+    spans = []
+    for path in sorted(directory.glob("sweep_record_*.json")):
         record = json.loads(path.read_text(encoding="utf-8"))
-        traces[record["run_identifier"]] = record
-    return traces
-
-
-def _read_seconds(log_paths):
-    seconds = defaultdict(dict)
-    variant = None
-    for path in log_paths:
-        for line in Path(path).read_text(encoding="utf-8", errors="replace").splitlines():
-            found = re.search(r"output directory: .*[\\/]([^\\/]+)$", line)
-            if found:
-                variant = found.group(1).strip()
-            found = re.search(r"\] fedsda/(\S+): completed \((\d+(?:\.\d+)?)s\)", line)
-            if found and variant:
-                seconds[variant][found.group(1)] = float(found.group(2))
-    return seconds
+        minutes = (
+            datetime.fromisoformat(record["finished_at"]) - datetime.fromisoformat(record["started_at"])
+        ).total_seconds() / 60
+        spans.append((record["started_at"], record["finished_at"], minutes))
+    return spans
 
 
 def _period_masks(table, window):
@@ -107,22 +104,29 @@ def _non_prediction_columns(row):
     }
 
 
-def analyze(output, window, log_paths):
+def analyze(output, window):
     variants = sorted(path.name for path in output.iterdir() if (path / "fedsda" / "run_summary.csv").exists())
     if BASELINE not in variants:
         raise ValueError(f"{BASELINE} の結果がありません: {output}")
     summaries = {variant: _read_summary(output / variant) for variant in variants}
     tables = {variant: _read_tables(output / variant) for variant in variants}
-    traces = {variant: _read_traces(output / variant) for variant in variants}
-    seconds = _read_seconds(log_paths)
+    traces = {variant: read_traces(output / variant) for variant in variants}
     baseline_summary = summaries[BASELINE]
     lines = [
         "# モデルの混合の重みの規則の変種と既定の対比較",
         "",
         f"- 入力: `{output}`。対は同じ run の識別子（条件・seed が同じ）。変化の後の期間は、各clientの概念の変化から {window} 標本。",
         "- 差は（変種 − 既定）、精度は pp。条件ごとに seed で平均し、全体の行は条件の等重みの平均。",
-        "",
+        "- 経過時間（run ごとは記録なし。変種ごとの掃引の開始〜終了、どれも同じ worker 数・同じ run の集合）:",
     ]
+    for variant in variants:
+        spans = _sweep_wall_times(output / variant)
+        lines.append(
+            f"  - {variant}: "
+            + ("、".join(f"{start}〜{end}（{minutes:.1f} 分）" for start, end, minutes in spans) if spans else "記録なし")
+        )
+    lines.append("")
+    period_summary = {}
     for variant in variants:
         if variant == BASELINE:
             continue
@@ -153,6 +157,15 @@ def analyze(output, window, log_paths):
                 100 * (variant_correct[~post_change].mean() - baseline_correct[~post_change].mean())
             )
             values["baseline_accuracy"].append(100 * baseline_correct.mean())
+            period = _period_index(baseline_table)
+            for offset, name in enumerate(PERIOD_NAMES):
+                mask = period == offset
+                if mask.any():
+                    values[f"period:{name}"].append(
+                        100 * (variant_correct[mask].mean() - baseline_correct[mask].mean())
+                    )
+            difference = int(variant_correct.sum()) - int(baseline_correct.sum())
+            values["sign"].append((difference > 0) - (difference < 0))
             concepts = baseline_table["sample_prediction.observed_concept_id"]
             for concept in np.unique(concepts):
                 mask = concepts == concept
@@ -171,8 +184,6 @@ def analyze(output, window, log_paths):
                 )
             for resource, columns in _RESOURCE_COLUMNS.items():
                 values[resource].append(sum(float(baseline_summary[run_identifier][column]) for column in columns))
-            if run_identifier in seconds.get(variant, {}) and run_identifier in seconds.get(BASELINE, {}):
-                values["seconds_ratio"].append(seconds[variant][run_identifier] / seconds[BASELINE][run_identifier])
         lines += [f"## {variant}", ""]
         lines.append(
             f"- 学習が同じことの確認（予測・重みの診断を除く全列と概念の変化）: 対 {len(shared)} のうち不一致 {len(mismatched)}"
@@ -181,15 +192,11 @@ def analyze(output, window, log_paths):
         lines.append(
             "- 上り・下りの通信量と MAC は、確認の列に含まれるので、不一致が0なら既定と同じ（下の表は既定の値の平均）。"
         )
-        lines.append(
-            "- 経過時間: "
-            + ("掃引のログからの比（変種/既定）を表に示す。" if seconds else "記録なし（`--log` を渡していない）。")
-        )
         lines.append("")
         lines.append(
-            "| 条件 | seed数 | 既定の精度 | 差 全体 | 差 変化後 | 差 それ以外 | 概念別の差 | 共有率を上げた回数 | 警報 | 1位の入替の差 | 有効モデル数の差 | 上り byte | 下り byte | client MAC | server MAC | 時間比 |"
+            "| 条件 | seed数 | 既定の精度 | 差 全体 | 差 変化後 | 差 それ以外 | 概念別の差 | 共有率を上げた回数 | 警報 | 1位の入替の差 | 有効モデル数の差 | 上り byte | 下り byte | client MAC | server MAC |"
         )
-        lines.append("|" + "---|" * 16)
+        lines.append("|" + "---|" * 15)
         totals = defaultdict(list)
         for condition in sorted(per_condition):
             values = per_condition[condition]
@@ -212,13 +219,16 @@ def analyze(output, window, log_paths):
                 f"{statistics.mean(values['download_bytes']):.4g}",
                 f"{statistics.mean(values['client_mac']):.4g}",
                 f"{statistics.mean(values['server_mac']):.4g}",
-                f"{statistics.mean(values['seconds_ratio']):.3f}" if values["seconds_ratio"] else "記録なし",
             ]
             lines.append("| " + " | ".join(row) + " |")
             for key in ("all", "post", "other"):
                 if values[key]:
                     totals[key].append(statistics.mean(values[key]))
             totals["positive"].append(statistics.mean(values["all"]) > 0)
+            totals["signs"].extend(values["sign"])
+            for name in PERIOD_NAMES:
+                if values[f"period:{name}"]:
+                    totals[f"period:{name}"].append(statistics.mean(values[f"period:{name}"]))
         lines.append("")
         lines.append(
             f"- 条件の等重みの平均: 全体 {statistics.mean(totals['all']):+.4f} pp、"
@@ -227,7 +237,28 @@ def analyze(output, window, log_paths):
             if totals["post"]
             else f"- 条件の等重みの平均: 全体 {statistics.mean(totals['all']):+.4f} pp。"
         )
+        signs = totals["signs"]
+        lines.append(
+            f"- run の対ごとの全体の正解数の差: 正 {signs.count(1)}、負 {signs.count(-1)}、0 {signs.count(0)}"
+            f"（対 {len(signs)}）。"
+        )
         lines.append("")
+        period_summary[variant] = {
+            name: statistics.mean(totals[f"period:{name}"]) for name in PERIOD_NAMES if totals[f"period:{name}"]
+        }
+    lines += [
+        "## 概念の変化からの経過で分けた差（変種 − 既定、pp、条件の等重みの平均）",
+        "",
+        "| 変種 | " + " | ".join(PERIOD_NAMES) + " |",
+        "|---|" + "---|" * len(PERIOD_NAMES),
+    ]
+    for variant, summary in period_summary.items():
+        lines.append(
+            f"| {variant} | "
+            + " | ".join(f"{summary[name]:+.3f}" if name in summary else "対象なし" for name in PERIOD_NAMES)
+            + " |"
+        )
+    lines.append("")
     path = output / "analysis_prediction_weight_rules.md"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
@@ -237,9 +268,8 @@ def main(command_arguments=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
     parser.add_argument("--post-change-window", type=int, default=100)
-    parser.add_argument("--log", nargs="*", default=[])
     arguments = parser.parse_args(command_arguments)
-    print(analyze(arguments.output.resolve(), arguments.post_change_window, arguments.log))
+    print(analyze(arguments.output.resolve(), arguments.post_change_window))
     return 0
 
 

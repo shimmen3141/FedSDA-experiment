@@ -9,11 +9,15 @@
   共有率を 1/T から 0.25 に上げる（本当の切り替えで重みを速く移し、普段の共有の値段は小さいまま）。集約の後の再生の中の
   更新には使わない。
 - `log-loss-weights-alarm-share-boost`: 両方。
+- `bounded-loss-unit-learning-rate`（2026-11-25追加、対照）: 損失は製品と同じ ℓ = 1 − p_y のまま、学習率だけを1で一定に
+  する。`log-loss-weights` の利得が、log loss（混ぜられる損失）から来るのか、製品の学習率 √(2 ln N / V) が累積の分散 V
+  とともに小さくなることを止めた分から来るのかを分ける。
 予測（重みで混ぜた確率）・学習・割り当て・通信は変えない。版の混合（同期の版と手元の版）の重みも変えない。
 
 workerのprocessの中で、`FixedShareWeightController` の重みの更新と再生、`FedsdaRunClient.process_observed_sample` を包む。
 変種は環境変数で workerへ渡し、変種ごとの出力先（`<出力先>/<変種>/`）で製品の掃引のコマンドを流す。runごとに、
-警報の数と共有率を上げた回数を `<出力先>/<変種>/weight_rule_trace/<run>.json` に書く。
+警報の数と共有率を上げた回数を `<出力先>/<変種>/weight_rule_trace/<run>.json` に書き（workerが並列に書くため1 run 1ファイル）、
+掃引が失敗なく済んだら `<出力先>/<変種>/weight_rule_trace.json` の1つへまとめて元のファイルを消す（`traces.py`）。
 """
 
 import argparse
@@ -40,8 +44,15 @@ from tools.research_loss_monitor_rebaseline import (  # noqa: E402
     _sweep_arguments,
     _write_json,
 )
+from tools.research_prediction_weight_rules.traces import consolidate_traces  # noqa: E402
 
-VARIANTS = ("log-loss-weights", "alarm-share-boost", "log-loss-weights-alarm-share-boost", "product-default")
+VARIANTS = (
+    "log-loss-weights",
+    "alarm-share-boost",
+    "log-loss-weights-alarm-share-boost",
+    "product-default",
+    "bounded-loss-unit-learning-rate",
+)
 ALARM_SHARE_RATE = 0.25
 LOG_LOSS_PROBABILITY_FLOOR = 1e-12
 _VARIANT_ENVIRONMENT_VARIABLE = "FEDHASP_PREDICTION_WEIGHT_RULE_VARIANT"
@@ -55,10 +66,10 @@ _original_process = _client_module.FedsdaRunClient.process_observed_sample
 _execute_planned_experiment_run = experiment_sweep_execution.execute_planned_experiment_run
 
 
-def _make_update(use_log_loss, counters):
+def _make_update(use_log_loss, use_unit_learning_rate, counters):
     def update_weights_after_loss_observation(self, *, observed_losses_by_model_id, prediction_weights_by_model_id):
         boost = getattr(self, "_research_share_boost_pending", False) and not getattr(self, "_research_in_replay", False)
-        if not use_log_loss and not boost:
+        if not use_log_loss and not use_unit_learning_rate and not boost:
             return _original_update(
                 self,
                 observed_losses_by_model_id=observed_losses_by_model_id,
@@ -98,6 +109,9 @@ def _make_update(use_log_loss, counters):
                 model_id: -math.log(max(1.0 - bounded_losses_by_model_id[model_id], LOG_LOSS_PROBABILITY_FLOOR))
                 for model_id in validated_model_ids
             }
+        elif use_unit_learning_rate:
+            learning_rate = 1.0
+            update_losses = bounded_losses_by_model_id
         else:
             learning_rate = min(
                 1.0,
@@ -160,9 +174,10 @@ def _run_with_rule(planned_run, output_directory, run_provenance):
         raise RuntimeError(f"変種が環境変数で渡っていません: {variant}")
     counters = {"alarms": 0, "share_boosts": 0}
     use_log_loss = variant.startswith("log-loss-weights")
+    use_unit_learning_rate = variant == "bounded-loss-unit-learning-rate"
     use_boost = variant.endswith("alarm-share-boost")
     if variant != "product-default":
-        _Controller.update_weights_after_loss_observation = _make_update(use_log_loss, counters)
+        _Controller.update_weights_after_loss_observation = _make_update(use_log_loss, use_unit_learning_rate, counters)
         _Controller.replay_observed_losses = _replay_observed_losses
         if use_boost:
             _client_module.FedsdaRunClient.process_observed_sample = _make_process(counters)
@@ -210,7 +225,11 @@ def _run_variant(arguments, variant):
     os.environ[_VARIANT_ENVIRONMENT_VARIABLE] = variant
     experiment_sweep_execution.execute_planned_experiment_run = _execute_run_with_rule
     try:
-        return run_sweep(sweep_arguments)
+        status = run_sweep(sweep_arguments)
+        if status == 0:
+            # 失敗の無い掃引の後だけ、runごとのトレースを1つのファイルへまとめる（中断・失敗のときは残して再開に備える）。
+            consolidate_traces(output_directory)
+        return status
     finally:
         experiment_sweep_execution.execute_planned_experiment_run = _execute_planned_experiment_run
         if previous_variant is None:
