@@ -39,7 +39,21 @@ python -u -m tools.research_prediction_weight_rules.run --output "$OUT" \
   --intervals 50 500 --seeds 0 1 2 3 4 5 6 7 8 9 --workers 120 2>&1 | tee "$OUT/run-bounded-loss-unit-learning-rate.log"
 ```
 
-データの環境変数（MNIST・Fashion-MNIST）は、これまでの uranium の実行と同じものを使う。中断したら、同じコマンドを流し直せば残りを流す（済んだrunは製品の掃引のコマンドが飛ばす）。
+簡素版の最小形（`--base minimal-soft-prediction`。[積み上げの記録](../../docs/research/core-component-ladder-v16-20261119.md)の節3）を基点に、既定の重みと log loss の重みを比べる（2026-11-25追加。担当教授の指摘を受けて単純な構成で実験し直す方針に合わせる）。`product-default` の200 runの run の識別子は、既存の `results/fedhasp-simplified-v16/20261119_minimal-seeds0-9/minimal-soft-prediction` と全件同じ（同じ run 設定）:
+
+```bash
+git pull --ff-only origin research/single-client
+source .venv/bin/activate
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+OUT=results/fedhasp-prediction-weight-rules/$(date +%Y%m%d_%H%M%S)_minimal-soft-prediction-intervals50-500-seeds0-9
+mkdir -p "$OUT"
+python -u -m tools.research_prediction_weight_rules.run --output "$OUT" --base minimal-soft-prediction \
+  --variants product-default log-loss-weights \
+  --datasets sea2 sea4 sine2 circle2 mnist2 mnist4 fmnist2 fmnist4 rotmnist2 rotmnist4 \
+  --intervals 50 500 --seeds 0 1 2 3 4 5 6 7 8 9 --workers 120 2>&1 | tee "$OUT/run.log"
+```
+
+データの環境変数（MNIST・Fashion-MNIST）は、これまでの uranium の実行と同じものを使う。中断したら、同じコマンドを流し直せば残りを流す（`$(date …)` で出力先を作るコマンドは、`OUT=` の行を前のパスに書き換え、`mkdir` の行は飛ばす）（済んだrunは製品の掃引のコマンドが飛ばす）。
 
 ## 分析（手元、再実験なし）
 

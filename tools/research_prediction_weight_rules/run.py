@@ -14,6 +14,10 @@
   とともに小さくなることを止めた分から来るのかを分ける。
 予測（重みで混ぜた確率）・学習・割り当て・通信は変えない。版の混合（同期の版と手元の版）の重みも変えない。
 
+基点（`--base`）: 既定は製品の `fedsda`。`minimal-soft-prediction` を選ぶと、簡素版の研究ツール
+（`tools/research_simplified_fedhasp`）の最小形（独立の神経網、ADWIN＋γ、MDLなし、柔らかい予測あり）の run 設定で流す
+（計画を作る関数を、簡素版の研究ツールと同じく差し替える）。変種の記録に基点を書き、別の基点の出力先は使わない。
+
 workerのprocessの中で、`FixedShareWeightController` の重みの更新と再生、`FedsdaRunClient.process_observed_sample` を包む。
 変種は環境変数で workerへ渡し、変種ごとの出力先（`<出力先>/<変種>/`）で製品の掃引のコマンドを流す。runごとに、
 警報の数と共有率を上げた回数を `<出力先>/<変種>/weight_rule_trace/<run>.json` に書き（workerが並列に書くため1 run 1ファイル）、
@@ -44,7 +48,15 @@ from tools.research_loss_monitor_rebaseline import (  # noqa: E402
     _sweep_arguments,
     _write_json,
 )
+from federated_learning_experiments.sweep import experiment_sweep_plan  # noqa: E402
 from tools.research_prediction_weight_rules.traces import consolidate_traces  # noqa: E402
+from tools.research_simplified_fedhasp.run import make_patched_build as make_simplified_build  # noqa: E402
+
+PRODUCT_BASE = "product-fedsda"
+# 簡素版の研究ツール（tools/research_simplified_fedhasp）の変種のうち、柔らかい予測（Fixed-Shareのモデルの混合と版の
+# 混合）を持つ最小形。担当教授の指摘を受けて単純な構成で実験し直す方針（2026-11-25ユーザー確認）に合わせる。
+BASES = (PRODUCT_BASE, "minimal-soft-prediction")
+_original_build = experiment_sweep_plan.build_experiment_run_settings
 
 VARIANTS = (
     "log-loss-weights",
@@ -208,22 +220,41 @@ def _run_variant(arguments, variant):
     output_directory = arguments.output.resolve() / variant
     record_path = output_directory / _VARIANT_RECORD_NAME
     if record_path.exists():
-        if _read_json(record_path).get("variant") != variant:
+        record = _read_json(record_path)
+        if record.get("variant") != variant:
             raise ValueError(f"出力先に別の変種の記録があります: {record_path}")
+        # 基点の記録が無いのは、基点を選べるようにする前（2026-11-25の最初の5変種）の、製品の既定を基点にした結果。
+        if record.get("base", PRODUCT_BASE) != arguments.base:
+            raise ValueError(f"出力先は別の基点（{record.get('base', PRODUCT_BASE)}）の結果です: {record_path}")
     elif output_directory.exists() and any(output_directory.iterdir()):
         raise ValueError(f"変種の記録のない出力先は使えません: {output_directory}")
     sweep_arguments = _sweep_arguments(arguments, variant, output_directory)
+    patched_build = None if arguments.base == PRODUCT_BASE else make_simplified_build(arguments.base)
     if arguments.print_plan:
-        return run_sweep([*sweep_arguments, "--print-plan"])
+        if patched_build is not None:
+            experiment_sweep_plan.build_experiment_run_settings = patched_build
+        try:
+            return run_sweep([*sweep_arguments, "--print-plan"])
+        finally:
+            experiment_sweep_plan.build_experiment_run_settings = _original_build
     if not record_path.exists():
         output_directory.mkdir(parents=True, exist_ok=True)
         _write_json(
             record_path,
-            dict(variant=variant, alarm_share_rate=ALARM_SHARE_RATE, log_loss_floor=LOG_LOSS_PROBABILITY_FLOOR, **_provenance()),
+            dict(
+                variant=variant,
+                base=arguments.base,
+                alarm_share_rate=ALARM_SHARE_RATE,
+                log_loss_floor=LOG_LOSS_PROBABILITY_FLOOR,
+                **_provenance(),
+            ),
         )
     previous_variant = os.environ.get(_VARIANT_ENVIRONMENT_VARIABLE)
     os.environ[_VARIANT_ENVIRONMENT_VARIABLE] = variant
     experiment_sweep_execution.execute_planned_experiment_run = _execute_run_with_rule
+    if patched_build is not None:
+        # 計画（run設定）は親のprocessで作るので、計画の関数の差し替えは親だけでよい（簡素版の研究ツールと同じ）。
+        experiment_sweep_plan.build_experiment_run_settings = patched_build
     try:
         status = run_sweep(sweep_arguments)
         if status == 0:
@@ -232,6 +263,7 @@ def _run_variant(arguments, variant):
         return status
     finally:
         experiment_sweep_execution.execute_planned_experiment_run = _execute_planned_experiment_run
+        experiment_sweep_plan.build_experiment_run_settings = _original_build
         if previous_variant is None:
             os.environ.pop(_VARIANT_ENVIRONMENT_VARIABLE, None)
         else:
@@ -248,9 +280,21 @@ def main(command_arguments=None):
     parser.add_argument("--sample-count", type=int, default=5000)
     parser.add_argument("--client-count", type=int, default=10)
     parser.add_argument("--workers", type=int, required=True)
-    parser.add_argument("--purpose", default="FedHASP基準版16のモデルの混合の重みの更新の規則を変えた変種")
+    parser.add_argument(
+        "--base",
+        choices=BASES,
+        default=PRODUCT_BASE,
+        help="重みの規則を差し替える基点の構成。既定は製品の fedsda、minimal-soft-prediction は簡素版の研究ツールの最小形",
+    )
+    parser.add_argument("--purpose", default=None)
     parser.add_argument("--print-plan", action="store_true")
     arguments = parser.parse_args(command_arguments)
+    if arguments.purpose is None:
+        arguments.purpose = (
+            "FedHASP基準版16のモデルの混合の重みの更新の規則を変えた変種"
+            if arguments.base == PRODUCT_BASE
+            else f"FedHASPの簡素版の最小形（{arguments.base}）のモデルの混合の重みの更新の規則を変えた変種"
+        )
     status = 0
     try:
         for variant in arguments.variants:
